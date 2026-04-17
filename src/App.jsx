@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { supabase } from './supabase';
 import AppShell from './components/layout/AppShell';
 import VisaoGeral from './components/dashboard/VisaoGeral';
 
@@ -5200,15 +5201,10 @@ const tabContent = {
 };
 
 // USER DATABASE
-const users = [
-  { username: "ikeguimaraes@gmail.com", password: "123@Ike456", name: "Ike", role: "CEO — Admin Master", color: "#C8A96E" },
-  { username: "ike", password: "levvai2026", name: "Ike", role: "CEO", color: "#C8A96E" },
-  { username: "lara", password: "levvai2026", name: "Lara", role: "Dir. Clínica", color: "#E91E63" },
-  { username: "sirlandia", password: "levvai2026", name: "Sirlândia", role: "Ger. Operacional", color: "#039BE5" },
-  { username: "sylmara", password: "levvai2026", name: "Sylmara", role: "Administradora", color: "#7B1FA2" },
-  { username: "gi", password: "levvai2026", name: "Gi", role: "Social Media", color: "#43A047" },
-  { username: "rich", password: "levvai2026", name: "Rich", role: "Conselheiro", color: "#78909C" },
-];
+const userProfiles = {
+  'ikeguimaraes@gmail.com':          { name: 'Ike',        role: 'CEO — Admin Master',    color: '#C8A96E' },
+  'grupomeeteat@gmail.com@gmail.com':      { name: 'Rich',       role: 'Consultor',          color: '#E91E63' },
+};
 
 // Maps new sidebar tab IDs → { sector, label } for the breadcrumb
 const TAB_TO_SECTOR = {
@@ -5260,10 +5256,12 @@ const OLD_TO_NEW_ID = Object.fromEntries(Object.entries(NEW_TO_OLD_ID).map(([k, 
 
 export default function LevvaiPortal() {
   const [currentUser, setCurrentUser] = useState(null);
-  const [loginError, setLoginError] = useState(false);
-  const [active, setActive] = useState("visao-geral");
-  const [loginUser, setLoginUser] = useState("");
-  const [loginPass, setLoginPass] = useState("");
+const [authLoading, setAuthLoading] = useState(true);
+const [loginEmail, setLoginEmail] = useState("");
+const [loginPass, setLoginPass] = useState("");
+const [loginError, setLoginError] = useState("");
+const [loginLoading, setLoginLoading] = useState(false);
+const [active, setActive] = useState("visao-geral");
 
   // ALL hooks must be BEFORE any conditional return
   const [sharedLeads, setSharedLeads] = useState([
@@ -5281,23 +5279,123 @@ export default function LevvaiPortal() {
   const oldId = NEW_TO_OLD_ID[active] || active;
   const Content = tabContent[oldId];
 
-  const handleLogin = (username, password) => {
-    const user = users.find(u => u.username === username && u.password === password);
-    if (user) {
-      setCurrentUser(user);
-      setLoginError(false);
-    } else {
-      setLoginError(true);
+  useEffect(() => {
+  supabase.auth.getSession().then(({ data: { session } }) => {
+    if (session?.user) {
+      const profile = userProfiles[session.user.email] || { name: session.user.email, role: 'Usuário', color: '#888' };
+      setCurrentUser({ email: session.user.email, ...profile });
     }
-  };
+    setAuthLoading(false);
+  });
 
-  const handleLogout = () => {
-    setCurrentUser(null);
-    setActive("visao-geral");
-  };
+  const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    if (session?.user) {
+      const profile = userProfiles[session.user.email] || { name: session.user.email, role: 'Usuário', color: '#888' };
+      setCurrentUser({ email: session.user.email, ...profile });
+    } else {
+      setCurrentUser(null);
+    }
+  });
+
+  return () => subscription.unsubscribe();
+}, []);
+
+useEffect(() => {
+  supabase.auth.getSession().then(({ data: { session } }) => {
+    if (session?.user) {
+      const profile = userProfiles[session.user.email] || { name: session.user.email, role: 'Usuário', color: '#888' };
+      setCurrentUser({ email: session.user.email, ...profile });
+    }
+    setAuthLoading(false);
+  });
+
+  const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    if (session?.user) {
+      const profile = userProfiles[session.user.email] || { name: session.user.email, role: 'Usuário', color: '#888' };
+      setCurrentUser({ email: session.user.email, ...profile });
+    } else {
+      setCurrentUser(null);
+    }
+  });
+
+  return () => subscription.unsubscribe();
+}, []);
+
+useEffect(() => {
+  supabase.auth.getSession().then(({ data: { session } }) => {
+    if (session?.user) {
+      const profile = userProfiles[session.user.email] || { name: session.user.email, role: 'Usuário', color: '#888' };
+      setCurrentUser({ email: session.user.email, ...profile });
+    }
+    setAuthLoading(false);
+  });
+
+  const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    if (session?.user) {
+      const profile = userProfiles[session.user.email] || { name: session.user.email, role: 'Usuário', color: '#888' };
+      setCurrentUser({ email: session.user.email, ...profile });
+    } else {
+      setCurrentUser(null);
+    }
+  });
+
+  return () => subscription.unsubscribe();
+}, []);
+
+useEffect(() => {
+  supabase.auth.getSession().then(({ data: { session } }) => {
+    if (session?.user) {
+      const profile = userProfiles[session.user.email] || { name: session.user.email, role: 'Usuário', color: '#888' };
+      setCurrentUser({ email: session.user.email, ...profile });
+    }
+    setAuthLoading(false);
+  });
+
+  const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    if (session?.user) {
+      const profile = userProfiles[session.user.email] || { name: session.user.email, role: 'Usuário', color: '#888' };
+      setCurrentUser({ email: session.user.email, ...profile });
+    } else {
+      setCurrentUser(null);
+    }
+  });
+
+  return () => subscription.unsubscribe();
+}, []);
+
+const handleLogin = async () => {
+  setLoginError('');
+  setLoginLoading(true);
+  const { error } = await supabase.auth.signInWithPassword({
+    email: loginEmail.trim(),
+    password: loginPass,
+  });
+  if (error) setLoginError('E-mail ou senha incorretos.');
+  setLoginLoading(false);
+};
+
+const handleLogout = async () => {
+  await supabase.auth.signOut();
+  setCurrentUser(null);
+  setActive("visao-geral");
+};
 
   const breadcrumb = TAB_TO_SECTOR[active] || { sector: '—', label: '—' };
   const badges = { 'atas-acoes': 3, 'crm-leads': 5 };
+
+  // LOADING (verificando sessão)
+  if (authLoading) return (
+    <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100vh', background:'#1A1512', color:'#C9A876', fontFamily:'Arial', fontSize:14 }}>
+      Carregando...
+    </div>
+  );
+
+  // LOADING (verificando sessão)
+  if (authLoading) return (
+    <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100vh', background:'#1A1512', color:'#C9A876', fontFamily:'Arial', fontSize:14 }}>
+      Carregando...
+    </div>
+  );
 
   // LOGIN SCREEN
   if (!currentUser) {
@@ -5313,24 +5411,25 @@ export default function LevvaiPortal() {
             <div className="login-label">Acesso restrito à equipe</div>
             <input
               className="login-input"
-              value={loginUser}
-              onChange={e => setLoginUser(e.target.value)}
-              onKeyDown={e => { if (e.key === "Enter") handleLogin(loginUser.toLowerCase().trim(), loginPass); }}
-              placeholder="Usuário"
-              autoComplete="username"
+              value={loginEmail}
+              onChange={e => setLoginEmail(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter") handleLogin(); }}
+              placeholder="E-mail"
+              type="email"
+              autoComplete="email"
             />
             <input
               type="password"
               className="login-input"
               value={loginPass}
               onChange={e => setLoginPass(e.target.value)}
-              onKeyDown={e => { if (e.key === "Enter") handleLogin(loginUser.toLowerCase().trim(), loginPass); }}
+              onKeyDown={e => { if (e.key === "Enter") handleLogin(); }}
               placeholder="Senha"
               autoComplete="current-password"
             />
-            {loginError && <div className="login-error">Usuário ou senha incorretos.</div>}
-            <button className="login-btn" onClick={() => handleLogin(loginUser.toLowerCase().trim(), loginPass)}>
-              Entrar
+            {loginError && <div className="login-error">{loginError}</div>}
+            <button className="login-btn" onClick={handleLogin} disabled={loginLoading}>
+              {loginLoading ? 'Entrando...' : 'Entrar'}
             </button>
           </div>
           <div className="login-hint">Acesso exclusivo para equipe Instituto Levvai</div>
