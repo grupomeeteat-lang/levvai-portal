@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import AppShell from './components/layout/AppShell';
+import VisaoGeral from './components/dashboard/VisaoGeral';
 
 const GOLD = "#C8A96E";
 const DARK = "#1A1A1A";
@@ -5207,10 +5209,59 @@ const users = [
   { username: "gi", password: "levvai2026", name: "Gi", role: "Social Media", color: "#43A047" },
   { username: "rich", password: "levvai2026", name: "Rich", role: "Conselheiro", color: "#78909C" },
 ];
+
+// Maps new sidebar tab IDs → { sector, label } for the breadcrumb
+const TAB_TO_SECTOR = {
+  'visao-geral':       { sector: 'Estratégia',          label: 'Visão Geral' },
+  'planejamento':      { sector: 'Estratégia',          label: 'Planejamento' },
+  'dashboard-ceo':     { sector: 'Estratégia',          label: 'Dashboard CEO' },
+  'cultura':           { sector: 'Cultura & Governança', label: 'Cultura' },
+  'atas-acoes':        { sector: 'Cultura & Governança', label: 'Atas & Ações' },
+  'dre-catalogo':      { sector: 'Financeiro',          label: 'DRE & Catálogo' },
+  'fluxo-caixa':       { sector: 'Financeiro',          label: 'Fluxo de Caixa' },
+  'orcamento':         { sector: 'Financeiro',          label: 'Orçamento' },
+  'crm-leads':         { sector: 'Comercial',           label: 'CRM & Leads' },
+  'comunicacao':       { sector: 'Comercial',           label: 'Comunicação' },
+  'jornada-paciente':  { sector: 'Comercial',           label: 'Jornada Paciente' },
+  'nps-satisfacao':    { sector: 'Comercial',           label: 'NPS & Satisfação' },
+  'marca':             { sector: 'Marketing',           label: 'Marca' },
+  'icp':               { sector: 'Marketing',           label: 'ICP' },
+  'editorial':         { sector: 'Marketing',           label: 'Editorial' },
+  'dashboard-mkt':     { sector: 'Marketing',           label: 'Dashboard Mkt' },
+  'concorrentes':      { sector: 'Marketing',           label: 'Concorrentes' },
+  'equipe':            { sector: 'Pessoas',             label: 'Equipe' },
+  'associados':        { sector: 'Pessoas',             label: 'Associados' },
+  '1-1s':              { sector: 'Pessoas',             label: '1:1s' },
+  'avaliacao':         { sector: 'Pessoas',             label: 'Avaliação' },
+  'agenda':            { sector: 'Operação',            label: 'Agenda' },
+  'estoque':           { sector: 'Operação',            label: 'Estoque' },
+  'rotinas':           { sector: 'Operação',            label: 'Rotinas' },
+  'fornecedores':      { sector: 'Operação',            label: 'Fornecedores' },
+  'compliance':        { sector: 'Jurídico',            label: 'Compliance' },
+  'contratos':         { sector: 'Jurídico',            label: 'Contratos' },
+  'biblioteca':        { sector: 'Docs',                label: 'Biblioteca' },
+  'templates':         { sector: 'Docs',                label: 'Templates' },
+};
+
+// Maps new sidebar IDs → existing tabContent keys (backward compat)
+const NEW_TO_OLD_ID = {
+  'visao-geral': 'home', 'planejamento': 'plan', 'dashboard-ceo': 'executive',
+  'cultura': 'cultura', 'atas-acoes': 'atas',
+  'dre-catalogo': 'finance', 'fluxo-caixa': 'cashflow', 'orcamento': 'budget',
+  'crm-leads': 'crm', 'comunicacao': 'comunicacao', 'jornada-paciente': 'journey', 'nps-satisfacao': 'nps',
+  'marca': 'brand', 'icp': 'icp', 'editorial': 'editorial', 'dashboard-mkt': 'marketing', 'concorrentes': 'competitors',
+  'equipe': 'team', 'associados': 'associates', '1-1s': 'oneone', 'avaliacao': 'avaliacao',
+  'agenda': 'agenda', 'estoque': 'stock', 'rotinas': 'rituals', 'fornecedores': 'fornecedores',
+  'compliance': 'compliance', 'contratos': 'contratos', 'biblioteca': 'docs', 'templates': 'docs',
+};
+
+// Reverse map: old ID → new ID (for navigateTo backward compatibility)
+const OLD_TO_NEW_ID = Object.fromEntries(Object.entries(NEW_TO_OLD_ID).map(([k, v]) => [v, k]));
+
 export default function LevvaiPortal() {
   const [currentUser, setCurrentUser] = useState(null);
   const [loginError, setLoginError] = useState(false);
-  const [active, setActive] = useState("home");
+  const [active, setActive] = useState("visao-geral");
   const [loginUser, setLoginUser] = useState("");
   const [loginPass, setLoginPass] = useState("");
 
@@ -5224,9 +5275,11 @@ export default function LevvaiPortal() {
   ]);
   const [sharedSlots, setSharedSlots] = useState({});
 
-  const navigateTo = (tab) => { setActive(tab); };
+  // Support both old IDs ("home", "crm") and new IDs ("visao-geral", "crm-leads")
+  const navigateTo = (tabId) => { setActive(OLD_TO_NEW_ID[tabId] || tabId); };
   const shared = { leads: sharedLeads, setLeads: setSharedLeads, slots: sharedSlots, setSlots: setSharedSlots, navigateTo };
-  const Content = tabContent[active];
+  const oldId = NEW_TO_OLD_ID[active] || active;
+  const Content = tabContent[oldId];
 
   const handleLogin = (username, password) => {
     const user = users.find(u => u.username === username && u.password === password);
@@ -5240,156 +5293,72 @@ export default function LevvaiPortal() {
 
   const handleLogout = () => {
     setCurrentUser(null);
-    setActive("home");
+    setActive("visao-geral");
   };
+
+  const breadcrumb = TAB_TO_SECTOR[active] || { sector: '—', label: '—' };
+  const badges = { 'atas-acoes': 3, 'crm-leads': 5 };
 
   // LOGIN SCREEN
   if (!currentUser) {
     return (
-      <div style={{
-        minHeight: "100vh", background: DARK, display: "flex", alignItems: "center", justifyContent: "center",
-        fontFamily: "'DM Sans', 'Helvetica Neue', sans-serif",
-      }}>
-        <div style={{ textAlign: "center", width: 360 }}>
-          <div style={{ marginBottom: 40 }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: GOLD, letterSpacing: "0.2em" }}>INSTITUTO</div>
-            <div style={{ fontSize: 48, fontWeight: 800, color: "white", letterSpacing: "0.08em", fontFamily: "'DM Serif Display', Georgia, serif" }}>LEVVAI</div>
-            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.3)", marginTop: 8 }}>Plataforma de Gestão Estratégica</div>
+      <div className="login-screen">
+        <div className="login-wrap">
+          <div className="login-logo">
+            <div className="login-eyebrow">Instituto</div>
+            <div className="login-name">LEVVAI</div>
+            <div className="login-sub">Plataforma de Gestão</div>
           </div>
-          <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: 16, padding: "32px 28px", border: "1px solid rgba(255,255,255,0.08)" }}>
-            <div style={{ fontSize: 15, fontWeight: 600, color: "rgba(255,255,255,0.7)", marginBottom: 20 }}>Acesso restrito à equipe</div>
-            <div style={{ marginBottom: 14 }}>
-              <input value={loginUser} onChange={e => setLoginUser(e.target.value)}
-                onKeyDown={e => { if (e.key === "Enter") handleLogin(loginUser.toLowerCase().trim(), loginPass); }}
-                placeholder="Usuário" style={{ width: "100%", padding: "14px 16px", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 10, fontSize: 14, fontFamily: "inherit", outline: "none", background: "rgba(255,255,255,0.06)", color: "white", boxSizing: "border-box" }} />
-            </div>
-            <div style={{ marginBottom: 20 }}>
-              <input type="password" value={loginPass} onChange={e => setLoginPass(e.target.value)}
-                onKeyDown={e => { if (e.key === "Enter") handleLogin(loginUser.toLowerCase().trim(), loginPass); }}
-                placeholder="Senha" style={{ width: "100%", padding: "14px 16px", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 10, fontSize: 14, fontFamily: "inherit", outline: "none", background: "rgba(255,255,255,0.06)", color: "white", boxSizing: "border-box" }} />
-            </div>
-            {loginError && <div style={{ fontSize: 12, color: "#EF5350", marginBottom: 12 }}>Usuário ou senha incorretos.</div>}
-            <button onClick={() => handleLogin(loginUser.toLowerCase().trim(), loginPass)}
-              style={{ width: "100%", padding: "14px", background: GOLD, color: "white", border: "none", borderRadius: 10, fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", letterSpacing: "0.05em" }}>
-              ENTRAR
+          <div className="login-card">
+            <div className="login-label">Acesso restrito à equipe</div>
+            <input
+              className="login-input"
+              value={loginUser}
+              onChange={e => setLoginUser(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter") handleLogin(loginUser.toLowerCase().trim(), loginPass); }}
+              placeholder="Usuário"
+              autoComplete="username"
+            />
+            <input
+              type="password"
+              className="login-input"
+              value={loginPass}
+              onChange={e => setLoginPass(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter") handleLogin(loginUser.toLowerCase().trim(), loginPass); }}
+              placeholder="Senha"
+              autoComplete="current-password"
+            />
+            {loginError && <div className="login-error">Usuário ou senha incorretos.</div>}
+            <button className="login-btn" onClick={() => handleLogin(loginUser.toLowerCase().trim(), loginPass)}>
+              Entrar
             </button>
           </div>
-          <div style={{ marginTop: 24, fontSize: 11, color: "rgba(255,255,255,0.15)" }}>Acesso exclusivo para equipe Instituto Levvai</div>
+          <div className="login-hint">Acesso exclusivo para equipe Instituto Levvai</div>
         </div>
       </div>
     );
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: BG, fontFamily: "'DM Sans', 'Helvetica Neue', sans-serif" }}>
-      <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700;800&family=DM+Serif+Display&display=swap" rel="stylesheet" />
-      <style>{`
-        @media (max-width: 768px) {
-          .levvai-header { padding: 12px 16px !important; }
-          .levvai-header .logo-text { font-size: 22px !important; }
-          .levvai-header .subtitle { display: none !important; }
-          .levvai-header .divider { display: none !important; }
-          .levvai-content { padding: 16px 12px !important; }
-          .levvai-footer { padding: 12px 16px !important; }
-        }
-        @media print {
-          .levvai-header, .levvai-tabs, .levvai-footer, button { display: none !important; }
-          .levvai-content { padding: 0 !important; max-width: 100% !important; }
-        }
-        .levvai-tabs::-webkit-scrollbar { height: 3px; }
-        .levvai-tabs::-webkit-scrollbar-thumb { background: ${GOLD}40; border-radius: 2px; }
-      `}</style>
-
-      {/* HEADER */}
-      <div className="levvai-header" style={{
-        background: DARK, padding: "16px 28px", display: "flex", alignItems: "center", gap: 16,
-        borderBottom: `3px solid ${GOLD}`,
-      }}>
-        <div style={{ display: "flex", flexDirection: "column" }}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: GOLD, letterSpacing: "0.15em" }}>INSTITUTO</div>
-          <div className="logo-text" style={{ fontSize: 28, fontWeight: 800, color: "white", letterSpacing: "0.05em", fontFamily: "'DM Serif Display', Georgia, serif" }}>LEVVAI</div>
-        </div>
-        <div className="divider" style={{ width: 1, height: 40, background: "rgba(255,255,255,0.1)", margin: "0 8px" }} />
-        <div className="subtitle" style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", fontWeight: 400, flex: 1 }}>
-          Plataforma de Gestão Estratégica
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginLeft: "auto" }}>
-          <div style={{
-            width: 32, height: 32, borderRadius: "50%", background: currentUser.color,
-            display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: 14, fontWeight: 800, color: "white",
-          }}>{currentUser.name[0]}</div>
-          <div>
-            <div style={{ fontSize: 12, fontWeight: 700, color: "white" }}>{currentUser.name}</div>
-            <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)" }}>{currentUser.role}</div>
-          </div>
-          <button onClick={handleLogout} style={{
-            background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)",
-            color: "rgba(255,255,255,0.5)", borderRadius: 6, padding: "6px 12px",
-            fontSize: 10, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
-            marginLeft: 8,
-          }}>Sair</button>
-        </div>
-      </div>
-
-      {/* TABS — Grouped by Sector */}
-      <div className="levvai-tabs" style={{
-        background: "white", borderBottom: "1px solid #E8E4DE", overflowX: "auto",
-        WebkitOverflowScrolling: "touch",
-      }}>
-        <div style={{ display: "flex", gap: 0, padding: "0 12px", minWidth: "max-content" }}>
-          {tabGroups.map((group, gi) => {
-            const isActiveGroup = group.tabs.some(t => t.id === active);
-            return (
-              <div key={gi} style={{ display: "flex", alignItems: "stretch" }}>
-                {gi > 0 && <div style={{ width: 1, background: "#E8E4DE", margin: "8px 0" }} />}
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-                  <div style={{
-                    fontSize: 8, fontWeight: 800, letterSpacing: "0.1em",
-                    color: isActiveGroup ? group.color : "#ccc",
-                    padding: "6px 8px 0",
-                    borderBottom: isActiveGroup ? `2px solid ${group.color}` : "2px solid transparent",
-                    textAlign: "center", whiteSpace: "nowrap",
-                  }}>{group.sector}</div>
-                  <div style={{ display: "flex", gap: 0 }}>
-                    {group.tabs.map(t => (
-                      <button
-                        key={t.id}
-                        onClick={() => setActive(t.id)}
-                        style={{
-                          background: "none", border: "none", cursor: "pointer",
-                          padding: "8px 10px 10px",
-                          fontSize: 11, fontWeight: active === t.id ? 700 : 400,
-                          color: active === t.id ? group.color : "#999",
-                          borderBottom: active === t.id ? `2px solid ${group.color}` : "2px solid transparent",
-                          whiteSpace: "nowrap", transition: "all 0.15s",
-                          fontFamily: "inherit",
-                        }}
-                      >
-                        {t.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* CONTENT */}
-      <div className="levvai-content" style={{ maxWidth: 900, margin: "0 auto", padding: "24px 20px" }}>
+    <AppShell
+      activeTab={active}
+      onTabChange={setActive}
+      user={currentUser}
+      onLogout={handleLogout}
+      badges={badges}
+      sector={breadcrumb.sector}
+      tab={breadcrumb.label}
+      cycleLabel="Ciclo Q2 · Abr 26"
+    >
+      {active === 'visao-geral' ? (
+        <VisaoGeral />
+      ) : Content ? (
         <Content shared={shared} />
-      </div>
-
-      {/* FOOTER */}
-      <div className="levvai-footer" style={{
-        background: DARK, padding: "16px 28px", textAlign: "center",
-        fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 40,
-        borderTop: `2px solid ${GOLD}`,
-      }}>
-        Instituto Levvai — Plataforma de Gestão Estratégica — Abril 2026 — Desenvolvido por CEO (Ike) com apoio Claude/Anthropic
-      </div>
-    </div>
+      ) : (
+        <div style={{ padding: '40px 0', color: 'var(--muted)', fontFamily: 'var(--mono)', fontSize: 13 }}>
+          Aba em construção.
+        </div>
+      )}
+    </AppShell>
   );
 }
