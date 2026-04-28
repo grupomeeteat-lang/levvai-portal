@@ -2866,6 +2866,22 @@ const AgendaTab = ({ shared }) => {
                         <button onClick={(e) => { e.stopPropagation(); removeSlot(key); }} style={{
                           background: "none", border: "none", cursor: "pointer", fontSize: 10, color: "#ccc", padding: 2, fontFamily: "inherit", flexShrink: 0,
                         }}>×</button>
+                        <a href={(() => {
+                          const date = weekDates[selectedDay];
+                          const ano = date.getFullYear();
+                          const mes = String(date.getMonth() + 1).padStart(2, '0');
+                          const dia = String(date.getDate()).padStart(2, '0');
+                          const [hora, min] = hours[hi].split(':');
+                          const horaFimNum = String(parseInt(hora) + 1).padStart(2, '0');
+                          const dataInicio = `${ano}${mes}${dia}T${hora}${min}00`;
+                          const dataFim = `${ano}${mes}${dia}T${horaFimNum}${min}00`;
+                          const titulo = encodeURIComponent(`${booked.proc} — ${booked.pac}`);
+                          const local = encodeURIComponent('Rua do Rocio, 288, cj 93 — Vila Olímpia, SP');
+                          const detalhes = encodeURIComponent(`Paciente: ${booked.pac}\nProcedimento: ${booked.proc}\nProfissional: ${booked.prof}`);
+                          return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${titulo}&dates=${dataInicio}/${dataFim}&details=${detalhes}&location=${local}`;
+                        })()} target="_blank" rel="noopener noreferrer" title="Adicionar ao Google Calendar"
+                          onClick={(e) => e.stopPropagation()}
+                          style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 16, height: 16, borderRadius: 4, background: "#E8F5E9", textDecoration: "none", fontSize: 10, flexShrink: 0 }}>📅</a>
                       </div>
                     ) : (
                       selectedRoom === r.id && selectedHour === hi ? (
@@ -3070,7 +3086,7 @@ const FichaPaciente = ({ paciente, onClose, onUpdate }) => {
   const [saving, setSaving] = useState(false);
   const [showForm, setShowForm] = useState(false);
 
-  const [newTrat, setNewTrat] = useState({ data: today(), procedimento: '', produto: '', regiao: '', sessao: 1, total_sessoes: 1, profissional: 'Lara', valor: '', observacoes: '', status: 'pendente', forma_pagamento: 'pix', status_pagamento: 'pendente', data_pagamento: '' });
+  const [newTrat, setNewTrat] = useState({ data: today(), horario: '09:00', procedimento: '', produto: '', regiao: '', sessao: 1, total_sessoes: 1, profissional: 'Lara', valor: '', observacoes: '', status: 'pendente', forma_pagamento: 'pix', status_pagamento: 'pendente', data_pagamento: '' });
   const [newPront, setNewPront] = useState({ data: today(), titulo: '', conteudo: '', profissional: 'Lara' });
   const [newObs, setNewObs] = useState({ data: today(), conteudo: '', autor: 'Sirlândia', tipo: 'geral' });
   const [newProp, setNewProp] = useState({ data: today(), titulo: '', itens: [], valor_total: '', desconto: 0, parcelas: 1, observacoes: '', status: 'rascunho' });
@@ -3123,6 +3139,22 @@ const FichaPaciente = ({ paciente, onClose, onUpdate }) => {
       resetFn();
       setShowForm(false);
     }
+  };
+
+  const gerarLinkGoogleCalendar = (trat) => {
+    const data = trat.data || today();
+    const [ano, mes, dia] = data.split('-');
+    const horario = trat.horario || '09:00';
+    const [hora, min] = horario.split(':');
+    const horaFimNum = (parseInt(hora) + 1).toString().padStart(2, '0');
+    const dataInicio = `${ano}${mes}${dia}T${hora}${min}00`;
+    const dataFim = `${ano}${mes}${dia}T${horaFimNum}${min}00`;
+    const titulo = encodeURIComponent(`${trat.procedimento} — ${paciente.nome}`);
+    const local = encodeURIComponent('Rua do Rocio, 288, cj 93 — Vila Olímpia, SP');
+    const detalhes = encodeURIComponent(
+      `Paciente: ${paciente.nome}\nTelefone: ${paciente.telefone || '—'}\nProcedimento: ${trat.procedimento}\nProfissional: ${trat.profissional || 'Lara'}\nProduto: ${trat.produto || '—'}\nSessão: ${trat.sessao || 1}/${trat.total_sessoes || 1}\nValor: ${trat.valor ? 'R$' + Number(trat.valor).toLocaleString('pt-BR') : '—'}`
+    );
+    return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${titulo}&dates=${dataInicio}/${dataFim}&details=${detalhes}&location=${local}`;
   };
 
   const deleteItem = async (resource, id, setter) => {
@@ -3284,6 +3316,7 @@ const FichaPaciente = ({ paciente, onClose, onUpdate }) => {
                 <div style={{ background: LIGHT, borderRadius: 10, padding: 14, marginBottom: 14 }}>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 8 }}>
                     <div><div style={labelStyle}>DATA</div><input type="date" value={newTrat.data} onChange={e => setNewTrat({ ...newTrat, data: e.target.value })} style={inputStyle} /></div>
+                    <div><div style={labelStyle}>HORÁRIO</div><input type="time" value={newTrat.horario || '09:00'} onChange={e => setNewTrat({ ...newTrat, horario: e.target.value })} style={inputStyle} /></div>
                     <div style={{ gridColumn: 'span 2' }}>
                       <div style={labelStyle}>PROCEDIMENTO</div>
                       <select value={newTrat.procedimento} onChange={e => setNewTrat({ ...newTrat, procedimento: e.target.value })} style={inputStyle}>
@@ -3314,7 +3347,7 @@ const FichaPaciente = ({ paciente, onClose, onUpdate }) => {
                   </div>
                   <div style={{ marginBottom: 8 }}><div style={labelStyle}>OBSERVAÇÕES</div><textarea value={newTrat.observacoes} onChange={e => setNewTrat({ ...newTrat, observacoes: e.target.value })} rows={2} style={{ ...inputStyle, resize: 'vertical' }} /></div>
                   <div style={{ display: 'flex', gap: 8 }}>
-                    <button onClick={() => addItem('tratamentos', newTrat, setTratamentos, () => setNewTrat({ data: today(), procedimento: '', produto: '', regiao: '', sessao: 1, total_sessoes: 1, profissional: 'Lara', valor: '', observacoes: '', status: 'pendente', forma_pagamento: 'pix', status_pagamento: 'pendente', data_pagamento: '' }))} style={{ padding: '8px 20px', background: GOLD, color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>Salvar</button>
+                    <button onClick={() => addItem('tratamentos', newTrat, setTratamentos, () => setNewTrat({ data: today(), horario: '09:00', procedimento: '', produto: '', regiao: '', sessao: 1, total_sessoes: 1, profissional: 'Lara', valor: '', observacoes: '', status: 'pendente', forma_pagamento: 'pix', status_pagamento: 'pendente', data_pagamento: '' }))} style={{ padding: '8px 20px', background: GOLD, color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>Salvar</button>
                     <button onClick={() => setShowForm(false)} style={{ padding: '8px 14px', background: 'white', color: '#888', border: '1px solid #ddd', borderRadius: 8, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>Cancelar</button>
                   </div>
                 </div>
@@ -3325,7 +3358,7 @@ const FichaPaciente = ({ paciente, onClose, onUpdate }) => {
                 <div>
                   <div style={{ display: 'flex', background: DARK, borderRadius: '8px 8px 0 0', padding: '8px 0' }}>
                     {['DATA', 'TRATAMENTO', 'VALOR', 'PAGAMENTO', 'FORMA', 'STATUS PAG.', 'STATUS TRAT.', ''].map((h, i) => (
-                      <div key={i} style={{ flex: i === 1 ? 2 : i === 7 ? 0.4 : 1, fontSize: 9, fontWeight: 700, color: GOLD, textAlign: 'center', padding: '0 4px' }}>{h}</div>
+                      <div key={i} style={{ flex: i === 1 ? 2 : i === 7 ? 0.7 : 1, fontSize: 9, fontWeight: 700, color: GOLD, textAlign: 'center', padding: '0 4px' }}>{h}</div>
                     ))}
                   </div>
                   {tratamentos.map((t, i) => {
@@ -3356,7 +3389,12 @@ const FichaPaciente = ({ paciente, onClose, onUpdate }) => {
                             <option value="cancelado">Cancelado</option>
                           </select>
                         </div>
-                        <div style={{ flex: 0.4, textAlign: 'center' }}>
+                        <div style={{ flex: 0.7, textAlign: 'center', display: 'flex', gap: 4, justifyContent: 'center' }}>
+                          <a href={gerarLinkGoogleCalendar(t)} target="_blank" rel="noopener noreferrer"
+                            title="Adicionar ao Google Calendar"
+                            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24, borderRadius: 6, background: '#E8F5E9', textDecoration: 'none', fontSize: 13 }}>
+                            📅
+                          </a>
                           <button onClick={() => deleteItem('tratamentos', t.id, setTratamentos)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: '#ddd', fontFamily: 'inherit' }}>✕</button>
                         </div>
                       </div>
