@@ -1446,24 +1446,44 @@ const RitualsTab = () => (
 );
 
 // DOCS TAB
+const CARGOS = [
+  'CEO',
+  'Diretora Clínica',
+  'Gerente Operacional',
+  'Administradora',
+  'Social Media',
+  'Conselheiro',
+  'Associado',
+  'Outro',
+];
+
+const CARGO_COLORS = {
+  'CEO': '#C8A96E',
+  'Diretora Clínica': '#E91E63',
+  'Gerente Operacional': '#039BE5',
+  'Administradora': '#7B1FA2',
+  'Social Media': '#43A047',
+  'Conselheiro': '#78909C',
+  'Associado': '#FF7043',
+  'Outro': '#90A4AE',
+};
+
 const UsuariosTab = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [newEmail, setNewEmail] = useState('');
   const [newPassword, setNewPassword] = useState('');
+  const [newNome, setNewNome] = useState('');
+  const [newCargo, setNewCargo] = useState('');
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
-
-  const profileColors = {
-    'ikeguimaraes@gmail.com': '#C8A96E',
-    'lara@institutolevvai.com.br': '#E91E63',
-    'sirlandia@institutolevvai.com.br': '#039BE5',
-    'sylmara@institutolevvai.com.br': '#7B1FA2',
-    'gi@institutolevvai.com.br': '#43A047',
-    'rich@institutolevvai.com.br': '#78909C',
-    'admin@institutolevvai.com.br': '#C8A96E',
-  };
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [editNome, setEditNome] = useState('');
+  const [editCargo, setEditCargo] = useState('');
+  const [editPassword, setEditPassword] = useState('');
+  const [editSaving, setEditSaving] = useState(false);
+  const [editMsg, setEditMsg] = useState('');
 
   const loadUsers = async () => {
     setLoading(true);
@@ -1475,6 +1495,38 @@ const UsuariosTab = () => {
 
   useEffect(() => { loadUsers(); }, []);
 
+  const openUser = (u) => {
+    setSelectedUser(u);
+    setEditNome(u.user_metadata?.nome || '');
+    setEditCargo(u.user_metadata?.cargo || '');
+    setEditPassword('');
+    setEditMsg('');
+  };
+
+  const saveEdit = async () => {
+    if (!selectedUser) return;
+    setEditSaving(true);
+    setEditMsg('');
+    const body = { userId: selectedUser.id, nome: editNome, cargo: editCargo };
+    if (editPassword) body.password = editPassword;
+    const res = await fetch('/api/admin-users', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (data.error) {
+      setEditMsg(`Erro: ${data.error}`);
+    } else {
+      setEditMsg('Salvo com sucesso!');
+      await loadUsers();
+      const updated = (await fetch('/api/admin-users').then(r => r.json())).users || [];
+      const refreshed = updated.find(u => u.id === selectedUser.id);
+      if (refreshed) setSelectedUser(refreshed);
+    }
+    setEditSaving(false);
+  };
+
   const createUser = async () => {
     if (!newEmail || !newPassword) return;
     setSaving(true);
@@ -1482,15 +1534,14 @@ const UsuariosTab = () => {
     const res = await fetch('/api/admin-users', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: newEmail.trim(), password: newPassword }),
+      body: JSON.stringify({ email: newEmail.trim(), password: newPassword, nome: newNome, cargo: newCargo }),
     });
     const data = await res.json();
     if (data.error) {
       setMsg(`Erro: ${data.error}`);
     } else {
       setMsg('Usuário criado com sucesso!');
-      setNewEmail('');
-      setNewPassword('');
+      setNewEmail(''); setNewPassword(''); setNewNome(''); setNewCargo('');
       setShowForm(false);
       loadUsers();
     }
@@ -1504,129 +1555,231 @@ const UsuariosTab = () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId }),
     });
+    if (selectedUser?.id === userId) setSelectedUser(null);
     loadUsers();
   };
 
-  return (
-    <div>
-      <Card title="Gestão de Usuários — Acesso ao Portal" accent>
-        <p style={{ color: '#aaa', fontSize: 13, margin: 0 }}>
-          Somente o CEO (admin master) deve gerenciar acessos. Cada usuário tem e-mail e senha próprios.
-        </p>
-      </Card>
+  const getInitial = (u) => {
+    const nome = u.user_metadata?.nome;
+    return nome ? nome.charAt(0).toUpperCase() : u.email.charAt(0).toUpperCase();
+  };
 
-      <Card title="Usuários com Acesso">
-        {loading ? (
-          <div style={{ textAlign: 'center', padding: 20, color: '#999' }}>Carregando...</div>
-        ) : (
-          <>
-            {users.map((u, i) => {
-              const color = profileColors[u.email] || '#888';
-              const lastLogin = u.last_sign_in_at
-                ? new Date(u.last_sign_in_at).toLocaleDateString('pt-BR')
-                : 'Nunca';
-              return (
-                <div key={i} style={{
-                  display: 'flex', alignItems: 'center', gap: 12,
-                  padding: '12px 0', borderBottom: '1px solid #f0ece6',
-                }}>
-                  <div style={{
-                    width: 38, height: 38, borderRadius: '50%', background: color,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 15, fontWeight: 800, color: 'white', flexShrink: 0,
-                  }}>{u.email[0].toUpperCase()}</div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13, fontWeight: 700 }}>{u.email}</div>
-                    <div style={{ fontSize: 11, color: '#999', marginTop: 2 }}>
-                      Criado: {new Date(u.created_at).toLocaleDateString('pt-BR')} · Último acesso: {lastLogin}
+  const getColor = (u) => {
+    const cargo = u.user_metadata?.cargo;
+    return CARGO_COLORS[cargo] || '#90A4AE';
+  };
+
+  return (
+    <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }}>
+      {/* LEFT PANEL — user list */}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <Card title="Gestão de Usuários — Acesso ao Portal" accent>
+          <p style={{ color: '#aaa', fontSize: 13, margin: 0 }}>
+            Somente o CEO (admin master) deve gerenciar acessos. Clique num usuário para editar.
+          </p>
+        </Card>
+
+        <Card title="Usuários com Acesso">
+          {loading ? (
+            <div style={{ textAlign: 'center', padding: 20, color: '#999' }}>Carregando...</div>
+          ) : (
+            <>
+              <div style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1.5fr 1fr', gap: '0 12px', padding: '6px 0 8px', borderBottom: '2px solid #f0ece6' }}>
+                {['NOME / EMAIL', 'CARGO', 'STATUS', ''].map((h, i) => (
+                  <div key={i} style={{ fontSize: 9, fontWeight: 700, color: '#bbb', letterSpacing: '0.08em' }}>{h}</div>
+                ))}
+              </div>
+              {users.map((u, i) => {
+                const color = getColor(u);
+                const nome = u.user_metadata?.nome || '—';
+                const cargo = u.user_metadata?.cargo || '—';
+                const lastLogin = u.last_sign_in_at
+                  ? new Date(u.last_sign_in_at).toLocaleDateString('pt-BR')
+                  : 'Nunca';
+                const isSelected = selectedUser?.id === u.id;
+                return (
+                  <div
+                    key={i}
+                    onClick={() => openUser(u)}
+                    style={{
+                      display: 'grid', gridTemplateColumns: '2fr 2fr 1.5fr 1fr', gap: '0 12px',
+                      padding: '10px 0', borderBottom: '1px solid #f0ece6', cursor: 'pointer',
+                      background: isSelected ? '#fdf8ef' : 'transparent',
+                      borderRadius: isSelected ? 6 : 0,
+                      transition: 'background 0.15s',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 9, minWidth: 0 }}>
+                      <div style={{
+                        width: 32, height: 32, borderRadius: '50%', background: color, flexShrink: 0,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 13, fontWeight: 800, color: 'white',
+                      }}>{getInitial(u)}</div>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{nome}</div>
+                        <div style={{ fontSize: 10, color: '#999', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.email}</div>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                      {cargo !== '—' ? (
+                        <span style={{
+                          fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20,
+                          background: color + '22', color: color,
+                        }}>{cargo}</span>
+                      ) : (
+                        <span style={{ fontSize: 10, color: '#ccc' }}>—</span>
+                      )}
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 2, justifyContent: 'flex-start', alignItems: 'flex-start' }}>
+                      <Badge
+                        text={u.email_confirmed_at ? 'ATIVO' : 'PENDENTE'}
+                        color={u.email_confirmed_at ? '#E8F5E9' : '#FFF9C4'}
+                        textColor={u.email_confirmed_at ? '#2E7D32' : '#F57F17'}
+                      />
+                      <div style={{ fontSize: 9, color: '#bbb', marginTop: 2 }}>{lastLogin}</div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
+                      {u.email !== 'ikeguimaraes@gmail.com' && (
+                        <button
+                          onClick={e => { e.stopPropagation(); deleteUser(u.id, u.email); }}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 10, color: '#ddd', fontFamily: 'inherit', padding: '4px 6px' }}
+                        >Remover</button>
+                      )}
                     </div>
                   </div>
-                  <Badge
-                    text={u.email_confirmed_at ? 'ATIVO' : 'PENDENTE'}
-                    color={u.email_confirmed_at ? '#E8F5E9' : '#FFF9C4'}
-                    textColor={u.email_confirmed_at ? '#2E7D32' : '#F57F17'}
-                  />
-                  {u.email !== 'ikeguimaraes@gmail.com' && (
-                    <button onClick={() => deleteUser(u.id, u.email)} style={{
-                      background: 'none', border: 'none', cursor: 'pointer',
-                      fontSize: 11, color: '#ccc', fontFamily: 'inherit', padding: '4px 8px',
-                    }}>Remover</button>
-                  )}
-                </div>
-              );
-            })}
-            <div style={{ fontSize: 11, color: '#999', marginTop: 8 }}>
-              {users.length} usuário(s) com acesso ao portal
-            </div>
-          </>
-        )}
-      </Card>
+                );
+              })}
+              <div style={{ fontSize: 11, color: '#999', marginTop: 8 }}>
+                {users.length} usuário(s) com acesso ao portal
+              </div>
+            </>
+          )}
+        </Card>
 
-      <Card title="Adicionar Novo Usuário">
-        {!showForm ? (
-          <button onClick={() => setShowForm(true)} style={{
-            width: '100%', padding: '12px', background: 'white',
-            border: `2px dashed ${GOLD}`, borderRadius: 10, cursor: 'pointer',
-            fontSize: 13, fontWeight: 600, color: GOLD, fontFamily: 'inherit',
-          }}>+ Adicionar usuário</button>
-        ) : (
-          <div>
-            <div style={{ display: 'flex', gap: 10, marginBottom: 10, flexWrap: 'wrap' }}>
-              <div style={{ flex: '1 1 200px' }}>
-                <div style={{ fontSize: 9, fontWeight: 700, color: '#999', marginBottom: 3 }}>E-MAIL</div>
-                <input
-                  value={newEmail}
-                  onChange={e => setNewEmail(e.target.value)}
-                  placeholder="nome@institutolevvai.com.br"
-                  type="email"
-                  style={{ width: '100%', padding: '8px 10px', border: '1px solid #ddd', borderRadius: 6, fontSize: 13, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }}
-                />
+        <Card title="Adicionar Novo Usuário">
+          {!showForm ? (
+            <button onClick={() => setShowForm(true)} style={{
+              width: '100%', padding: '12px', background: 'white',
+              border: `2px dashed ${GOLD}`, borderRadius: 10, cursor: 'pointer',
+              fontSize: 13, fontWeight: 600, color: GOLD, fontFamily: 'inherit',
+            }}>+ Adicionar usuário</button>
+          ) : (
+            <div>
+              <div style={{ display: 'flex', gap: 10, marginBottom: 10, flexWrap: 'wrap' }}>
+                <div style={{ flex: '1 1 180px' }}>
+                  <div style={{ fontSize: 9, fontWeight: 700, color: '#999', marginBottom: 3 }}>NOME</div>
+                  <input value={newNome} onChange={e => setNewNome(e.target.value)} placeholder="Nome completo"
+                    style={{ width: '100%', padding: '8px 10px', border: '1px solid #ddd', borderRadius: 6, fontSize: 13, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }} />
+                </div>
+                <div style={{ flex: '1 1 140px' }}>
+                  <div style={{ fontSize: 9, fontWeight: 700, color: '#999', marginBottom: 3 }}>CARGO</div>
+                  <select value={newCargo} onChange={e => setNewCargo(e.target.value)}
+                    style={{ width: '100%', padding: '8px 10px', border: '1px solid #ddd', borderRadius: 6, fontSize: 13, fontFamily: 'inherit', outline: 'none', background: 'white', boxSizing: 'border-box' }}>
+                    <option value="">Selecionar...</option>
+                    {CARGOS.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
               </div>
-              <div style={{ flex: '1 1 160px' }}>
-                <div style={{ fontSize: 9, fontWeight: 700, color: '#999', marginBottom: 3 }}>SENHA INICIAL</div>
-                <input
-                  value={newPassword}
-                  onChange={e => setNewPassword(e.target.value)}
-                  placeholder="Mínimo 6 caracteres"
-                  type="password"
-                  style={{ width: '100%', padding: '8px 10px', border: '1px solid #ddd', borderRadius: 6, fontSize: 13, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }}
-                />
+              <div style={{ display: 'flex', gap: 10, marginBottom: 10, flexWrap: 'wrap' }}>
+                <div style={{ flex: '1 1 200px' }}>
+                  <div style={{ fontSize: 9, fontWeight: 700, color: '#999', marginBottom: 3 }}>E-MAIL</div>
+                  <input value={newEmail} onChange={e => setNewEmail(e.target.value)} placeholder="nome@institutolevvai.com.br" type="email"
+                    style={{ width: '100%', padding: '8px 10px', border: '1px solid #ddd', borderRadius: 6, fontSize: 13, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }} />
+                </div>
+                <div style={{ flex: '1 1 160px' }}>
+                  <div style={{ fontSize: 9, fontWeight: 700, color: '#999', marginBottom: 3 }}>SENHA INICIAL</div>
+                  <input value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="Mínimo 6 caracteres" type="password"
+                    style={{ width: '100%', padding: '8px 10px', border: '1px solid #ddd', borderRadius: 6, fontSize: 13, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }} />
+                </div>
+              </div>
+              {msg && (
+                <div style={{ fontSize: 12, color: msg.startsWith('Erro') ? '#B71C1C' : '#2E7D32', marginBottom: 8 }}>{msg}</div>
+              )}
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button onClick={createUser} disabled={saving} style={{
+                  padding: '8px 24px', background: newEmail && newPassword ? GOLD : '#ddd',
+                  color: 'white', border: 'none', borderRadius: 8, fontWeight: 700,
+                  fontSize: 13, cursor: 'pointer', fontFamily: 'inherit',
+                }}>{saving ? 'Criando...' : 'Criar usuário'}</button>
+                <button onClick={() => { setShowForm(false); setMsg(''); }} style={{
+                  padding: '8px 16px', background: 'white', color: '#888',
+                  border: '1px solid #ddd', borderRadius: 8, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit',
+                }}>Cancelar</button>
               </div>
             </div>
-            {msg && (
-              <div style={{ fontSize: 12, color: msg.startsWith('Erro') ? '#B71C1C' : '#2E7D32', marginBottom: 8 }}>
-                {msg}
-              </div>
+          )}
+        </Card>
+      </div>
+
+      {/* RIGHT PANEL — edit user */}
+      {selectedUser && (
+        <div style={{ width: 300, flexShrink: 0 }}>
+          <Card title="Editar Usuário">
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 16 }}>
+              <div style={{
+                width: 56, height: 56, borderRadius: '50%', background: getColor(selectedUser),
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 22, fontWeight: 800, color: 'white', marginBottom: 8,
+              }}>{getInitial(selectedUser)}</div>
+              <div style={{ fontSize: 11, color: '#999', textAlign: 'center' }}>{selectedUser.email}</div>
+            </div>
+
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 9, fontWeight: 700, color: '#999', marginBottom: 4 }}>NOME</div>
+              <input value={editNome} onChange={e => setEditNome(e.target.value)} placeholder="Nome completo"
+                style={{ width: '100%', padding: '8px 10px', border: '1px solid #ddd', borderRadius: 6, fontSize: 13, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }} />
+            </div>
+
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 9, fontWeight: 700, color: '#999', marginBottom: 4 }}>CARGO</div>
+              <select value={editCargo} onChange={e => setEditCargo(e.target.value)}
+                style={{ width: '100%', padding: '8px 10px', border: '1px solid #ddd', borderRadius: 6, fontSize: 13, fontFamily: 'inherit', outline: 'none', background: 'white', boxSizing: 'border-box' }}>
+                <option value="">Selecionar...</option>
+                {CARGOS.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontSize: 9, fontWeight: 700, color: '#999', marginBottom: 4 }}>NOVA SENHA <span style={{ fontWeight: 400 }}>(deixe vazio para manter)</span></div>
+              <input value={editPassword} onChange={e => setEditPassword(e.target.value)} placeholder="Nova senha..." type="password"
+                style={{ width: '100%', padding: '8px 10px', border: '1px solid #ddd', borderRadius: 6, fontSize: 13, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }} />
+            </div>
+
+            {editMsg && (
+              <div style={{ fontSize: 12, color: editMsg.startsWith('Erro') ? '#B71C1C' : '#2E7D32', marginBottom: 10 }}>{editMsg}</div>
             )}
+
             <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={createUser} disabled={saving} style={{
-                padding: '8px 24px', background: newEmail && newPassword ? GOLD : '#ddd',
-                color: 'white', border: 'none', borderRadius: 8, fontWeight: 700,
-                fontSize: 13, cursor: 'pointer', fontFamily: 'inherit',
-              }}>{saving ? 'Criando...' : 'Criar usuário'}</button>
-              <button onClick={() => { setShowForm(false); setMsg(''); }} style={{
-                padding: '8px 16px', background: 'white', color: '#888',
+              <button onClick={saveEdit} disabled={editSaving} style={{
+                flex: 1, padding: '9px', background: GOLD, color: 'white',
+                border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 13,
+                cursor: 'pointer', fontFamily: 'inherit',
+              }}>{editSaving ? 'Salvando...' : 'Salvar'}</button>
+              <button onClick={() => setSelectedUser(null)} style={{
+                padding: '9px 14px', background: 'white', color: '#888',
                 border: '1px solid #ddd', borderRadius: 8, fontSize: 13,
                 cursor: 'pointer', fontFamily: 'inherit',
-              }}>Cancelar</button>
+              }}>✕</button>
             </div>
-          </div>
-        )}
-      </Card>
 
-      <Card title="Regras de Acesso">
-        {[
-          'Somente o CEO (ikeguimaraes@gmail.com) gerencia usuários.',
-          'Cada membro do time tem e-mail e senha próprios — nunca compartilhar credenciais.',
-          'Ao adicionar novo associado ou funcionário, criar usuário aqui e comunicar via WhatsApp.',
-          'Ao desligar alguém, remover o acesso imediatamente pelo botão Remover.',
-          'Senhas devem ter no mínimo 6 caracteres. Pedir para o usuário trocar no primeiro acesso.',
-        ].map((r, i) => (
-          <div key={i} style={{ fontSize: 12, color: '#555', padding: '5px 0', display: 'flex', gap: 6, borderBottom: '1px solid #f5f0e8' }}>
-            <span style={{ color: GOLD, fontWeight: 800, minWidth: 22 }}>{(i+1).toString().padStart(2,'0')}</span> {r}
-          </div>
-        ))}
-      </Card>
+            <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid #f0ece6' }}>
+              <div style={{ fontSize: 10, color: '#bbb', marginBottom: 6 }}>
+                Criado: {new Date(selectedUser.created_at).toLocaleDateString('pt-BR')}
+              </div>
+              <div style={{ fontSize: 10, color: '#bbb', marginBottom: 10 }}>
+                Último acesso: {selectedUser.last_sign_in_at ? new Date(selectedUser.last_sign_in_at).toLocaleDateString('pt-BR') : 'Nunca'}
+              </div>
+              {selectedUser.email !== 'ikeguimaraes@gmail.com' && (
+                <button onClick={() => deleteUser(selectedUser.id, selectedUser.email)} style={{
+                  width: '100%', padding: '7px', background: 'white', color: '#e53935',
+                  border: '1px solid #ffcdd2', borderRadius: 8, fontSize: 11,
+                  cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600,
+                }}>Remover acesso</button>
+              )}
+            </div>
+          </Card>
+        </div>
+      )}
     </div>
   );
 };

@@ -14,12 +14,22 @@ export default async function handler(req, res) {
   }
 
   if (req.method === 'POST') {
-    const { email, password } = req.body;
+    const { email, password, nome, cargo } = req.body;
     const { data, error } = await supabase.auth.admin.createUser({
       email,
       password,
       email_confirm: true,
+      user_metadata: { nome: nome || '', cargo: cargo || '' },
     });
+    if (error) return res.status(400).json({ error: error.message });
+    return res.status(200).json({ user: data.user });
+  }
+
+  if (req.method === 'PATCH') {
+    const { userId, nome, cargo, password } = req.body;
+    const updates = { user_metadata: { nome: nome || '', cargo: cargo || '' } };
+    if (password) updates.password = password;
+    const { data, error } = await supabase.auth.admin.updateUserById(userId, updates);
     if (error) return res.status(400).json({ error: error.message });
     return res.status(200).json({ user: data.user });
   }
