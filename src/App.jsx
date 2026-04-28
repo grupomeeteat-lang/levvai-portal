@@ -3030,7 +3030,636 @@ const AgendaTab = ({ shared }) => {
 };
 
 // CRM & LEADS TAB
+const STATUS_COLORS = {
+  lead:       { bg: '#E3F2FD', tc: '#1565C0', label: 'Lead' },
+  contato:    { bg: '#E8EAF6', tc: '#283593', label: '1º Contato' },
+  agendado:   { bg: '#FFF3E0', tc: '#E65100', label: 'Agendado' },
+  atendido:   { bg: '#E8F5E9', tc: '#2E7D32', label: 'Atendido' },
+  retorno:    { bg: '#F3E5F5', tc: '#6A1B9A', label: 'Retorno' },
+  fidelizado: { bg: '#C8A96E', tc: 'white',   label: 'Fidelizado ★' },
+  perdido:    { bg: '#FFEBEE', tc: '#B71C1C', label: 'Perdido' },
+};
+
+const PROCEDIMENTOS = [
+  'Botox Full Face', 'Levvai Lips', 'Harmonização Facial',
+  'Levvai Slim (Tirzepatida)', 'Levvai Glow (Profhilo)',
+  'Levvai Lift (Fios PDO)', 'Preenchimento Corporal',
+  'Exossomos', 'PRP', 'Radiesse', 'Bioflash NCTC',
+  'Soroterapia', 'Consulta Avaliação', 'Retorno', 'Outro',
+];
+
+const STATUS_TRAT = {
+  pendente:     { bg: '#FFF9C4', tc: '#F57F17' },
+  em_andamento: { bg: '#E3F2FD', tc: '#1565C0' },
+  finalizado:   { bg: '#E8F5E9', tc: '#2E7D32' },
+  cancelado:    { bg: '#FFEBEE', tc: '#B71C1C' },
+};
+
+const today = () => new Date().toISOString().slice(0, 10);
+
+const FichaPaciente = ({ paciente, onClose, onUpdate }) => {
+  const [tab, setTab] = useState('sobre');
+  const [tratamentos, setTratamentos] = useState([]);
+  const [prontuarios, setProntuarios] = useState([]);
+  const [propostas, setPropostas] = useState([]);
+  const [observacoes, setObservacoes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState(false);
+  const [editData, setEditData] = useState({ ...paciente });
+  const [saving, setSaving] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+
+  const [newTrat, setNewTrat] = useState({ data: today(), procedimento: '', produto: '', regiao: '', sessao: 1, total_sessoes: 1, profissional: 'Lara', valor: '', observacoes: '', status: 'pendente' });
+  const [newPront, setNewPront] = useState({ data: today(), titulo: '', conteudo: '', profissional: 'Lara' });
+  const [newObs, setNewObs] = useState({ data: today(), conteudo: '', autor: 'Sirlândia', tipo: 'geral' });
+  const [newProp, setNewProp] = useState({ data: today(), titulo: '', valor_total: '', desconto: 0, parcelas: 1, observacoes: '', status: 'rascunho' });
+
+  const loadSub = async (resource, setter) => {
+    const res = await fetch(`/api/crm?resource=${resource}&paciente_id=${paciente.id}`);
+    const data = await res.json();
+    setter(Array.isArray(data) ? data : []);
+  };
+
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true);
+      await Promise.all([
+        loadSub('tratamentos', setTratamentos),
+        loadSub('prontuarios', setProntuarios),
+        loadSub('propostas', setPropostas),
+        loadSub('observacoes', setObservacoes),
+      ]);
+      setLoading(false);
+    };
+    load();
+  }, [paciente.id]);
+
+  const saveEdit = async () => {
+    setSaving(true);
+    const res = await fetch(`/api/crm?resource=pacientes&id=${paciente.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(editData),
+    });
+    const data = await res.json();
+    if (!data.error) { onUpdate(data); setEditing(false); }
+    setSaving(false);
+  };
+
+  const addItem = async (resource, body, setter, resetFn) => {
+    const res = await fetch(`/api/crm?resource=${resource}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...body, paciente_id: paciente.id }),
+    });
+    const data = await res.json();
+    if (!data.error) {
+      setter(prev => [data, ...prev]);
+      resetFn();
+      setShowForm(false);
+    }
+  };
+
+  const deleteItem = async (resource, id, setter) => {
+    if (!confirm('Remover este registro?')) return;
+    await fetch(`/api/crm?resource=${resource}&id=${id}`, { method: 'DELETE' });
+    setter(prev => prev.filter(i => i.id !== id));
+  };
+
+  const updateTratStatus = async (trat, newStatus) => {
+    const res = await fetch(`/api/crm?resource=tratamentos&id=${trat.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: newStatus }),
+    });
+    const data = await res.json();
+    if (!data.error) setTratamentos(prev => prev.map(t => t.id === trat.id ? data : t));
+  };
+
+  const st = STATUS_COLORS[paciente.status] || STATUS_COLORS.lead;
+  const tabs = [
+    { id: 'sobre',       label: 'Sobre' },
+    { id: 'tratamentos', label: `Tratamentos (${tratamentos.length})` },
+    { id: 'prontuario',  label: `Prontuário (${prontuarios.length})` },
+    { id: 'propostas',   label: `Propostas (${propostas.length})` },
+    { id: 'observacoes', label: `Obs. (${observacoes.length})` },
+  ];
+
+  const inputStyle = { width: '100%', padding: '7px 10px', border: '1px solid #ddd', borderRadius: 6, fontSize: 12, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' };
+  const labelStyle = { fontSize: 9, fontWeight: 700, color: '#999', marginBottom: 3, letterSpacing: '0.05em' };
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '24px 16px', overflowY: 'auto' }}>
+      <div style={{ background: 'white', borderRadius: 16, width: '100%', maxWidth: 860, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+
+        {/* HEADER */}
+        <div style={{ background: DARK, borderRadius: '16px 16px 0 0', padding: '20px 24px', display: 'flex', alignItems: 'center', gap: 16 }}>
+          <div style={{ width: 52, height: 52, borderRadius: '50%', background: st.bg === 'white' ? GOLD : st.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, fontWeight: 800, color: st.tc, flexShrink: 0 }}>
+            {paciente.nome[0].toUpperCase()}
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 18, fontWeight: 800, color: 'white' }}>{paciente.nome}</div>
+            <div style={{ fontSize: 12, color: '#aaa', marginTop: 2 }}>
+              {paciente.telefone && `${paciente.telefone} · `}
+              {paciente.email && `${paciente.email} · `}
+              <Badge text={st.label} color={st.bg} textColor={st.tc} />
+            </div>
+          </div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#aaa', fontSize: 22, cursor: 'pointer', fontFamily: 'inherit', padding: 4 }}>✕</button>
+        </div>
+
+        {/* TABS */}
+        <div style={{ display: 'flex', borderBottom: '2px solid #f0ece6', padding: '0 24px' }}>
+          {tabs.map(t => (
+            <button key={t.id} onClick={() => { setTab(t.id); setShowForm(false); }} style={{
+              padding: '12px 16px', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+              fontFamily: 'inherit', border: 'none', background: 'none',
+              color: tab === t.id ? GOLD : '#999',
+              borderBottom: tab === t.id ? `3px solid ${GOLD}` : '3px solid transparent',
+              marginBottom: -2,
+            }}>{t.label}</button>
+          ))}
+        </div>
+
+        <div style={{ padding: '20px 24px', maxHeight: '65vh', overflowY: 'auto' }}>
+
+          {/* ABA SOBRE */}
+          {tab === 'sobre' && (
+            <div>
+              {!editing ? (
+                <div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 16 }}>
+                    {[
+                      ['E-MAIL', paciente.email || '—'],
+                      ['TELEFONE', paciente.telefone || '—'],
+                      ['CPF', paciente.cpf || '—'],
+                      ['NASCIMENTO', paciente.data_nascimento || '—'],
+                      ['SEXO', paciente.sexo || '—'],
+                      ['ORIGEM', paciente.origem || '—'],
+                      ['INDICADO POR', paciente.indicado_por || '—'],
+                      ['STATUS', st.label],
+                      ['CADASTRO', new Date(paciente.created_at).toLocaleDateString('pt-BR')],
+                    ].map(([l, v], i) => (
+                      <div key={i} style={{ background: LIGHT, borderRadius: 8, padding: '10px 12px' }}>
+                        <div style={{ fontSize: 9, fontWeight: 700, color: GOLD, letterSpacing: '0.05em' }}>{l}</div>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: DARK, marginTop: 2 }}>{v}</div>
+                      </div>
+                    ))}
+                  </div>
+                  {paciente.observacoes_gerais && (
+                    <div style={{ background: '#FAFAF8', borderRadius: 8, padding: '12px 14px', fontSize: 13, color: '#555', lineHeight: 1.7 }}>
+                      <div style={{ fontSize: 9, fontWeight: 700, color: GOLD, marginBottom: 4 }}>OBSERVAÇÕES GERAIS</div>
+                      {paciente.observacoes_gerais}
+                    </div>
+                  )}
+                  <button onClick={() => { setEditing(true); setEditData({ ...paciente }); }} style={{
+                    marginTop: 12, padding: '8px 20px', background: DARK, color: GOLD,
+                    border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit',
+                  }}>Editar dados</button>
+                </div>
+              ) : (
+                <div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
+                    {[
+                      ['NOME', 'nome', 'text'],
+                      ['E-MAIL', 'email', 'email'],
+                      ['TELEFONE', 'telefone', 'text'],
+                      ['CPF', 'cpf', 'text'],
+                      ['NASCIMENTO', 'data_nascimento', 'text'],
+                      ['SEXO', 'sexo', 'text'],
+                      ['INDICADO POR', 'indicado_por', 'text'],
+                    ].map(([l, f, t]) => (
+                      <div key={f}>
+                        <div style={labelStyle}>{l}</div>
+                        <input value={editData[f] || ''} onChange={e => setEditData({ ...editData, [f]: e.target.value })} type={t} style={inputStyle} />
+                      </div>
+                    ))}
+                    <div>
+                      <div style={labelStyle}>ORIGEM</div>
+                      <select value={editData.origem || 'Instagram'} onChange={e => setEditData({ ...editData, origem: e.target.value })} style={inputStyle}>
+                        {['Instagram', 'Google', 'Indicação', 'WhatsApp', 'Tráfego Pago', 'Levvai Day', 'Associado', 'Outro'].map(o => <option key={o}>{o}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <div style={labelStyle}>STATUS</div>
+                      <select value={editData.status || 'lead'} onChange={e => setEditData({ ...editData, status: e.target.value })} style={inputStyle}>
+                        {Object.entries(STATUS_COLORS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                  <div style={{ marginBottom: 12 }}>
+                    <div style={labelStyle}>OBSERVAÇÕES GERAIS</div>
+                    <textarea value={editData.observacoes_gerais || ''} onChange={e => setEditData({ ...editData, observacoes_gerais: e.target.value })}
+                      rows={3} style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.6 }} />
+                  </div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button onClick={saveEdit} disabled={saving} style={{ padding: '8px 24px', background: GOLD, color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>
+                      {saving ? 'Salvando...' : 'Salvar'}
+                    </button>
+                    <button onClick={() => setEditing(false)} style={{ padding: '8px 16px', background: 'white', color: '#888', border: '1px solid #ddd', borderRadius: 8, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ABA TRATAMENTOS */}
+          {tab === 'tratamentos' && (
+            <div>
+              {!showForm ? (
+                <button onClick={() => setShowForm(true)} style={{ width: '100%', padding: '10px', background: 'white', border: `2px dashed ${GOLD}`, borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 600, color: GOLD, fontFamily: 'inherit', marginBottom: 14 }}>
+                  + Registrar tratamento
+                </button>
+              ) : (
+                <div style={{ background: LIGHT, borderRadius: 10, padding: 14, marginBottom: 14 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 8 }}>
+                    <div><div style={labelStyle}>DATA</div><input type="date" value={newTrat.data} onChange={e => setNewTrat({ ...newTrat, data: e.target.value })} style={inputStyle} /></div>
+                    <div style={{ gridColumn: 'span 2' }}><div style={labelStyle}>PROCEDIMENTO</div>
+                      <select value={newTrat.procedimento} onChange={e => setNewTrat({ ...newTrat, procedimento: e.target.value })} style={inputStyle}>
+                        <option value="">Selecione...</option>
+                        {PROCEDIMENTOS.map(p => <option key={p}>{p}</option>)}
+                      </select>
+                    </div>
+                    <div><div style={labelStyle}>PRODUTO USADO</div><input value={newTrat.produto} onChange={e => setNewTrat({ ...newTrat, produto: e.target.value })} placeholder="Ex: Juvederm 1ml" style={inputStyle} /></div>
+                    <div><div style={labelStyle}>REGIÃO</div><input value={newTrat.regiao} onChange={e => setNewTrat({ ...newTrat, regiao: e.target.value })} placeholder="Ex: Labial" style={inputStyle} /></div>
+                    <div><div style={labelStyle}>PROFISSIONAL</div><input value={newTrat.profissional} onChange={e => setNewTrat({ ...newTrat, profissional: e.target.value })} style={inputStyle} /></div>
+                    <div><div style={labelStyle}>SESSÃO Nº</div><input type="number" value={newTrat.sessao} onChange={e => setNewTrat({ ...newTrat, sessao: Number(e.target.value) })} style={inputStyle} /></div>
+                    <div><div style={labelStyle}>TOTAL SESSÕES</div><input type="number" value={newTrat.total_sessoes} onChange={e => setNewTrat({ ...newTrat, total_sessoes: Number(e.target.value) })} style={inputStyle} /></div>
+                    <div><div style={labelStyle}>VALOR (R$)</div><input type="number" value={newTrat.valor} onChange={e => setNewTrat({ ...newTrat, valor: e.target.value })} style={inputStyle} /></div>
+                  </div>
+                  <div style={{ marginBottom: 8 }}><div style={labelStyle}>OBSERVAÇÕES</div><textarea value={newTrat.observacoes} onChange={e => setNewTrat({ ...newTrat, observacoes: e.target.value })} rows={2} style={{ ...inputStyle, resize: 'vertical' }} /></div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button onClick={() => addItem('tratamentos', newTrat, setTratamentos, () => setNewTrat({ data: today(), procedimento: '', produto: '', regiao: '', sessao: 1, total_sessoes: 1, profissional: 'Lara', valor: '', observacoes: '', status: 'pendente' }))} style={{ padding: '8px 20px', background: GOLD, color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>Salvar</button>
+                    <button onClick={() => setShowForm(false)} style={{ padding: '8px 14px', background: 'white', color: '#888', border: '1px solid #ddd', borderRadius: 8, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>Cancelar</button>
+                  </div>
+                </div>
+              )}
+
+              {loading ? <div style={{ textAlign: 'center', padding: 20, color: '#999' }}>Carregando...</div> : (
+                tratamentos.length === 0 ? <div style={{ textAlign: 'center', padding: 20, color: '#ccc', fontSize: 13 }}>Nenhum tratamento registrado.</div> :
+                <div>
+                  <div style={{ display: 'flex', background: DARK, borderRadius: '8px 8px 0 0', padding: '8px 0' }}>
+                    {['DATA', 'TRATAMENTO', 'PRODUTO', 'SESSÃO', 'PROFISSIONAL', 'VALOR', 'STATUS', ''].map((h, i) => (
+                      <div key={i} style={{ flex: i === 1 ? 2 : i === 7 ? 0.4 : 1, fontSize: 9, fontWeight: 700, color: GOLD, textAlign: 'center', padding: '0 4px' }}>{h}</div>
+                    ))}
+                  </div>
+                  {tratamentos.map((t, i) => (
+                    <div key={i} style={{ display: 'flex', padding: '8px 0', borderBottom: '1px solid #f0ece6', alignItems: 'center', background: i % 2 === 0 ? 'white' : '#FAFAF8' }}>
+                      <div style={{ flex: 1, textAlign: 'center', fontSize: 11, color: '#888' }}>{new Date(t.data + 'T12:00:00').toLocaleDateString('pt-BR')}</div>
+                      <div style={{ flex: 2, fontSize: 12, fontWeight: 600, paddingLeft: 4 }}>{t.procedimento}</div>
+                      <div style={{ flex: 1, fontSize: 11, color: '#777', textAlign: 'center' }}>{t.produto || '—'}</div>
+                      <div style={{ flex: 1, textAlign: 'center', fontSize: 11 }}>{t.sessao}/{t.total_sessoes}</div>
+                      <div style={{ flex: 1, textAlign: 'center', fontSize: 11 }}>{t.profissional}</div>
+                      <div style={{ flex: 1, textAlign: 'center', fontSize: 12, fontWeight: 600 }}>{t.valor ? `R$${Number(t.valor).toLocaleString('pt-BR')}` : '—'}</div>
+                      <div style={{ flex: 1, textAlign: 'center' }}>
+                        <select value={t.status} onChange={e => updateTratStatus(t, e.target.value)}
+                          style={{ padding: '3px 6px', borderRadius: 10, fontSize: 9, fontWeight: 700, border: 'none', cursor: 'pointer', fontFamily: 'inherit', background: STATUS_TRAT[t.status]?.bg || '#eee', color: STATUS_TRAT[t.status]?.tc || '#333' }}>
+                          <option value="pendente">Pendente</option>
+                          <option value="em_andamento">Em andamento</option>
+                          <option value="finalizado">Finalizado</option>
+                          <option value="cancelado">Cancelado</option>
+                        </select>
+                      </div>
+                      <div style={{ flex: 0.4, textAlign: 'center' }}>
+                        <button onClick={() => deleteItem('tratamentos', t.id, setTratamentos)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: '#ddd', fontFamily: 'inherit' }}>✕</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ABA PRONTUÁRIO */}
+          {tab === 'prontuario' && (
+            <div>
+              {!showForm ? (
+                <button onClick={() => setShowForm(true)} style={{ width: '100%', padding: '10px', background: 'white', border: `2px dashed ${GOLD}`, borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 600, color: GOLD, fontFamily: 'inherit', marginBottom: 14 }}>
+                  + Novo registro de prontuário
+                </button>
+              ) : (
+                <div style={{ background: LIGHT, borderRadius: 10, padding: 14, marginBottom: 14 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 8 }}>
+                    <div><div style={labelStyle}>DATA</div><input type="date" value={newPront.data} onChange={e => setNewPront({ ...newPront, data: e.target.value })} style={inputStyle} /></div>
+                    <div style={{ gridColumn: 'span 2' }}><div style={labelStyle}>TÍTULO</div><input value={newPront.titulo} onChange={e => setNewPront({ ...newPront, titulo: e.target.value })} placeholder="Ex: Avaliação inicial harmonização" style={inputStyle} /></div>
+                    <div><div style={labelStyle}>PROFISSIONAL</div><input value={newPront.profissional} onChange={e => setNewPront({ ...newPront, profissional: e.target.value })} style={inputStyle} /></div>
+                  </div>
+                  <div style={{ marginBottom: 8 }}><div style={labelStyle}>CONTEÚDO CLÍNICO</div><textarea value={newPront.conteudo} onChange={e => setNewPront({ ...newPront, conteudo: e.target.value })} rows={5} placeholder="Anamnese, evolução, intercorrências, orientações..." style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.7 }} /></div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button onClick={() => addItem('prontuarios', newPront, setProntuarios, () => setNewPront({ data: today(), titulo: '', conteudo: '', profissional: 'Lara' }))} style={{ padding: '8px 20px', background: GOLD, color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>Salvar</button>
+                    <button onClick={() => setShowForm(false)} style={{ padding: '8px 14px', background: 'white', color: '#888', border: '1px solid #ddd', borderRadius: 8, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>Cancelar</button>
+                  </div>
+                </div>
+              )}
+              {loading ? <div style={{ textAlign: 'center', padding: 20, color: '#999' }}>Carregando...</div> :
+                prontuarios.length === 0 ? <div style={{ textAlign: 'center', padding: 20, color: '#ccc', fontSize: 13 }}>Nenhum prontuário registrado.</div> :
+                prontuarios.map((p, i) => (
+                  <div key={i} style={{ background: 'white', border: '1px solid #E8E4DE', borderRadius: 10, padding: '14px 16px', marginBottom: 8, borderLeft: `4px solid ${GOLD}` }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: DARK }}>{p.titulo}</div>
+                        <div style={{ fontSize: 11, color: '#999', marginTop: 1 }}>{new Date(p.data + 'T12:00:00').toLocaleDateString('pt-BR')} · {p.profissional}</div>
+                      </div>
+                      <button onClick={() => deleteItem('prontuarios', p.id, setProntuarios)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: '#ddd', fontFamily: 'inherit' }}>✕</button>
+                    </div>
+                    <div style={{ fontSize: 12, color: '#555', lineHeight: 1.8, whiteSpace: 'pre-wrap', background: '#FAFAF8', borderRadius: 6, padding: '10px 12px' }}>{p.conteudo}</div>
+                  </div>
+                ))
+              }
+            </div>
+          )}
+
+          {/* ABA PROPOSTAS */}
+          {tab === 'propostas' && (
+            <div>
+              {!showForm ? (
+                <button onClick={() => setShowForm(true)} style={{ width: '100%', padding: '10px', background: 'white', border: `2px dashed ${GOLD}`, borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 600, color: GOLD, fontFamily: 'inherit', marginBottom: 14 }}>
+                  + Nova proposta
+                </button>
+              ) : (
+                <div style={{ background: LIGHT, borderRadius: 10, padding: 14, marginBottom: 14 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 8 }}>
+                    <div><div style={labelStyle}>DATA</div><input type="date" value={newProp.data} onChange={e => setNewProp({ ...newProp, data: e.target.value })} style={inputStyle} /></div>
+                    <div style={{ gridColumn: 'span 2' }}><div style={labelStyle}>TÍTULO</div><input value={newProp.titulo} onChange={e => setNewProp({ ...newProp, titulo: e.target.value })} placeholder="Ex: Protocolo harmonização completo" style={inputStyle} /></div>
+                    <div><div style={labelStyle}>VALOR TOTAL (R$)</div><input type="number" value={newProp.valor_total} onChange={e => setNewProp({ ...newProp, valor_total: e.target.value })} style={inputStyle} /></div>
+                    <div><div style={labelStyle}>DESCONTO (%)</div><input type="number" value={newProp.desconto} onChange={e => setNewProp({ ...newProp, desconto: e.target.value })} style={inputStyle} /></div>
+                    <div><div style={labelStyle}>PARCELAS</div>
+                      <select value={newProp.parcelas} onChange={e => setNewProp({ ...newProp, parcelas: Number(e.target.value) })} style={inputStyle}>
+                        {[1,2,3,4,5,6,8,10,12].map(n => <option key={n} value={n}>{n}x {n === 1 ? '(à vista)' : ''}</option>)}
+                      </select>
+                    </div>
+                    <div><div style={labelStyle}>STATUS</div>
+                      <select value={newProp.status} onChange={e => setNewProp({ ...newProp, status: e.target.value })} style={inputStyle}>
+                        {['rascunho', 'enviada', 'aprovada', 'recusada'].map(s => <option key={s}>{s}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                  <div style={{ marginBottom: 8 }}><div style={labelStyle}>OBSERVAÇÕES</div><textarea value={newProp.observacoes} onChange={e => setNewProp({ ...newProp, observacoes: e.target.value })} rows={2} style={{ ...inputStyle, resize: 'vertical' }} /></div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button onClick={() => addItem('propostas', newProp, setPropostas, () => setNewProp({ data: today(), titulo: '', valor_total: '', desconto: 0, parcelas: 1, observacoes: '', status: 'rascunho' }))} style={{ padding: '8px 20px', background: GOLD, color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>Salvar</button>
+                    <button onClick={() => setShowForm(false)} style={{ padding: '8px 14px', background: 'white', color: '#888', border: '1px solid #ddd', borderRadius: 8, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>Cancelar</button>
+                  </div>
+                </div>
+              )}
+              {loading ? <div style={{ textAlign: 'center', padding: 20, color: '#999' }}>Carregando...</div> :
+                propostas.length === 0 ? <div style={{ textAlign: 'center', padding: 20, color: '#ccc', fontSize: 13 }}>Nenhuma proposta registrada.</div> :
+                propostas.map((p, i) => {
+                  const descVal = Number(p.valor_total) * (Number(p.desconto) / 100);
+                  const total = Number(p.valor_total) - descVal;
+                  const stColors = { rascunho: { bg: '#F5F5F5', tc: '#999' }, enviada: { bg: '#E3F2FD', tc: '#1565C0' }, aprovada: { bg: '#E8F5E9', tc: '#2E7D32' }, recusada: { bg: '#FFEBEE', tc: '#B71C1C' } };
+                  const sc = stColors[p.status] || stColors.rascunho;
+                  return (
+                    <div key={i} style={{ background: 'white', border: '1px solid #E8E4DE', borderRadius: 10, padding: '14px 16px', marginBottom: 8, borderLeft: '4px solid #2196F3' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: DARK }}>{p.titulo || 'Proposta'}</div>
+                          <div style={{ fontSize: 11, color: '#999', marginTop: 1 }}>{new Date(p.data + 'T12:00:00').toLocaleDateString('pt-BR')}</div>
+                        </div>
+                        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                          <Badge text={p.status} color={sc.bg} textColor={sc.tc} />
+                          <button onClick={() => deleteItem('propostas', p.id, setPropostas)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: '#ddd', fontFamily: 'inherit' }}>✕</button>
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: 16, fontSize: 12 }}>
+                        <div>Valor: <strong>R${Number(p.valor_total).toLocaleString('pt-BR')}</strong></div>
+                        {p.desconto > 0 && <div style={{ color: '#E65100' }}>Desconto: {p.desconto}% (-R${descVal.toLocaleString('pt-BR')})</div>}
+                        <div style={{ color: GOLD, fontWeight: 700 }}>Total: R${total.toLocaleString('pt-BR')}</div>
+                        {p.parcelas > 1 && <div style={{ color: '#888' }}>{p.parcelas}x de R${(total / p.parcelas).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>}
+                      </div>
+                      {p.observacoes && <div style={{ fontSize: 11, color: '#888', marginTop: 6, fontStyle: 'italic' }}>{p.observacoes}</div>}
+                    </div>
+                  );
+                })
+              }
+            </div>
+          )}
+
+          {/* ABA OBSERVAÇÕES */}
+          {tab === 'observacoes' && (
+            <div>
+              {!showForm ? (
+                <button onClick={() => setShowForm(true)} style={{ width: '100%', padding: '10px', background: 'white', border: `2px dashed ${GOLD}`, borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 600, color: GOLD, fontFamily: 'inherit', marginBottom: 14 }}>
+                  + Nova observação
+                </button>
+              ) : (
+                <div style={{ background: LIGHT, borderRadius: 10, padding: 14, marginBottom: 14 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 8 }}>
+                    <div><div style={labelStyle}>DATA</div><input type="date" value={newObs.data} onChange={e => setNewObs({ ...newObs, data: e.target.value })} style={inputStyle} /></div>
+                    <div><div style={labelStyle}>AUTOR</div><input value={newObs.autor} onChange={e => setNewObs({ ...newObs, autor: e.target.value })} style={inputStyle} /></div>
+                    <div><div style={labelStyle}>TIPO</div>
+                      <select value={newObs.tipo} onChange={e => setNewObs({ ...newObs, tipo: e.target.value })} style={inputStyle}>
+                        {['geral', 'clínico', 'comercial', 'financeiro', 'alerta'].map(t => <option key={t}>{t}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                  <div style={{ marginBottom: 8 }}><div style={labelStyle}>OBSERVAÇÃO</div><textarea value={newObs.conteudo} onChange={e => setNewObs({ ...newObs, conteudo: e.target.value })} rows={3} placeholder="Anotação importante sobre o paciente..." style={{ ...inputStyle, resize: 'vertical' }} /></div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button onClick={() => addItem('observacoes', newObs, setObservacoes, () => setNewObs({ data: today(), conteudo: '', autor: 'Sirlândia', tipo: 'geral' }))} style={{ padding: '8px 20px', background: GOLD, color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>Salvar</button>
+                    <button onClick={() => setShowForm(false)} style={{ padding: '8px 14px', background: 'white', color: '#888', border: '1px solid #ddd', borderRadius: 8, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>Cancelar</button>
+                  </div>
+                </div>
+              )}
+              {loading ? <div style={{ textAlign: 'center', padding: 20, color: '#999' }}>Carregando...</div> :
+                observacoes.length === 0 ? <div style={{ textAlign: 'center', padding: 20, color: '#ccc', fontSize: 13 }}>Nenhuma observação registrada.</div> :
+                observacoes.map((o, i) => {
+                  const tipoColors = { geral: '#E8EAF6', 'clínico': '#E8F5E9', comercial: '#FFF3E0', financeiro: '#E0F2F1', alerta: '#FFCDD2' };
+                  return (
+                    <div key={i} style={{ background: 'white', border: '1px solid #E8E4DE', borderRadius: 10, padding: '12px 14px', marginBottom: 6, borderLeft: `4px solid ${GOLD}` }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                          <Badge text={o.tipo} color={tipoColors[o.tipo] || '#eee'} textColor='#555' />
+                          <span style={{ fontSize: 11, color: '#999' }}>{new Date(o.data + 'T12:00:00').toLocaleDateString('pt-BR')} · {o.autor}</span>
+                        </div>
+                        <button onClick={() => deleteItem('observacoes', o.id, setObservacoes)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: '#ddd', fontFamily: 'inherit' }}>✕</button>
+                      </div>
+                      <div style={{ fontSize: 12, color: '#555', lineHeight: 1.7 }}>{o.conteudo}</div>
+                    </div>
+                  );
+                })
+              }
+            </div>
+          )}
+
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const CRMTab = ({ shared }) => {
+  const [pacientes, setPacientes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState(null);
+  const [showNew, setShowNew] = useState(false);
+  const [search, setSearch] = useState('');
+  const [filterStatus, setFilterStatus] = useState('TODOS');
+  const [newPac, setNewPac] = useState({ nome: '', telefone: '', email: '', cpf: '', data_nascimento: '', sexo: '', origem: 'Instagram', indicado_por: '', status: 'lead', observacoes_gerais: '' });
+  const [saving, setSaving] = useState(false);
+
+  const load = async () => {
+    setLoading(true);
+    const res = await fetch('/api/crm?resource=pacientes');
+    const data = await res.json();
+    setPacientes(Array.isArray(data) ? data : []);
+    setLoading(false);
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const createPaciente = async () => {
+    if (!newPac.nome) return;
+    setSaving(true);
+    const res = await fetch('/api/crm?resource=pacientes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newPac),
+    });
+    const data = await res.json();
+    if (!data.error) {
+      setPacientes(prev => [data, ...prev]);
+      setNewPac({ nome: '', telefone: '', email: '', cpf: '', data_nascimento: '', sexo: '', origem: 'Instagram', indicado_por: '', status: 'lead', observacoes_gerais: '' });
+      setShowNew(false);
+    }
+    setSaving(false);
+  };
+
+  const filtered = pacientes
+    .filter(p => filterStatus === 'TODOS' || p.status === filterStatus)
+    .filter(p => !search || p.nome.toLowerCase().includes(search.toLowerCase()) || (p.telefone || '').includes(search) || (p.email || '').toLowerCase().includes(search.toLowerCase()));
+
+  const counts = Object.keys(STATUS_COLORS).reduce((acc, k) => ({ ...acc, [k]: pacientes.filter(p => p.status === k).length }), {});
+
+  const inputStyle = { width: '100%', padding: '7px 10px', border: '1px solid #ddd', borderRadius: 6, fontSize: 12, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' };
+  const labelStyle = { fontSize: 9, fontWeight: 700, color: '#999', marginBottom: 3 };
+
+  return (
+    <div>
+      {selected && (
+        <FichaPaciente
+          paciente={selected}
+          onClose={() => setSelected(null)}
+          onUpdate={(updated) => {
+            setPacientes(prev => prev.map(p => p.id === updated.id ? updated : p));
+            setSelected(updated);
+          }}
+        />
+      )}
+
+      {/* FUNIL */}
+      <div style={{ display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'wrap' }}>
+        {[{ id: 'TODOS', label: 'Todos', bg: LIGHT, tc: GOLD }, ...Object.entries(STATUS_COLORS).map(([k, v]) => ({ id: k, label: v.label, bg: v.bg, tc: v.tc }))].map(s => (
+          <button key={s.id} onClick={() => setFilterStatus(s.id)} style={{
+            padding: '6px 14px', borderRadius: 20, fontSize: 11, fontWeight: 700,
+            cursor: 'pointer', fontFamily: 'inherit', border: 'none',
+            background: filterStatus === s.id ? DARK : s.bg,
+            color: filterStatus === s.id ? GOLD : s.tc,
+          }}>
+            {s.label} ({s.id === 'TODOS' ? pacientes.length : counts[s.id] || 0})
+          </button>
+        ))}
+      </div>
+
+      {/* SEARCH + ADD */}
+      <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
+        <div style={{ flex: 1, position: 'relative' }}>
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar por nome, telefone ou e-mail..."
+            style={{ width: '100%', padding: '10px 14px 10px 36px', border: '1px solid #ddd', borderRadius: 8, fontSize: 13, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }} />
+          <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#ccc', fontSize: 14 }}>⌕</span>
+        </div>
+        <button onClick={() => setShowNew(!showNew)} style={{ padding: '10px 20px', background: GOLD, color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>
+          + Novo paciente
+        </button>
+      </div>
+
+      {/* FORM NOVO */}
+      {showNew && (
+        <Card title="Cadastrar Novo Paciente / Lead">
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 10 }}>
+            <div style={{ gridColumn: 'span 2' }}><div style={labelStyle}>NOME COMPLETO *</div><input value={newPac.nome} onChange={e => setNewPac({ ...newPac, nome: e.target.value })} placeholder="Nome completo" style={inputStyle} /></div>
+            <div><div style={labelStyle}>STATUS</div>
+              <select value={newPac.status} onChange={e => setNewPac({ ...newPac, status: e.target.value })} style={inputStyle}>
+                {Object.entries(STATUS_COLORS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+              </select>
+            </div>
+            <div><div style={labelStyle}>TELEFONE</div><input value={newPac.telefone} onChange={e => setNewPac({ ...newPac, telefone: e.target.value })} placeholder="(11) 99999-0000" style={inputStyle} /></div>
+            <div><div style={labelStyle}>E-MAIL</div><input value={newPac.email} onChange={e => setNewPac({ ...newPac, email: e.target.value })} type="email" style={inputStyle} /></div>
+            <div><div style={labelStyle}>CPF</div><input value={newPac.cpf} onChange={e => setNewPac({ ...newPac, cpf: e.target.value })} placeholder="000.000.000-00" style={inputStyle} /></div>
+            <div><div style={labelStyle}>NASCIMENTO</div><input value={newPac.data_nascimento} onChange={e => setNewPac({ ...newPac, data_nascimento: e.target.value })} placeholder="DD/MM/AAAA" style={inputStyle} /></div>
+            <div><div style={labelStyle}>SEXO</div>
+              <select value={newPac.sexo} onChange={e => setNewPac({ ...newPac, sexo: e.target.value })} style={inputStyle}>
+                <option value="">—</option><option>Feminino</option><option>Masculino</option><option>Outro</option>
+              </select>
+            </div>
+            <div><div style={labelStyle}>ORIGEM</div>
+              <select value={newPac.origem} onChange={e => setNewPac({ ...newPac, origem: e.target.value })} style={inputStyle}>
+                {['Instagram', 'Google', 'Indicação', 'WhatsApp', 'Tráfego Pago', 'Levvai Day', 'Associado', 'Outro'].map(o => <option key={o}>{o}</option>)}
+              </select>
+            </div>
+            <div><div style={labelStyle}>INDICADO POR</div><input value={newPac.indicado_por} onChange={e => setNewPac({ ...newPac, indicado_por: e.target.value })} placeholder="Nome de quem indicou" style={inputStyle} /></div>
+          </div>
+          <div style={{ marginBottom: 10 }}><div style={labelStyle}>OBSERVAÇÕES</div><textarea value={newPac.observacoes_gerais} onChange={e => setNewPac({ ...newPac, observacoes_gerais: e.target.value })} rows={2} style={{ ...inputStyle, resize: 'vertical' }} /></div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={createPaciente} disabled={saving} style={{ padding: '8px 24px', background: newPac.nome ? GOLD : '#ddd', color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>
+              {saving ? 'Salvando...' : 'Cadastrar'}
+            </button>
+            <button onClick={() => setShowNew(false)} style={{ padding: '8px 16px', background: 'white', color: '#888', border: '1px solid #ddd', borderRadius: 8, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>Cancelar</button>
+          </div>
+        </Card>
+      )}
+
+      {/* LISTA */}
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: 40, color: '#999' }}>Carregando pacientes...</div>
+      ) : filtered.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: 40, color: '#ccc', fontSize: 14 }}>
+          {pacientes.length === 0 ? 'Nenhum paciente cadastrado. Clique em "+ Novo paciente" para começar.' : 'Nenhum resultado encontrado.'}
+        </div>
+      ) : (
+        <Card title={`${filtered.length} paciente(s)`}>
+          <div style={{ display: 'flex', background: DARK, borderRadius: '8px 8px 0 0', padding: '8px 0' }}>
+            {['NOME', 'TELEFONE', 'ORIGEM', 'STATUS', 'ÚLT. ATUALIZAÇÃO'].map((h, i) => (
+              <div key={i} style={{ flex: i === 0 ? 2 : 1, fontSize: 9, fontWeight: 700, color: GOLD, textAlign: 'center', letterSpacing: '0.05em' }}>{h}</div>
+            ))}
+          </div>
+          {filtered.map((p, i) => {
+            const st = STATUS_COLORS[p.status] || STATUS_COLORS.lead;
+            return (
+              <div key={i} onClick={() => setSelected(p)} style={{
+                display: 'flex', alignItems: 'center', padding: '10px 0',
+                borderBottom: '1px solid #f0ece6', cursor: 'pointer',
+                background: i % 2 === 0 ? 'white' : '#FAFAF8',
+                transition: 'background 0.1s',
+              }}
+              onMouseOver={e => e.currentTarget.style.background = '#FFF9EE'}
+              onMouseOut={e => e.currentTarget.style.background = i % 2 === 0 ? 'white' : '#FAFAF8'}>
+                <div style={{ flex: 2, display: 'flex', alignItems: 'center', gap: 10, paddingLeft: 8 }}>
+                  <div style={{ width: 32, height: 32, borderRadius: '50%', background: st.bg === 'white' ? GOLD : st.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 800, color: st.tc, flexShrink: 0 }}>
+                    {p.nome[0].toUpperCase()}
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: DARK }}>{p.nome}</div>
+                    {p.email && <div style={{ fontSize: 11, color: '#999' }}>{p.email}</div>}
+                  </div>
+                </div>
+                <div style={{ flex: 1, textAlign: 'center', fontSize: 12, color: '#666' }}>{p.telefone || '—'}</div>
+                <div style={{ flex: 1, textAlign: 'center' }}><Badge text={p.origem} color={LIGHT} textColor='#888' /></div>
+                <div style={{ flex: 1, textAlign: 'center' }}><Badge text={st.label} color={st.bg} textColor={st.tc} /></div>
+                <div style={{ flex: 1, textAlign: 'center', fontSize: 11, color: '#aaa' }}>
+                  {new Date(p.updated_at || p.created_at).toLocaleDateString('pt-BR')}
+                </div>
+              </div>
+            );
+          })}
+        </Card>
+      )}
+    </div>
+  );
+};
+
+// PIPELINE LEGADO — preservado para referência interna (não exposto na UI)
+const _CRMPipelineTab = ({ shared }) => {
   const pipelineStages = [
     { id: "novo", label: "NOVO LEAD", color: "#E3F2FD", tc: "#1565C0", icon: "●" },
     { id: "contato", label: "1º CONTATO", color: "#E8EAF6", tc: "#283593", icon: "●" },
