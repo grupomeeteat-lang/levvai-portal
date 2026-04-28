@@ -84,6 +84,7 @@ const SECTORS = [
     tabs: [
       { id: 'biblioteca', label: 'Biblioteca' },
       { id: 'templates', label: 'Templates' },
+      { id: 'usuarios', label: 'Usuários' },
     ],
   },
 ];

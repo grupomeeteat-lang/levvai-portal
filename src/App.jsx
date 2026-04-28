@@ -55,6 +55,7 @@ const tabGroups = [
   ]},
   { sector: "DOCS", color: "#795548", tabs: [
     { id: "docs", label: "Documentos" },
+    { id: "usuarios", label: "Usuários" },
   ]},
 ];
 
@@ -1445,6 +1446,191 @@ const RitualsTab = () => (
 );
 
 // DOCS TAB
+const UsuariosTab = () => {
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [newEmail, setNewEmail] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState('');
+
+  const profileColors = {
+    'ikeguimaraes@gmail.com': '#C8A96E',
+    'lara@institutolevvai.com.br': '#E91E63',
+    'sirlandia@institutolevvai.com.br': '#039BE5',
+    'sylmara@institutolevvai.com.br': '#7B1FA2',
+    'gi@institutolevvai.com.br': '#43A047',
+    'rich@institutolevvai.com.br': '#78909C',
+    'admin@institutolevvai.com.br': '#C8A96E',
+  };
+
+  const loadUsers = async () => {
+    setLoading(true);
+    const res = await fetch('/api/admin-users');
+    const data = await res.json();
+    setUsers(data.users || []);
+    setLoading(false);
+  };
+
+  useEffect(() => { loadUsers(); }, []);
+
+  const createUser = async () => {
+    if (!newEmail || !newPassword) return;
+    setSaving(true);
+    setMsg('');
+    const res = await fetch('/api/admin-users', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: newEmail.trim(), password: newPassword }),
+    });
+    const data = await res.json();
+    if (data.error) {
+      setMsg(`Erro: ${data.error}`);
+    } else {
+      setMsg('Usuário criado com sucesso!');
+      setNewEmail('');
+      setNewPassword('');
+      setShowForm(false);
+      loadUsers();
+    }
+    setSaving(false);
+  };
+
+  const deleteUser = async (userId, email) => {
+    if (!confirm(`Remover acesso de ${email}?`)) return;
+    await fetch('/api/admin-users', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId }),
+    });
+    loadUsers();
+  };
+
+  return (
+    <div>
+      <Card title="Gestão de Usuários — Acesso ao Portal" accent>
+        <p style={{ color: '#aaa', fontSize: 13, margin: 0 }}>
+          Somente o CEO (admin master) deve gerenciar acessos. Cada usuário tem e-mail e senha próprios.
+        </p>
+      </Card>
+
+      <Card title="Usuários com Acesso">
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: 20, color: '#999' }}>Carregando...</div>
+        ) : (
+          <>
+            {users.map((u, i) => {
+              const color = profileColors[u.email] || '#888';
+              const lastLogin = u.last_sign_in_at
+                ? new Date(u.last_sign_in_at).toLocaleDateString('pt-BR')
+                : 'Nunca';
+              return (
+                <div key={i} style={{
+                  display: 'flex', alignItems: 'center', gap: 12,
+                  padding: '12px 0', borderBottom: '1px solid #f0ece6',
+                }}>
+                  <div style={{
+                    width: 38, height: 38, borderRadius: '50%', background: color,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 15, fontWeight: 800, color: 'white', flexShrink: 0,
+                  }}>{u.email[0].toUpperCase()}</div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700 }}>{u.email}</div>
+                    <div style={{ fontSize: 11, color: '#999', marginTop: 2 }}>
+                      Criado: {new Date(u.created_at).toLocaleDateString('pt-BR')} · Último acesso: {lastLogin}
+                    </div>
+                  </div>
+                  <Badge
+                    text={u.email_confirmed_at ? 'ATIVO' : 'PENDENTE'}
+                    color={u.email_confirmed_at ? '#E8F5E9' : '#FFF9C4'}
+                    textColor={u.email_confirmed_at ? '#2E7D32' : '#F57F17'}
+                  />
+                  {u.email !== 'ikeguimaraes@gmail.com' && (
+                    <button onClick={() => deleteUser(u.id, u.email)} style={{
+                      background: 'none', border: 'none', cursor: 'pointer',
+                      fontSize: 11, color: '#ccc', fontFamily: 'inherit', padding: '4px 8px',
+                    }}>Remover</button>
+                  )}
+                </div>
+              );
+            })}
+            <div style={{ fontSize: 11, color: '#999', marginTop: 8 }}>
+              {users.length} usuário(s) com acesso ao portal
+            </div>
+          </>
+        )}
+      </Card>
+
+      <Card title="Adicionar Novo Usuário">
+        {!showForm ? (
+          <button onClick={() => setShowForm(true)} style={{
+            width: '100%', padding: '12px', background: 'white',
+            border: `2px dashed ${GOLD}`, borderRadius: 10, cursor: 'pointer',
+            fontSize: 13, fontWeight: 600, color: GOLD, fontFamily: 'inherit',
+          }}>+ Adicionar usuário</button>
+        ) : (
+          <div>
+            <div style={{ display: 'flex', gap: 10, marginBottom: 10, flexWrap: 'wrap' }}>
+              <div style={{ flex: '1 1 200px' }}>
+                <div style={{ fontSize: 9, fontWeight: 700, color: '#999', marginBottom: 3 }}>E-MAIL</div>
+                <input
+                  value={newEmail}
+                  onChange={e => setNewEmail(e.target.value)}
+                  placeholder="nome@institutolevvai.com.br"
+                  type="email"
+                  style={{ width: '100%', padding: '8px 10px', border: '1px solid #ddd', borderRadius: 6, fontSize: 13, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }}
+                />
+              </div>
+              <div style={{ flex: '1 1 160px' }}>
+                <div style={{ fontSize: 9, fontWeight: 700, color: '#999', marginBottom: 3 }}>SENHA INICIAL</div>
+                <input
+                  value={newPassword}
+                  onChange={e => setNewPassword(e.target.value)}
+                  placeholder="Mínimo 6 caracteres"
+                  type="password"
+                  style={{ width: '100%', padding: '8px 10px', border: '1px solid #ddd', borderRadius: 6, fontSize: 13, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }}
+                />
+              </div>
+            </div>
+            {msg && (
+              <div style={{ fontSize: 12, color: msg.startsWith('Erro') ? '#B71C1C' : '#2E7D32', marginBottom: 8 }}>
+                {msg}
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={createUser} disabled={saving} style={{
+                padding: '8px 24px', background: newEmail && newPassword ? GOLD : '#ddd',
+                color: 'white', border: 'none', borderRadius: 8, fontWeight: 700,
+                fontSize: 13, cursor: 'pointer', fontFamily: 'inherit',
+              }}>{saving ? 'Criando...' : 'Criar usuário'}</button>
+              <button onClick={() => { setShowForm(false); setMsg(''); }} style={{
+                padding: '8px 16px', background: 'white', color: '#888',
+                border: '1px solid #ddd', borderRadius: 8, fontSize: 13,
+                cursor: 'pointer', fontFamily: 'inherit',
+              }}>Cancelar</button>
+            </div>
+          </div>
+        )}
+      </Card>
+
+      <Card title="Regras de Acesso">
+        {[
+          'Somente o CEO (ikeguimaraes@gmail.com) gerencia usuários.',
+          'Cada membro do time tem e-mail e senha próprios — nunca compartilhar credenciais.',
+          'Ao adicionar novo associado ou funcionário, criar usuário aqui e comunicar via WhatsApp.',
+          'Ao desligar alguém, remover o acesso imediatamente pelo botão Remover.',
+          'Senhas devem ter no mínimo 6 caracteres. Pedir para o usuário trocar no primeiro acesso.',
+        ].map((r, i) => (
+          <div key={i} style={{ fontSize: 12, color: '#555', padding: '5px 0', display: 'flex', gap: 6, borderBottom: '1px solid #f5f0e8' }}>
+            <span style={{ color: GOLD, fontWeight: 800, minWidth: 22 }}>{(i+1).toString().padStart(2,'0')}</span> {r}
+          </div>
+        ))}
+      </Card>
+    </div>
+  );
+};
+
 const DocsTab = () => {
   const [viewMode, setViewMode] = useState("all");
 
@@ -5198,6 +5384,7 @@ const tabContent = {
   avaliacao: AvaliacaoTab,
   cultura: CulturaTab,
   docs: DocsTab,
+  usuarios: UsuariosTab,
 };
 
 // USER DATABASE
@@ -5237,6 +5424,7 @@ const TAB_TO_SECTOR = {
   'contratos':         { sector: 'Jurídico',            label: 'Contratos' },
   'biblioteca':        { sector: 'Docs',                label: 'Biblioteca' },
   'templates':         { sector: 'Docs',                label: 'Templates' },
+  'usuarios':          { sector: 'Docs',                label: 'Usuários' },
 };
 
 // Maps new sidebar IDs → existing tabContent keys (backward compat)
@@ -5249,6 +5437,7 @@ const NEW_TO_OLD_ID = {
   'equipe': 'team', 'associados': 'associates', '1-1s': 'oneone', 'avaliacao': 'avaliacao',
   'agenda': 'agenda', 'estoque': 'stock', 'rotinas': 'rituals', 'fornecedores': 'fornecedores',
   'compliance': 'compliance', 'contratos': 'contratos', 'biblioteca': 'docs', 'templates': 'docs',
+  'usuarios': 'usuarios',
 };
 
 // Reverse map: old ID → new ID (for navigateTo backward compatibility)
