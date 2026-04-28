@@ -3063,22 +3063,27 @@ const FichaPaciente = ({ paciente, onClose, onUpdate }) => {
   const [prontuarios, setProntuarios] = useState([]);
   const [propostas, setPropostas] = useState([]);
   const [observacoes, setObservacoes] = useState([]);
+  const [produtosDB, setProdutosDB] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [editData, setEditData] = useState({ ...paciente });
   const [saving, setSaving] = useState(false);
   const [showForm, setShowForm] = useState(false);
 
-  const [newTrat, setNewTrat] = useState({ data: today(), procedimento: '', produto: '', regiao: '', sessao: 1, total_sessoes: 1, profissional: 'Lara', valor: '', observacoes: '', status: 'pendente' });
+  const [newTrat, setNewTrat] = useState({ data: today(), procedimento: '', produto: '', regiao: '', sessao: 1, total_sessoes: 1, profissional: 'Lara', valor: '', observacoes: '', status: 'pendente', forma_pagamento: 'pix', status_pagamento: 'pendente', data_pagamento: '' });
   const [newPront, setNewPront] = useState({ data: today(), titulo: '', conteudo: '', profissional: 'Lara' });
   const [newObs, setNewObs] = useState({ data: today(), conteudo: '', autor: 'Sirlândia', tipo: 'geral' });
-  const [newProp, setNewProp] = useState({ data: today(), titulo: '', valor_total: '', desconto: 0, parcelas: 1, observacoes: '', status: 'rascunho' });
+  const [newProp, setNewProp] = useState({ data: today(), titulo: '', itens: [], valor_total: '', desconto: 0, parcelas: 1, observacoes: '', status: 'rascunho' });
 
   const loadSub = async (resource, setter) => {
     const res = await fetch(`/api/crm?resource=${resource}&paciente_id=${paciente.id}`);
     const data = await res.json();
     setter(Array.isArray(data) ? data : []);
   };
+
+  useEffect(() => {
+    fetch('/api/crm?resource=produtos').then(r => r.json()).then(d => setProdutosDB(Array.isArray(d) ? d : []));
+  }, []);
 
   useEffect(() => {
     const load = async () => {
@@ -3126,11 +3131,14 @@ const FichaPaciente = ({ paciente, onClose, onUpdate }) => {
     setter(prev => prev.filter(i => i.id !== id));
   };
 
-  const updateTratStatus = async (trat, newStatus) => {
+  const updateTratStatus = async (trat, newStatus, newStatusPag) => {
+    const body = {};
+    if (newStatus !== undefined) body.status = newStatus;
+    if (newStatusPag !== undefined) body.status_pagamento = newStatusPag;
     const res = await fetch(`/api/crm?resource=tratamentos&id=${trat.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: newStatus }),
+      body: JSON.stringify(body),
     });
     const data = await res.json();
     if (!data.error) setTratamentos(prev => prev.map(t => t.id === trat.id ? data : t));
@@ -3276,10 +3284,12 @@ const FichaPaciente = ({ paciente, onClose, onUpdate }) => {
                 <div style={{ background: LIGHT, borderRadius: 10, padding: 14, marginBottom: 14 }}>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 8 }}>
                     <div><div style={labelStyle}>DATA</div><input type="date" value={newTrat.data} onChange={e => setNewTrat({ ...newTrat, data: e.target.value })} style={inputStyle} /></div>
-                    <div style={{ gridColumn: 'span 2' }}><div style={labelStyle}>PROCEDIMENTO</div>
+                    <div style={{ gridColumn: 'span 2' }}>
+                      <div style={labelStyle}>PROCEDIMENTO</div>
                       <select value={newTrat.procedimento} onChange={e => setNewTrat({ ...newTrat, procedimento: e.target.value })} style={inputStyle}>
                         <option value="">Selecione...</option>
-                        {PROCEDIMENTOS.map(p => <option key={p}>{p}</option>)}
+                        {produtosDB.map(p => <option key={p.id} value={p.nome}>{p.nome}</option>)}
+                        <option value="Outro">Outro</option>
                       </select>
                     </div>
                     <div><div style={labelStyle}>PRODUTO USADO</div><input value={newTrat.produto} onChange={e => setNewTrat({ ...newTrat, produto: e.target.value })} placeholder="Ex: Juvederm 1ml" style={inputStyle} /></div>
@@ -3288,10 +3298,23 @@ const FichaPaciente = ({ paciente, onClose, onUpdate }) => {
                     <div><div style={labelStyle}>SESSÃO Nº</div><input type="number" value={newTrat.sessao} onChange={e => setNewTrat({ ...newTrat, sessao: Number(e.target.value) })} style={inputStyle} /></div>
                     <div><div style={labelStyle}>TOTAL SESSÕES</div><input type="number" value={newTrat.total_sessoes} onChange={e => setNewTrat({ ...newTrat, total_sessoes: Number(e.target.value) })} style={inputStyle} /></div>
                     <div><div style={labelStyle}>VALOR (R$)</div><input type="number" value={newTrat.valor} onChange={e => setNewTrat({ ...newTrat, valor: e.target.value })} style={inputStyle} /></div>
+                    <div>
+                      <div style={labelStyle}>FORMA DE PAGAMENTO</div>
+                      <select value={newTrat.forma_pagamento} onChange={e => setNewTrat({ ...newTrat, forma_pagamento: e.target.value })} style={inputStyle}>
+                        {['pix','dinheiro','débito','crédito 1x','crédito 2x','crédito 3x','crédito 4x','crédito 5x','crédito 6x','crédito 10x','crédito 12x','transferência','cortesia'].map(f => <option key={f}>{f}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <div style={labelStyle}>STATUS PAGAMENTO</div>
+                      <select value={newTrat.status_pagamento} onChange={e => setNewTrat({ ...newTrat, status_pagamento: e.target.value })} style={inputStyle}>
+                        {['pendente','pago','parcial','isento'].map(s => <option key={s}>{s}</option>)}
+                      </select>
+                    </div>
+                    <div><div style={labelStyle}>DATA PAGAMENTO</div><input type="date" value={newTrat.data_pagamento || ''} onChange={e => setNewTrat({ ...newTrat, data_pagamento: e.target.value })} style={inputStyle} /></div>
                   </div>
                   <div style={{ marginBottom: 8 }}><div style={labelStyle}>OBSERVAÇÕES</div><textarea value={newTrat.observacoes} onChange={e => setNewTrat({ ...newTrat, observacoes: e.target.value })} rows={2} style={{ ...inputStyle, resize: 'vertical' }} /></div>
                   <div style={{ display: 'flex', gap: 8 }}>
-                    <button onClick={() => addItem('tratamentos', newTrat, setTratamentos, () => setNewTrat({ data: today(), procedimento: '', produto: '', regiao: '', sessao: 1, total_sessoes: 1, profissional: 'Lara', valor: '', observacoes: '', status: 'pendente' }))} style={{ padding: '8px 20px', background: GOLD, color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>Salvar</button>
+                    <button onClick={() => addItem('tratamentos', newTrat, setTratamentos, () => setNewTrat({ data: today(), procedimento: '', produto: '', regiao: '', sessao: 1, total_sessoes: 1, profissional: 'Lara', valor: '', observacoes: '', status: 'pendente', forma_pagamento: 'pix', status_pagamento: 'pendente', data_pagamento: '' }))} style={{ padding: '8px 20px', background: GOLD, color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>Salvar</button>
                     <button onClick={() => setShowForm(false)} style={{ padding: '8px 14px', background: 'white', color: '#888', border: '1px solid #ddd', borderRadius: 8, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>Cancelar</button>
                   </div>
                 </div>
@@ -3301,32 +3324,57 @@ const FichaPaciente = ({ paciente, onClose, onUpdate }) => {
                 tratamentos.length === 0 ? <div style={{ textAlign: 'center', padding: 20, color: '#ccc', fontSize: 13 }}>Nenhum tratamento registrado.</div> :
                 <div>
                   <div style={{ display: 'flex', background: DARK, borderRadius: '8px 8px 0 0', padding: '8px 0' }}>
-                    {['DATA', 'TRATAMENTO', 'PRODUTO', 'SESSÃO', 'PROFISSIONAL', 'VALOR', 'STATUS', ''].map((h, i) => (
+                    {['DATA', 'TRATAMENTO', 'VALOR', 'PAGAMENTO', 'FORMA', 'STATUS PAG.', 'STATUS TRAT.', ''].map((h, i) => (
                       <div key={i} style={{ flex: i === 1 ? 2 : i === 7 ? 0.4 : 1, fontSize: 9, fontWeight: 700, color: GOLD, textAlign: 'center', padding: '0 4px' }}>{h}</div>
                     ))}
                   </div>
-                  {tratamentos.map((t, i) => (
-                    <div key={i} style={{ display: 'flex', padding: '8px 0', borderBottom: '1px solid #f0ece6', alignItems: 'center', background: i % 2 === 0 ? 'white' : '#FAFAF8' }}>
-                      <div style={{ flex: 1, textAlign: 'center', fontSize: 11, color: '#888' }}>{new Date(t.data + 'T12:00:00').toLocaleDateString('pt-BR')}</div>
-                      <div style={{ flex: 2, fontSize: 12, fontWeight: 600, paddingLeft: 4 }}>{t.procedimento}</div>
-                      <div style={{ flex: 1, fontSize: 11, color: '#777', textAlign: 'center' }}>{t.produto || '—'}</div>
-                      <div style={{ flex: 1, textAlign: 'center', fontSize: 11 }}>{t.sessao}/{t.total_sessoes}</div>
-                      <div style={{ flex: 1, textAlign: 'center', fontSize: 11 }}>{t.profissional}</div>
-                      <div style={{ flex: 1, textAlign: 'center', fontSize: 12, fontWeight: 600 }}>{t.valor ? `R$${Number(t.valor).toLocaleString('pt-BR')}` : '—'}</div>
-                      <div style={{ flex: 1, textAlign: 'center' }}>
-                        <select value={t.status} onChange={e => updateTratStatus(t, e.target.value)}
-                          style={{ padding: '3px 6px', borderRadius: 10, fontSize: 9, fontWeight: 700, border: 'none', cursor: 'pointer', fontFamily: 'inherit', background: STATUS_TRAT[t.status]?.bg || '#eee', color: STATUS_TRAT[t.status]?.tc || '#333' }}>
-                          <option value="pendente">Pendente</option>
-                          <option value="em_andamento">Em andamento</option>
-                          <option value="finalizado">Finalizado</option>
-                          <option value="cancelado">Cancelado</option>
-                        </select>
+                  {tratamentos.map((t, i) => {
+                    const pgColors = { pago: { bg: '#E8F5E9', tc: '#2E7D32' }, pendente: { bg: '#FFF9C4', tc: '#F57F17' }, parcial: { bg: '#E3F2FD', tc: '#1565C0' }, isento: { bg: '#F3E5F5', tc: '#6A1B9A' } };
+                    const pg = pgColors[t.status_pagamento] || pgColors.pendente;
+                    return (
+                      <div key={i} style={{ display: 'flex', padding: '8px 0', borderBottom: '1px solid #f0ece6', alignItems: 'center', background: i % 2 === 0 ? 'white' : '#FAFAF8' }}>
+                        <div style={{ flex: 1, textAlign: 'center', fontSize: 11, color: '#888' }}>{new Date(t.data + 'T12:00:00').toLocaleDateString('pt-BR')}</div>
+                        <div style={{ flex: 2, fontSize: 12, fontWeight: 600, paddingLeft: 4 }}>{t.procedimento}</div>
+                        <div style={{ flex: 1, textAlign: 'center', fontSize: 12, fontWeight: 700, color: DARK }}>{t.valor ? `R$${Number(t.valor).toLocaleString('pt-BR')}` : '—'}</div>
+                        <div style={{ flex: 1, textAlign: 'center', fontSize: 10, color: '#777' }}>{t.data_pagamento ? new Date(t.data_pagamento + 'T12:00:00').toLocaleDateString('pt-BR') : '—'}</div>
+                        <div style={{ flex: 1, textAlign: 'center', fontSize: 10, color: '#777' }}>{t.forma_pagamento || '—'}</div>
+                        <div style={{ flex: 1, textAlign: 'center' }}>
+                          <select value={t.status_pagamento || 'pendente'} onChange={e => updateTratStatus(t, undefined, e.target.value)}
+                            style={{ padding: '3px 6px', borderRadius: 10, fontSize: 9, fontWeight: 700, border: 'none', cursor: 'pointer', fontFamily: 'inherit', background: pg.bg, color: pg.tc }}>
+                            <option value="pendente">Pendente</option>
+                            <option value="pago">Pago</option>
+                            <option value="parcial">Parcial</option>
+                            <option value="isento">Isento</option>
+                          </select>
+                        </div>
+                        <div style={{ flex: 1, textAlign: 'center' }}>
+                          <select value={t.status} onChange={e => updateTratStatus(t, e.target.value, undefined)}
+                            style={{ padding: '3px 6px', borderRadius: 10, fontSize: 9, fontWeight: 700, border: 'none', cursor: 'pointer', fontFamily: 'inherit', background: STATUS_TRAT[t.status]?.bg || '#eee', color: STATUS_TRAT[t.status]?.tc || '#333' }}>
+                            <option value="pendente">Pendente</option>
+                            <option value="em_andamento">Em andamento</option>
+                            <option value="finalizado">Finalizado</option>
+                            <option value="cancelado">Cancelado</option>
+                          </select>
+                        </div>
+                        <div style={{ flex: 0.4, textAlign: 'center' }}>
+                          <button onClick={() => deleteItem('tratamentos', t.id, setTratamentos)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: '#ddd', fontFamily: 'inherit' }}>✕</button>
+                        </div>
                       </div>
-                      <div style={{ flex: 0.4, textAlign: 'center' }}>
-                        <button onClick={() => deleteItem('tratamentos', t.id, setTratamentos)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: '#ddd', fontFamily: 'inherit' }}>✕</button>
+                    );
+                  })}
+                  {/* TOTAIS FINANCEIROS */}
+                  <div style={{ background: LIGHT, borderRadius: '0 0 8px 8px', padding: '10px 12px', display: 'flex', gap: 20 }}>
+                    {[
+                      { label: 'Total procedimentos', value: `R$${tratamentos.reduce((a, t) => a + (Number(t.valor) || 0), 0).toLocaleString('pt-BR')}`, color: DARK },
+                      { label: 'Pago', value: `R$${tratamentos.filter(t => t.status_pagamento === 'pago').reduce((a, t) => a + (Number(t.valor) || 0), 0).toLocaleString('pt-BR')}`, color: '#2E7D32' },
+                      { label: 'Pendente', value: `R$${tratamentos.filter(t => t.status_pagamento === 'pendente').reduce((a, t) => a + (Number(t.valor) || 0), 0).toLocaleString('pt-BR')}`, color: '#F57F17' },
+                    ].map((s, i) => (
+                      <div key={i}>
+                        <div style={{ fontSize: 9, fontWeight: 700, color: '#999' }}>{s.label}</div>
+                        <div style={{ fontSize: 14, fontWeight: 800, color: s.color }}>{s.value}</div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
@@ -3376,14 +3424,53 @@ const FichaPaciente = ({ paciente, onClose, onUpdate }) => {
             <div>
               {!showForm ? (
                 <button onClick={() => setShowForm(true)} style={{ width: '100%', padding: '10px', background: 'white', border: `2px dashed ${GOLD}`, borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 600, color: GOLD, fontFamily: 'inherit', marginBottom: 14 }}>
-                  + Nova proposta
+                  + Nova proposta / orçamento
                 </button>
               ) : (
                 <div style={{ background: LIGHT, borderRadius: 10, padding: 14, marginBottom: 14 }}>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 8 }}>
                     <div><div style={labelStyle}>DATA</div><input type="date" value={newProp.data} onChange={e => setNewProp({ ...newProp, data: e.target.value })} style={inputStyle} /></div>
                     <div style={{ gridColumn: 'span 2' }}><div style={labelStyle}>TÍTULO</div><input value={newProp.titulo} onChange={e => setNewProp({ ...newProp, titulo: e.target.value })} placeholder="Ex: Protocolo harmonização completo" style={inputStyle} /></div>
-                    <div><div style={labelStyle}>VALOR TOTAL (R$)</div><input type="number" value={newProp.valor_total} onChange={e => setNewProp({ ...newProp, valor_total: e.target.value })} style={inputStyle} /></div>
+                  </div>
+
+                  {/* ITENS DO ORÇAMENTO */}
+                  <div style={{ marginBottom: 10 }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: GOLD, marginBottom: 6 }}>ITENS DO ORÇAMENTO</div>
+                    {(newProp.itens || []).map((item, idx) => (
+                      <div key={idx} style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 4 }}>
+                        <div style={{ flex: 2, fontSize: 12, fontWeight: 600 }}>{item.nome}</div>
+                        <div style={{ fontSize: 11, color: '#888' }}>x{item.qty}</div>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: DARK }}>R${(item.preco * item.qty).toLocaleString('pt-BR')}</div>
+                        <button onClick={() => setNewProp({ ...newProp, itens: newProp.itens.filter((_, i) => i !== idx) })} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: '#ddd', fontFamily: 'inherit' }}>✕</button>
+                      </div>
+                    ))}
+                    <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+                      <select onChange={e => {
+                        const prod = produtosDB.find(p => p.id === e.target.value);
+                        if (!prod) return;
+                        const itens = newProp.itens || [];
+                        const exists = itens.findIndex(i => i.id === prod.id);
+                        if (exists >= 0) {
+                          setNewProp({ ...newProp, itens: itens.map((it, idx) => idx === exists ? { ...it, qty: it.qty + 1 } : it) });
+                        } else {
+                          setNewProp({ ...newProp, itens: [...itens, { id: prod.id, nome: prod.nome, preco: prod.preco_sugerido, custo: prod.custo_un, qty: 1 }] });
+                        }
+                        e.target.value = '';
+                      }} defaultValue="" style={{ flex: 1, ...inputStyle }}>
+                        <option value="">+ Adicionar produto do catálogo...</option>
+                        {produtosDB.map(p => <option key={p.id} value={p.id}>{p.nome} — R${Number(p.preco_sugerido).toLocaleString('pt-BR')}</option>)}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 8, marginBottom: 8 }}>
+                    <div>
+                      <div style={labelStyle}>VALOR TOTAL (R$)</div>
+                      <input type="number" value={newProp.valor_total}
+                        onChange={e => setNewProp({ ...newProp, valor_total: e.target.value })}
+                        placeholder={newProp.itens?.length ? String((newProp.itens || []).reduce((a, i) => a + i.preco * i.qty, 0)) : '0'}
+                        style={inputStyle} />
+                    </div>
                     <div><div style={labelStyle}>DESCONTO (%)</div><input type="number" value={newProp.desconto} onChange={e => setNewProp({ ...newProp, desconto: e.target.value })} style={inputStyle} /></div>
                     <div><div style={labelStyle}>PARCELAS</div>
                       <select value={newProp.parcelas} onChange={e => setNewProp({ ...newProp, parcelas: Number(e.target.value) })} style={inputStyle}>
@@ -3392,17 +3479,22 @@ const FichaPaciente = ({ paciente, onClose, onUpdate }) => {
                     </div>
                     <div><div style={labelStyle}>STATUS</div>
                       <select value={newProp.status} onChange={e => setNewProp({ ...newProp, status: e.target.value })} style={inputStyle}>
-                        {['rascunho', 'enviada', 'aprovada', 'recusada'].map(s => <option key={s}>{s}</option>)}
+                        {['rascunho','enviada','aprovada','recusada'].map(s => <option key={s}>{s}</option>)}
                       </select>
                     </div>
                   </div>
                   <div style={{ marginBottom: 8 }}><div style={labelStyle}>OBSERVAÇÕES</div><textarea value={newProp.observacoes} onChange={e => setNewProp({ ...newProp, observacoes: e.target.value })} rows={2} style={{ ...inputStyle, resize: 'vertical' }} /></div>
                   <div style={{ display: 'flex', gap: 8 }}>
-                    <button onClick={() => addItem('propostas', newProp, setPropostas, () => setNewProp({ data: today(), titulo: '', valor_total: '', desconto: 0, parcelas: 1, observacoes: '', status: 'rascunho' }))} style={{ padding: '8px 20px', background: GOLD, color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>Salvar</button>
+                    <button onClick={() => {
+                      const totalItens = (newProp.itens || []).reduce((a, i) => a + i.preco * i.qty, 0);
+                      const valorFinal = newProp.valor_total || totalItens;
+                      addItem('propostas', { ...newProp, valor_total: valorFinal }, setPropostas, () => setNewProp({ data: today(), titulo: '', itens: [], valor_total: '', desconto: 0, parcelas: 1, observacoes: '', status: 'rascunho' }));
+                    }} style={{ padding: '8px 20px', background: GOLD, color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>Salvar</button>
                     <button onClick={() => setShowForm(false)} style={{ padding: '8px 14px', background: 'white', color: '#888', border: '1px solid #ddd', borderRadius: 8, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>Cancelar</button>
                   </div>
                 </div>
               )}
+
               {loading ? <div style={{ textAlign: 'center', padding: 20, color: '#999' }}>Carregando...</div> :
                 propostas.length === 0 ? <div style={{ textAlign: 'center', padding: 20, color: '#ccc', fontSize: 13 }}>Nenhuma proposta registrada.</div> :
                 propostas.map((p, i) => {
@@ -3410,23 +3502,99 @@ const FichaPaciente = ({ paciente, onClose, onUpdate }) => {
                   const total = Number(p.valor_total) - descVal;
                   const stColors = { rascunho: { bg: '#F5F5F5', tc: '#999' }, enviada: { bg: '#E3F2FD', tc: '#1565C0' }, aprovada: { bg: '#E8F5E9', tc: '#2E7D32' }, recusada: { bg: '#FFEBEE', tc: '#B71C1C' } };
                   const sc = stColors[p.status] || stColors.rascunho;
+                  const itens = p.itens || [];
+
+                  const printProposta = () => {
+                    const win = window.open('', '_blank');
+                    win.document.write(`<!DOCTYPE html><html><head><title>Orçamento — ${paciente.nome}</title>
+                    <style>
+                      body { font-family: 'Helvetica Neue', sans-serif; padding: 40px 50px; color: #333; font-size: 13px; line-height: 1.8; }
+                      .header { text-align: center; margin-bottom: 30px; padding-bottom: 15px; border-bottom: 2px solid #C8A96E; }
+                      .logo { font-size: 28px; font-weight: 800; color: #1A1A1A; letter-spacing: 4px; }
+                      .sub { font-size: 11px; color: #999; margin-top: 4px; }
+                      h2 { font-size: 16px; color: #C8A96E; font-weight: 700; margin: 20px 0 8px; }
+                      .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 20px; }
+                      .info-item { background: #F5F0E8; padding: 8px 12px; border-radius: 6px; }
+                      .info-label { font-size: 9px; font-weight: 700; color: #C8A96E; letter-spacing: 1px; }
+                      .info-value { font-size: 13px; font-weight: 600; }
+                      table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+                      th { background: #1A1A1A; color: #C8A96E; font-size: 10px; font-weight: 700; padding: 8px 10px; text-align: left; letter-spacing: 1px; }
+                      td { padding: 8px 10px; border-bottom: 1px solid #f0ece6; font-size: 12px; }
+                      tr:nth-child(even) td { background: #FAFAF8; }
+                      .total-row { background: #F5F0E8 !important; font-weight: 800; font-size: 14px; }
+                      .footer { margin-top: 30px; padding-top: 15px; border-top: 1px solid #eee; font-size: 10px; color: #999; text-align: center; }
+                      .assinatura { margin-top: 50px; display: grid; grid-template-columns: 1fr 1fr; gap: 40px; }
+                      .assin-line { border-top: 1px solid #333; padding-top: 6px; font-size: 11px; text-align: center; color: #666; }
+                      @media print { body { padding: 20px 30px; } }
+                    </style></head><body>
+                    <div class="header">
+                      <div class="logo">LEVVAI</div>
+                      <div class="sub">Instituto Levvai · Rua do Rocio, 288, cj 93 — Vila Olímpia, SP · @institutolevvai</div>
+                    </div>
+                    <h2>ORÇAMENTO</h2>
+                    <div class="info-grid">
+                      <div class="info-item"><div class="info-label">PACIENTE</div><div class="info-value">${paciente.nome}</div></div>
+                      <div class="info-item"><div class="info-label">DATA</div><div class="info-value">${new Date(p.data + 'T12:00:00').toLocaleDateString('pt-BR')}</div></div>
+                      <div class="info-item"><div class="info-label">TELEFONE</div><div class="info-value">${paciente.telefone || '—'}</div></div>
+                      <div class="info-item"><div class="info-label">STATUS</div><div class="info-value">${p.status.toUpperCase()}</div></div>
+                    </div>
+                    ${p.titulo ? `<h2>${p.titulo}</h2>` : ''}
+                    <table>
+                      <thead><tr><th>PROCEDIMENTO / PRODUTO</th><th>QTD</th><th>VALOR UNIT.</th><th>SUBTOTAL</th></tr></thead>
+                      <tbody>
+                        ${itens.length > 0 ? itens.map(it => `<tr><td>${it.nome}</td><td>${it.qty}</td><td>R$${Number(it.preco).toLocaleString('pt-BR')}</td><td>R$${(it.preco * it.qty).toLocaleString('pt-BR')}</td></tr>`).join('') : `<tr><td colspan="4" style="text-align:center;color:#999">Sem itens detalhados</td></tr>`}
+                      </tbody>
+                    </table>
+                    <table style="max-width:300px;margin-left:auto">
+                      <tbody>
+                        <tr><td>Subtotal</td><td style="text-align:right;font-weight:600">R$${Number(p.valor_total).toLocaleString('pt-BR')}</td></tr>
+                        ${Number(p.desconto) > 0 ? `<tr><td style="color:#E65100">Desconto (${p.desconto}%)</td><td style="text-align:right;color:#E65100">- R$${descVal.toLocaleString('pt-BR')}</td></tr>` : ''}
+                        <tr class="total-row"><td><strong>TOTAL</strong></td><td style="text-align:right"><strong>R$${total.toLocaleString('pt-BR')}</strong></td></tr>
+                        ${p.parcelas > 1 ? `<tr><td style="color:#888">Parcelamento</td><td style="text-align:right;color:#888">${p.parcelas}x de R$${(total/p.parcelas).toLocaleString('pt-BR', {minimumFractionDigits:2,maximumFractionDigits:2})}</td></tr>` : ''}
+                      </tbody>
+                    </table>
+                    ${p.observacoes ? `<div style="background:#FFF9C4;padding:10px 14px;border-radius:6px;font-size:11px;color:#666;margin-top:10px"><strong>Observações:</strong> ${p.observacoes}</div>` : ''}
+                    <div class="assinatura">
+                      <div class="assin-line">Assinatura do Paciente</div>
+                      <div class="assin-line">Dra. Lara — Instituto Levvai</div>
+                    </div>
+                    <div class="footer">
+                      Orçamento válido por 30 dias · Instituto Levvai · (11) 97821-2800 · @institutolevvai<br>
+                      Este orçamento não constitui contrato. Sujeito a avaliação clínica prévia.
+                    </div>
+                    </body></html>`);
+                    win.document.close();
+                    setTimeout(() => win.print(), 400);
+                  };
+
                   return (
                     <div key={i} style={{ background: 'white', border: '1px solid #E8E4DE', borderRadius: 10, padding: '14px 16px', marginBottom: 8, borderLeft: '4px solid #2196F3' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                         <div>
-                          <div style={{ fontSize: 13, fontWeight: 700, color: DARK }}>{p.titulo || 'Proposta'}</div>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: DARK }}>{p.titulo || 'Orçamento'}</div>
                           <div style={{ fontSize: 11, color: '#999', marginTop: 1 }}>{new Date(p.data + 'T12:00:00').toLocaleDateString('pt-BR')}</div>
                         </div>
                         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                           <Badge text={p.status} color={sc.bg} textColor={sc.tc} />
+                          <button onClick={printProposta} style={{ padding: '5px 12px', background: DARK, color: GOLD, border: 'none', borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>🖨 Imprimir / PDF</button>
                           <button onClick={() => deleteItem('propostas', p.id, setPropostas)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: '#ddd', fontFamily: 'inherit' }}>✕</button>
                         </div>
                       </div>
+                      {itens.length > 0 && (
+                        <div style={{ marginBottom: 8 }}>
+                          {itens.map((it, j) => (
+                            <div key={j} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '3px 0', borderBottom: '1px solid #f5f0e8' }}>
+                              <span>{it.nome} x{it.qty}</span>
+                              <span style={{ fontWeight: 600 }}>R${(it.preco * it.qty).toLocaleString('pt-BR')}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                       <div style={{ display: 'flex', gap: 16, fontSize: 12 }}>
                         <div>Valor: <strong>R${Number(p.valor_total).toLocaleString('pt-BR')}</strong></div>
-                        {p.desconto > 0 && <div style={{ color: '#E65100' }}>Desconto: {p.desconto}% (-R${descVal.toLocaleString('pt-BR')})</div>}
+                        {Number(p.desconto) > 0 && <div style={{ color: '#E65100' }}>Desconto: {p.desconto}%</div>}
                         <div style={{ color: GOLD, fontWeight: 700 }}>Total: R${total.toLocaleString('pt-BR')}</div>
-                        {p.parcelas > 1 && <div style={{ color: '#888' }}>{p.parcelas}x de R${(total / p.parcelas).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>}
+                        {p.parcelas > 1 && <div style={{ color: '#888' }}>{p.parcelas}x de R${(total/p.parcelas).toLocaleString('pt-BR', {minimumFractionDigits:2,maximumFractionDigits:2})}</div>}
                       </div>
                       {p.observacoes && <div style={{ fontSize: 11, color: '#888', marginTop: 6, fontStyle: 'italic' }}>{p.observacoes}</div>}
                     </div>

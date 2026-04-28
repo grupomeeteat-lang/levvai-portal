@@ -39,7 +39,31 @@ export default async function handler(req, res) {
     }
   }
 
-  // SUB-RECURSOS (tratamentos, prontuarios, propostas, observacoes)
+  // PRODUTOS
+  if (resource === 'produtos') {
+    if (req.method === 'GET') {
+      const { data, error } = await db.from('produtos').select('*').eq('ativo', true).order('cat');
+      if (error) return res.status(400).json({ error: error.message });
+      return res.status(200).json(data);
+    }
+    if (req.method === 'POST') {
+      const { data, error } = await db.from('produtos').insert(req.body).select().single();
+      if (error) return res.status(400).json({ error: error.message });
+      return res.status(200).json(data);
+    }
+    if (req.method === 'PATCH') {
+      const { data, error } = await db.from('produtos').update(req.body).eq('id', id).select().single();
+      if (error) return res.status(400).json({ error: error.message });
+      return res.status(200).json(data);
+    }
+    if (req.method === 'DELETE') {
+      const { data, error } = await db.from('produtos').update({ ativo: false }).eq('id', id).select().single();
+      if (error) return res.status(400).json({ error: error.message });
+      return res.status(200).json(data);
+    }
+  }
+
+  // SUB-RECURSOS
   const subResources = ['tratamentos', 'prontuarios', 'propostas', 'observacoes'];
   if (subResources.includes(resource)) {
     if (req.method === 'GET') {
