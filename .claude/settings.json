@@ -5,7 +5,8 @@
       "Bash(git add *)",
       "Bash(git commit -m ' *)",
       "Bash(git push *)",
-      "Bash(git config *)"
+      "Bash(git config *)",
+      "Bash(grep -n \"const \\\\[observacoes, setObservacoes\\\\]\\\\|const \\\\[newTrat, setNewTrat\\\\]\\\\|const \\\\[newProp, setNewProp\\\\]\\\\|const updateTratStatus\\\\|{tab === 'tratamentos'\\\\|{tab === 'propostas'\" /Users/henriqueguimaraes/Desktop/meet-eat-dashboard/levvai-portal/src/App.jsx)"
     ]
   }
 }
