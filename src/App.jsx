@@ -1447,41 +1447,55 @@ const RitualsTab = () => (
 
 // DOCS TAB
 const CARGOS = [
-  'CEO',
-  'Diretora Clínica',
-  'Gerente Operacional',
+  'CEO — Admin Master',
+  'Dir. Clínica',
+  'Ger. Operacional',
   'Administradora',
   'Social Media',
   'Conselheiro',
   'Associado',
-  'Outro',
+  'Visualizador',
 ];
 
 const CARGO_COLORS = {
-  'CEO': '#C8A96E',
-  'Diretora Clínica': '#E91E63',
-  'Gerente Operacional': '#039BE5',
+  'CEO — Admin Master': '#C8A96E',
+  'Dir. Clínica': '#E91E63',
+  'Ger. Operacional': '#039BE5',
   'Administradora': '#7B1FA2',
   'Social Media': '#43A047',
   'Conselheiro': '#78909C',
-  'Associado': '#FF7043',
-  'Outro': '#90A4AE',
+  'Associado': '#FF9800',
+  'Visualizador': '#607D8B',
 };
 
-const UsuariosTab = () => {
+const ADMIN_MASTER_EMAILS = [
+  'ikeguimaraes@gmail.com',
+  'grupomeeteat@gmail.com',
+];
+
+const UsuariosTab = ({ shared }) => {
+  const currentUserEmail = shared?.currentUserEmail || '';
+  const isAdminMaster = ADMIN_MASTER_EMAILS.includes(currentUserEmail);
+
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  const [newEmail, setNewEmail] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [newNome, setNewNome] = useState('');
-  const [newCargo, setNewCargo] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [msg, setMsg] = useState('');
   const [selectedUser, setSelectedUser] = useState(null);
+  const [showForm, setShowForm] = useState(false);
+  const [msg, setMsg] = useState('');
+
+  // Novo usuário
+  const [newEmail, setNewEmail] = useState('');
+  const [newNome, setNewNome] = useState('');
+  const [newCargo, setNewCargo] = useState('Visualizador');
+  const [newPassword, setNewPassword] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  // Edição
   const [editNome, setEditNome] = useState('');
+  const [editEmail, setEditEmail] = useState('');
   const [editCargo, setEditCargo] = useState('');
   const [editPassword, setEditPassword] = useState('');
+  const [editFoto, setEditFoto] = useState('');
   const [editSaving, setEditSaving] = useState(false);
   const [editMsg, setEditMsg] = useState('');
 
@@ -1489,7 +1503,13 @@ const UsuariosTab = () => {
     setLoading(true);
     const res = await fetch('/api/admin-users');
     const data = await res.json();
-    setUsers(data.users || []);
+    const normalized = (data.users || []).map(u => {
+      if (ADMIN_MASTER_EMAILS.includes(u.email) && u.user_metadata?.cargo !== 'CEO — Admin Master') {
+        return { ...u, user_metadata: { ...u.user_metadata, cargo: 'CEO — Admin Master' } };
+      }
+      return u;
+    });
+    setUsers(normalized);
     setLoading(false);
   };
 
@@ -1498,17 +1518,33 @@ const UsuariosTab = () => {
   const openUser = (u) => {
     setSelectedUser(u);
     setEditNome(u.user_metadata?.nome || '');
-    setEditCargo(u.user_metadata?.cargo || '');
+    setEditEmail(u.email || '');
+    setEditCargo(ADMIN_MASTER_EMAILS.includes(u.email) ? 'CEO — Admin Master' : (u.user_metadata?.cargo || 'Visualizador'));
+    setEditFoto(u.user_metadata?.foto || '');
     setEditPassword('');
     setEditMsg('');
+  };
+
+  const handleFotoUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setEditFoto(reader.result);
+    reader.readAsDataURL(file);
   };
 
   const saveEdit = async () => {
     if (!selectedUser) return;
     setEditSaving(true);
     setEditMsg('');
-    const body = { userId: selectedUser.id, nome: editNome, cargo: editCargo };
-    if (editPassword) body.password = editPassword;
+    const body = {
+      userId: selectedUser.id,
+      nome: editNome,
+      cargo: ADMIN_MASTER_EMAILS.includes(selectedUser.email) ? 'CEO — Admin Master' : editCargo,
+      foto: editFoto,
+    };
+    if (isAdminMaster && editPassword) body.password = editPassword;
+    if (isAdminMaster && editEmail && editEmail !== selectedUser.email) body.email = editEmail;
     const res = await fetch('/api/admin-users', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -1519,16 +1555,18 @@ const UsuariosTab = () => {
       setEditMsg(`Erro: ${data.error}`);
     } else {
       setEditMsg('Salvo com sucesso!');
-      await loadUsers();
-      const updated = (await fetch('/api/admin-users').then(r => r.json())).users || [];
-      const refreshed = updated.find(u => u.id === selectedUser.id);
-      if (refreshed) setSelectedUser(refreshed);
+      loadUsers();
+      setSelectedUser({
+        ...selectedUser,
+        email: editEmail || selectedUser.email,
+        user_metadata: { nome: editNome, cargo: body.cargo, foto: editFoto },
+      });
     }
     setEditSaving(false);
   };
 
   const createUser = async () => {
-    if (!newEmail || !newPassword) return;
+    if (!newEmail || !newPassword || !newNome) return;
     setSaving(true);
     setMsg('');
     const res = await fetch('/api/admin-users', {
@@ -1541,7 +1579,7 @@ const UsuariosTab = () => {
       setMsg(`Erro: ${data.error}`);
     } else {
       setMsg('Usuário criado com sucesso!');
-      setNewEmail(''); setNewPassword(''); setNewNome(''); setNewCargo('');
+      setNewEmail(''); setNewNome(''); setNewPassword(''); setNewCargo('Visualizador');
       setShowForm(false);
       loadUsers();
     }
@@ -1559,221 +1597,231 @@ const UsuariosTab = () => {
     loadUsers();
   };
 
-  const getInitial = (u) => {
-    const nome = u.user_metadata?.nome;
-    return nome ? nome.charAt(0).toUpperCase() : u.email.charAt(0).toUpperCase();
-  };
-
-  const getColor = (u) => {
-    const cargo = u.user_metadata?.cargo;
-    return CARGO_COLORS[cargo] || '#90A4AE';
-  };
-
   return (
-    <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }}>
-      {/* LEFT PANEL — user list */}
+    <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
+      {/* LISTA */}
       <div style={{ flex: 1, minWidth: 0 }}>
         <Card title="Gestão de Usuários — Acesso ao Portal" accent>
           <p style={{ color: '#aaa', fontSize: 13, margin: 0 }}>
-            Somente o CEO (admin master) deve gerenciar acessos. Clique num usuário para editar.
+            Clique num usuário para ver detalhes e editar.
+            {isAdminMaster
+              ? ' Você tem acesso de Admin Master — pode editar tudo.'
+              : ' Apenas Admin Masters podem resetar senhas e editar e-mails.'}
           </p>
         </Card>
 
-        <Card title="Usuários com Acesso">
+        <Card title={`Usuários com acesso (${users.length})`}>
           {loading ? (
             <div style={{ textAlign: 'center', padding: 20, color: '#999' }}>Carregando...</div>
           ) : (
             <>
-              <div style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1.5fr 1fr', gap: '0 12px', padding: '6px 0 8px', borderBottom: '2px solid #f0ece6' }}>
-                {['NOME / EMAIL', 'CARGO', 'STATUS', ''].map((h, i) => (
-                  <div key={i} style={{ fontSize: 9, fontWeight: 700, color: '#bbb', letterSpacing: '0.08em' }}>{h}</div>
-                ))}
+              <div style={{ display: 'flex', padding: '6px 0', borderBottom: `2px solid ${GOLD}`, marginBottom: 4 }}>
+                <div style={{ flex: 0.5, fontSize: 9, fontWeight: 700, color: GOLD, letterSpacing: '0.05em' }}></div>
+                <div style={{ flex: 2, fontSize: 9, fontWeight: 700, color: GOLD, letterSpacing: '0.05em' }}>NOME</div>
+                <div style={{ flex: 2.5, fontSize: 9, fontWeight: 700, color: GOLD, letterSpacing: '0.05em' }}>E-MAIL</div>
+                <div style={{ flex: 1.5, fontSize: 9, fontWeight: 700, color: GOLD, letterSpacing: '0.05em' }}>CARGO</div>
+                <div style={{ flex: 1, fontSize: 9, fontWeight: 700, color: GOLD, letterSpacing: '0.05em' }}>STATUS</div>
               </div>
+
               {users.map((u, i) => {
-                const color = getColor(u);
-                const nome = u.user_metadata?.nome || '—';
-                const cargo = u.user_metadata?.cargo || '—';
-                const lastLogin = u.last_sign_in_at
-                  ? new Date(u.last_sign_in_at).toLocaleDateString('pt-BR')
-                  : 'Nunca';
+                const nome = u.user_metadata?.nome || u.email.split('@')[0];
+                const cargo = ADMIN_MASTER_EMAILS.includes(u.email) ? 'CEO — Admin Master' : (u.user_metadata?.cargo || '—');
+                const color = CARGO_COLORS[cargo] || '#888';
+                const foto = u.user_metadata?.foto;
                 const isSelected = selectedUser?.id === u.id;
+
                 return (
-                  <div
-                    key={i}
-                    onClick={() => openUser(u)}
-                    style={{
-                      display: 'grid', gridTemplateColumns: '2fr 2fr 1.5fr 1fr', gap: '0 12px',
-                      padding: '10px 0', borderBottom: '1px solid #f0ece6', cursor: 'pointer',
-                      background: isSelected ? '#fdf8ef' : 'transparent',
-                      borderRadius: isSelected ? 6 : 0,
-                      transition: 'background 0.15s',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 9, minWidth: 0 }}>
-                      <div style={{
-                        width: 32, height: 32, borderRadius: '50%', background: color, flexShrink: 0,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: 13, fontWeight: 800, color: 'white',
-                      }}>{getInitial(u)}</div>
-                      <div style={{ minWidth: 0 }}>
-                        <div style={{ fontSize: 12, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{nome}</div>
-                        <div style={{ fontSize: 10, color: '#999', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.email}</div>
-                      </div>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center' }}>
-                      {cargo !== '—' ? (
-                        <span style={{
-                          fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20,
-                          background: color + '22', color: color,
-                        }}>{cargo}</span>
+                  <div key={i} onClick={() => openUser(u)} style={{
+                    display: 'flex', alignItems: 'center',
+                    padding: '10px 0', borderBottom: '1px solid #f0ece6',
+                    cursor: 'pointer',
+                    background: isSelected ? '#FFF9EE' : 'transparent',
+                    borderLeft: isSelected ? `3px solid ${GOLD}` : '3px solid transparent',
+                    paddingLeft: isSelected ? 6 : 0,
+                    transition: 'all 0.15s',
+                  }}>
+                    <div style={{ flex: 0.5 }}>
+                      {foto ? (
+                        <img src={foto} alt={nome} style={{ width: 34, height: 34, borderRadius: '50%', objectFit: 'cover' }} />
                       ) : (
-                        <span style={{ fontSize: 10, color: '#ccc' }}>—</span>
+                        <div style={{
+                          width: 34, height: 34, borderRadius: '50%', background: color,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: 14, fontWeight: 800, color: 'white',
+                        }}>{nome[0].toUpperCase()}</div>
                       )}
                     </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 2, justifyContent: 'flex-start', alignItems: 'flex-start' }}>
+                    <div style={{ flex: 2, fontSize: 13, fontWeight: 700, color: DARK }}>{nome}</div>
+                    <div style={{ flex: 2.5, fontSize: 12, color: '#666' }}>{u.email}</div>
+                    <div style={{ flex: 1.5 }}>
+                      <Badge text={cargo} color={`${color}20`} textColor={color} />
+                    </div>
+                    <div style={{ flex: 1 }}>
                       <Badge
                         text={u.email_confirmed_at ? 'ATIVO' : 'PENDENTE'}
                         color={u.email_confirmed_at ? '#E8F5E9' : '#FFF9C4'}
                         textColor={u.email_confirmed_at ? '#2E7D32' : '#F57F17'}
                       />
-                      <div style={{ fontSize: 9, color: '#bbb', marginTop: 2 }}>{lastLogin}</div>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
-                      {u.email !== 'ikeguimaraes@gmail.com' && (
-                        <button
-                          onClick={e => { e.stopPropagation(); deleteUser(u.id, u.email); }}
-                          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 10, color: '#ddd', fontFamily: 'inherit', padding: '4px 6px' }}
-                        >Remover</button>
-                      )}
                     </div>
                   </div>
                 );
               })}
-              <div style={{ fontSize: 11, color: '#999', marginTop: 8 }}>
-                {users.length} usuário(s) com acesso ao portal
-              </div>
             </>
           )}
         </Card>
 
-        <Card title="Adicionar Novo Usuário">
-          {!showForm ? (
-            <button onClick={() => setShowForm(true)} style={{
-              width: '100%', padding: '12px', background: 'white',
-              border: `2px dashed ${GOLD}`, borderRadius: 10, cursor: 'pointer',
-              fontSize: 13, fontWeight: 600, color: GOLD, fontFamily: 'inherit',
-            }}>+ Adicionar usuário</button>
-          ) : (
-            <div>
-              <div style={{ display: 'flex', gap: 10, marginBottom: 10, flexWrap: 'wrap' }}>
-                <div style={{ flex: '1 1 180px' }}>
-                  <div style={{ fontSize: 9, fontWeight: 700, color: '#999', marginBottom: 3 }}>NOME</div>
-                  <input value={newNome} onChange={e => setNewNome(e.target.value)} placeholder="Nome completo"
-                    style={{ width: '100%', padding: '8px 10px', border: '1px solid #ddd', borderRadius: 6, fontSize: 13, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }} />
+        {isAdminMaster && (
+          <Card title="Adicionar Novo Usuário">
+            {!showForm ? (
+              <button onClick={() => setShowForm(true)} style={{
+                width: '100%', padding: '12px', background: 'white',
+                border: `2px dashed ${GOLD}`, borderRadius: 10, cursor: 'pointer',
+                fontSize: 13, fontWeight: 600, color: GOLD, fontFamily: 'inherit',
+              }}>+ Adicionar usuário</button>
+            ) : (
+              <div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+                  <div>
+                    <div style={{ fontSize: 9, fontWeight: 700, color: '#999', marginBottom: 3 }}>NOME</div>
+                    <input value={newNome} onChange={e => setNewNome(e.target.value)} placeholder="Nome completo"
+                      style={{ width: '100%', padding: '8px 10px', border: '1px solid #ddd', borderRadius: 6, fontSize: 13, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 9, fontWeight: 700, color: '#999', marginBottom: 3 }}>E-MAIL</div>
+                    <input value={newEmail} onChange={e => setNewEmail(e.target.value)} placeholder="email@levvai.com.br" type="email"
+                      style={{ width: '100%', padding: '8px 10px', border: '1px solid #ddd', borderRadius: 6, fontSize: 13, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 9, fontWeight: 700, color: '#999', marginBottom: 3 }}>CARGO</div>
+                    <select value={newCargo} onChange={e => setNewCargo(e.target.value)}
+                      style={{ width: '100%', padding: '8px 10px', border: '1px solid #ddd', borderRadius: 6, fontSize: 13, fontFamily: 'inherit', background: 'white', boxSizing: 'border-box' }}>
+                      {CARGOS.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 9, fontWeight: 700, color: '#999', marginBottom: 3 }}>SENHA INICIAL</div>
+                    <input value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="Mínimo 6 caracteres" type="password"
+                      style={{ width: '100%', padding: '8px 10px', border: '1px solid #ddd', borderRadius: 6, fontSize: 13, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }} />
+                  </div>
                 </div>
-                <div style={{ flex: '1 1 140px' }}>
-                  <div style={{ fontSize: 9, fontWeight: 700, color: '#999', marginBottom: 3 }}>CARGO</div>
-                  <select value={newCargo} onChange={e => setNewCargo(e.target.value)}
-                    style={{ width: '100%', padding: '8px 10px', border: '1px solid #ddd', borderRadius: 6, fontSize: 13, fontFamily: 'inherit', outline: 'none', background: 'white', boxSizing: 'border-box' }}>
-                    <option value="">Selecionar...</option>
-                    {CARGOS.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
+                {msg && <div style={{ fontSize: 12, color: msg.startsWith('Erro') ? '#B71C1C' : '#2E7D32', marginBottom: 8 }}>{msg}</div>}
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={createUser} disabled={saving} style={{
+                    padding: '8px 24px', background: newEmail && newPassword && newNome ? GOLD : '#ddd',
+                    color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit',
+                  }}>{saving ? 'Criando...' : 'Criar usuário'}</button>
+                  <button onClick={() => { setShowForm(false); setMsg(''); }} style={{
+                    padding: '8px 16px', background: 'white', color: '#888', border: '1px solid #ddd', borderRadius: 8, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit',
+                  }}>Cancelar</button>
                 </div>
               </div>
-              <div style={{ display: 'flex', gap: 10, marginBottom: 10, flexWrap: 'wrap' }}>
-                <div style={{ flex: '1 1 200px' }}>
-                  <div style={{ fontSize: 9, fontWeight: 700, color: '#999', marginBottom: 3 }}>E-MAIL</div>
-                  <input value={newEmail} onChange={e => setNewEmail(e.target.value)} placeholder="nome@institutolevvai.com.br" type="email"
-                    style={{ width: '100%', padding: '8px 10px', border: '1px solid #ddd', borderRadius: 6, fontSize: 13, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }} />
-                </div>
-                <div style={{ flex: '1 1 160px' }}>
-                  <div style={{ fontSize: 9, fontWeight: 700, color: '#999', marginBottom: 3 }}>SENHA INICIAL</div>
-                  <input value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="Mínimo 6 caracteres" type="password"
-                    style={{ width: '100%', padding: '8px 10px', border: '1px solid #ddd', borderRadius: 6, fontSize: 13, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }} />
-                </div>
-              </div>
-              {msg && (
-                <div style={{ fontSize: 12, color: msg.startsWith('Erro') ? '#B71C1C' : '#2E7D32', marginBottom: 8 }}>{msg}</div>
-              )}
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button onClick={createUser} disabled={saving} style={{
-                  padding: '8px 24px', background: newEmail && newPassword ? GOLD : '#ddd',
-                  color: 'white', border: 'none', borderRadius: 8, fontWeight: 700,
-                  fontSize: 13, cursor: 'pointer', fontFamily: 'inherit',
-                }}>{saving ? 'Criando...' : 'Criar usuário'}</button>
-                <button onClick={() => { setShowForm(false); setMsg(''); }} style={{
-                  padding: '8px 16px', background: 'white', color: '#888',
-                  border: '1px solid #ddd', borderRadius: 8, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit',
-                }}>Cancelar</button>
-              </div>
-            </div>
-          )}
-        </Card>
+            )}
+          </Card>
+        )}
       </div>
 
-      {/* RIGHT PANEL — edit user */}
+      {/* PAINEL LATERAL */}
       {selectedUser && (
-        <div style={{ width: 300, flexShrink: 0 }}>
-          <Card title="Editar Usuário">
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 16 }}>
-              <div style={{
-                width: 56, height: 56, borderRadius: '50%', background: getColor(selectedUser),
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 22, fontWeight: 800, color: 'white', marginBottom: 8,
-              }}>{getInitial(selectedUser)}</div>
-              <div style={{ fontSize: 11, color: '#999', textAlign: 'center' }}>{selectedUser.email}</div>
+        <div style={{ width: 320, flexShrink: 0 }}>
+          <Card title="Detalhes do Usuário">
+            {/* FOTO / AVATAR */}
+            <div style={{ textAlign: 'center', marginBottom: 16 }}>
+              <div style={{ position: 'relative', display: 'inline-block' }}>
+                {editFoto ? (
+                  <img src={editFoto} alt={editNome} style={{ width: 72, height: 72, borderRadius: '50%', objectFit: 'cover', border: `3px solid ${GOLD}` }} />
+                ) : (
+                  <div style={{
+                    width: 72, height: 72, borderRadius: '50%',
+                    background: CARGO_COLORS[editCargo] || '#888',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 28, fontWeight: 800, color: 'white',
+                    border: `3px solid ${GOLD}`,
+                  }}>{editNome ? editNome[0].toUpperCase() : selectedUser.email[0].toUpperCase()}</div>
+                )}
+                {isAdminMaster && (
+                  <label style={{
+                    position: 'absolute', bottom: 0, right: 0,
+                    width: 22, height: 22, borderRadius: '50%',
+                    background: GOLD, cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 12, color: 'white', border: '2px solid white',
+                  }}>
+                    ✎
+                    <input type="file" accept="image/*" onChange={handleFotoUpload} style={{ display: 'none' }} />
+                  </label>
+                )}
+              </div>
+              <div style={{ fontSize: 15, fontWeight: 800, color: DARK, marginTop: 8 }}>{editNome || selectedUser.email}</div>
+              <div style={{ fontSize: 11, color: '#999', marginTop: 2 }}>{selectedUser.email}</div>
+              <Badge text={ADMIN_MASTER_EMAILS.includes(selectedUser.email) ? 'CEO — Admin Master' : editCargo}
+                color={`${CARGO_COLORS[editCargo] || '#888'}25`} textColor={CARGO_COLORS[editCargo] || '#888'} />
             </div>
 
-            <div style={{ marginBottom: 12 }}>
-              <div style={{ fontSize: 9, fontWeight: 700, color: '#999', marginBottom: 4 }}>NOME</div>
-              <input value={editNome} onChange={e => setEditNome(e.target.value)} placeholder="Nome completo"
-                style={{ width: '100%', padding: '8px 10px', border: '1px solid #ddd', borderRadius: 6, fontSize: 13, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }} />
+            {/* INFO */}
+            <div style={{ fontSize: 11, color: '#999', marginBottom: 12, lineHeight: 2, background: LIGHT, borderRadius: 8, padding: '8px 12px' }}>
+              <div>Criado: <strong style={{ color: DARK }}>{new Date(selectedUser.created_at).toLocaleDateString('pt-BR')}</strong></div>
+              <div>Último acesso: <strong style={{ color: DARK }}>{selectedUser.last_sign_in_at ? new Date(selectedUser.last_sign_in_at).toLocaleDateString('pt-BR') : 'Nunca'}</strong></div>
+              <div>Status: <Badge text={selectedUser.email_confirmed_at ? 'ATIVO' : 'PENDENTE'} color={selectedUser.email_confirmed_at ? '#E8F5E9' : '#FFF9C4'} textColor={selectedUser.email_confirmed_at ? '#2E7D32' : '#F57F17'} /></div>
             </div>
 
-            <div style={{ marginBottom: 12 }}>
-              <div style={{ fontSize: 9, fontWeight: 700, color: '#999', marginBottom: 4 }}>CARGO</div>
-              <select value={editCargo} onChange={e => setEditCargo(e.target.value)}
-                style={{ width: '100%', padding: '8px 10px', border: '1px solid #ddd', borderRadius: 6, fontSize: 13, fontFamily: 'inherit', outline: 'none', background: 'white', boxSizing: 'border-box' }}>
-                <option value="">Selecionar...</option>
-                {CARGOS.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
-            </div>
+            {/* EDIÇÃO */}
+            <div style={{ borderTop: '1px solid #f0ece6', paddingTop: 12 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: GOLD, letterSpacing: '0.05em', marginBottom: 10 }}>EDITAR</div>
 
-            <div style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 9, fontWeight: 700, color: '#999', marginBottom: 4 }}>NOVA SENHA <span style={{ fontWeight: 400 }}>(deixe vazio para manter)</span></div>
-              <input value={editPassword} onChange={e => setEditPassword(e.target.value)} placeholder="Nova senha..." type="password"
-                style={{ width: '100%', padding: '8px 10px', border: '1px solid #ddd', borderRadius: 6, fontSize: 13, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }} />
-            </div>
+              <div style={{ marginBottom: 8 }}>
+                <div style={{ fontSize: 9, fontWeight: 700, color: '#999', marginBottom: 3 }}>NOME</div>
+                <input value={editNome} onChange={e => setEditNome(e.target.value)}
+                  style={{ width: '100%', padding: '7px 10px', border: '1px solid #ddd', borderRadius: 6, fontSize: 12, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }} />
+              </div>
 
-            {editMsg && (
-              <div style={{ fontSize: 12, color: editMsg.startsWith('Erro') ? '#B71C1C' : '#2E7D32', marginBottom: 10 }}>{editMsg}</div>
-            )}
+              {isAdminMaster && (
+                <div style={{ marginBottom: 8 }}>
+                  <div style={{ fontSize: 9, fontWeight: 700, color: '#999', marginBottom: 3 }}>E-MAIL</div>
+                  <input value={editEmail} onChange={e => setEditEmail(e.target.value)} type="email"
+                    style={{ width: '100%', padding: '7px 10px', border: '1px solid #ddd', borderRadius: 6, fontSize: 12, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }} />
+                </div>
+              )}
 
-            <div style={{ display: 'flex', gap: 8 }}>
+              <div style={{ marginBottom: 8 }}>
+                <div style={{ fontSize: 9, fontWeight: 700, color: '#999', marginBottom: 3 }}>CARGO</div>
+                {ADMIN_MASTER_EMAILS.includes(selectedUser.email) ? (
+                  <div style={{ padding: '7px 10px', background: LIGHT, borderRadius: 6, fontSize: 12, color: GOLD, fontWeight: 700 }}>
+                    CEO — Admin Master (fixo)
+                  </div>
+                ) : (
+                  <select value={editCargo} onChange={e => setEditCargo(e.target.value)}
+                    style={{ width: '100%', padding: '7px 10px', border: '1px solid #ddd', borderRadius: 6, fontSize: 12, fontFamily: 'inherit', background: 'white', boxSizing: 'border-box' }}>
+                    {CARGOS.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                )}
+              </div>
+
+              {isAdminMaster ? (
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ fontSize: 9, fontWeight: 700, color: '#999', marginBottom: 3 }}>NOVA SENHA</div>
+                  <input value={editPassword} onChange={e => setEditPassword(e.target.value)}
+                    type="password" placeholder="Deixe em branco pra manter"
+                    style={{ width: '100%', padding: '7px 10px', border: '1px solid #ddd', borderRadius: 6, fontSize: 12, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }} />
+                </div>
+              ) : (
+                <div style={{ marginBottom: 12, background: '#FFF9C4', borderRadius: 6, padding: '8px 10px', fontSize: 11, color: '#F57F17' }}>
+                  🔒 Reset de senha disponível apenas para Admin Masters
+                </div>
+              )}
+
+              {editMsg && <div style={{ fontSize: 11, color: editMsg.startsWith('Erro') ? '#B71C1C' : '#2E7D32', marginBottom: 8 }}>{editMsg}</div>}
+
               <button onClick={saveEdit} disabled={editSaving} style={{
-                flex: 1, padding: '9px', background: GOLD, color: 'white',
+                width: '100%', padding: '9px', background: GOLD, color: 'white',
                 border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 13,
-                cursor: 'pointer', fontFamily: 'inherit',
-              }}>{editSaving ? 'Salvando...' : 'Salvar'}</button>
-              <button onClick={() => setSelectedUser(null)} style={{
-                padding: '9px 14px', background: 'white', color: '#888',
-                border: '1px solid #ddd', borderRadius: 8, fontSize: 13,
-                cursor: 'pointer', fontFamily: 'inherit',
-              }}>✕</button>
-            </div>
+                cursor: 'pointer', fontFamily: 'inherit', marginBottom: 6,
+              }}>{editSaving ? 'Salvando...' : 'Salvar alterações'}</button>
 
-            <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid #f0ece6' }}>
-              <div style={{ fontSize: 10, color: '#bbb', marginBottom: 6 }}>
-                Criado: {new Date(selectedUser.created_at).toLocaleDateString('pt-BR')}
-              </div>
-              <div style={{ fontSize: 10, color: '#bbb', marginBottom: 10 }}>
-                Último acesso: {selectedUser.last_sign_in_at ? new Date(selectedUser.last_sign_in_at).toLocaleDateString('pt-BR') : 'Nunca'}
-              </div>
-              {selectedUser.email !== 'ikeguimaraes@gmail.com' && (
+              {isAdminMaster && !ADMIN_MASTER_EMAILS.includes(selectedUser.email) && (
                 <button onClick={() => deleteUser(selectedUser.id, selectedUser.email)} style={{
-                  width: '100%', padding: '7px', background: 'white', color: '#e53935',
-                  border: '1px solid #ffcdd2', borderRadius: 8, fontSize: 11,
-                  cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600,
+                  width: '100%', padding: '9px', background: 'white', color: '#B71C1C',
+                  border: '1px solid #FFCDD2', borderRadius: 8, fontWeight: 600, fontSize: 12,
+                  cursor: 'pointer', fontFamily: 'inherit',
                 }}>Remover acesso</button>
               )}
             </div>
@@ -5617,7 +5665,7 @@ const [active, setActive] = useState("visao-geral");
 
   // Support both old IDs ("home", "crm") and new IDs ("visao-geral", "crm-leads")
   const navigateTo = (tabId) => { setActive(OLD_TO_NEW_ID[tabId] || tabId); };
-  const shared = { leads: sharedLeads, setLeads: setSharedLeads, slots: sharedSlots, setSlots: setSharedSlots, navigateTo };
+  const shared = { leads: sharedLeads, setLeads: setSharedLeads, slots: sharedSlots, setSlots: setSharedSlots, navigateTo, currentUserEmail: currentUser?.email || '' };
   const oldId = NEW_TO_OLD_ID[active] || active;
   const Content = tabContent[oldId];
 

@@ -19,16 +19,17 @@ export default async function handler(req, res) {
       email,
       password,
       email_confirm: true,
-      user_metadata: { nome: nome || '', cargo: cargo || '' },
+      user_metadata: { nome, cargo },
     });
     if (error) return res.status(400).json({ error: error.message });
     return res.status(200).json({ user: data.user });
   }
 
   if (req.method === 'PATCH') {
-    const { userId, nome, cargo, password } = req.body;
-    const updates = { user_metadata: { nome: nome || '', cargo: cargo || '' } };
+    const { userId, nome, cargo, password, email, foto } = req.body;
+    const updates = { user_metadata: { nome, cargo, foto } };
     if (password) updates.password = password;
+    if (email) updates.email = email;
     const { data, error } = await supabase.auth.admin.updateUserById(userId, updates);
     if (error) return res.status(400).json({ error: error.message });
     return res.status(200).json({ user: data.user });
