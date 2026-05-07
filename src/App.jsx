@@ -2752,31 +2752,64 @@ const AgendaTab = ({ shared }) => {
   const monthLabel = `${monthNames[weekDates[0].getMonth()]} ${weekDates[0].getFullYear()}`;
 
   const [selectedDay, setSelectedDay] = useState(0);
-  const slots = shared.slots;
-  const setSlots = shared.setSlots;
+  const [slots, setSlots] = useState({});
+  const [slotDbIds, setSlotDbIds] = useState({});
+  const [bookingLoading, setBookingLoading] = useState(false);
   const [selectedRoom, setSelectedRoom] = useState(null);
   const [selectedHour, setSelectedHour] = useState(null);
   const [selectedProf, setSelectedProf] = useState("Lara");
   const [selectedProc, setSelectedProc] = useState("");
   const [selectedPac, setSelectedPac] = useState("");
 
-  const slotKey = (day, room, hour) => `${weekOffset}-${day}-${room}-${hour}`;
-
-  const bookSlot = () => {
-    if (selectedRoom && selectedHour !== null) {
-      const key = slotKey(selectedDay, selectedRoom, selectedHour);
-      setSlots({ ...slots, [key]: { prof: selectedProf, proc: selectedProc || "Consulta", pac: selectedPac || "Paciente", fromCRM: false } });
-      setSelectedRoom(null);
-      setSelectedHour(null);
-      setSelectedProc("");
-      setSelectedPac("");
-    }
+  const loadSlots = async () => {
+    const from = new Date(); from.setMonth(from.getMonth() - 2);
+    const to = new Date(); to.setMonth(to.getMonth() + 6);
+    const { data } = await supabase.from('agendamentos').select('*')
+      .gte('data', from.toISOString().split('T')[0])
+      .lte('data', to.toISOString().split('T')[0]);
+    if (!Array.isArray(data)) return;
+    const newSlots = {}, newIds = {};
+    data.forEach(row => {
+      const key = `${row.data}-${row.sala}-${row.horario}`;
+      newSlots[key] = { prof: row.profissional, proc: row.procedimento, pac: row.paciente, fromCRM: row.from_crm, origem: row.origem };
+      newIds[key] = row.id;
+    });
+    setSlots(newSlots);
+    setSlotDbIds(newIds);
   };
 
-  const removeSlot = (key) => {
-    const newSlots = { ...slots };
-    delete newSlots[key];
-    setSlots(newSlots);
+  useEffect(() => { loadSlots(); }, []);
+
+  const slotKey = (day, room, hour) => {
+    const d = weekDates[day];
+    const ds = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    return `${ds}-${room}-${hours[hour]}`;
+  };
+
+  const bookSlot = async () => {
+    if (!selectedRoom || selectedHour === null) return;
+    setBookingLoading(true);
+    const d = weekDates[selectedDay];
+    const dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    const key = `${dateStr}-${selectedRoom}-${hours[selectedHour]}`;
+    const { data, error } = await supabase.from('agendamentos').insert({
+      data: dateStr, horario: hours[selectedHour], sala: selectedRoom,
+      profissional: selectedProf, procedimento: selectedProc || 'Consulta',
+      paciente: selectedPac || 'Paciente', from_crm: false,
+    }).select().single();
+    if (!error && data) {
+      setSlots(prev => ({ ...prev, [key]: { prof: selectedProf, proc: selectedProc || 'Consulta', pac: selectedPac || 'Paciente', fromCRM: false } }));
+      setSlotDbIds(prev => ({ ...prev, [key]: data.id }));
+    }
+    setSelectedRoom(null); setSelectedHour(null); setSelectedProc(''); setSelectedPac('');
+    setBookingLoading(false);
+  };
+
+  const removeSlot = async (key) => {
+    const id = slotDbIds[key];
+    if (id) await supabase.from('agendamentos').delete().eq('id', id);
+    setSlots(prev => { const s = { ...prev }; delete s[key]; return s; });
+    setSlotDbIds(prev => { const s = { ...prev }; delete s[key]; return s; });
   };
 
   const profColors = professionals.reduce((acc, p) => ({ ...acc, [p.name]: p.color }), {});
@@ -3102,10 +3135,10 @@ const AgendaTab = ({ shared }) => {
                   ).map(p => <option key={p} value={p}>{p}</option>)}
                 </select>
               </div>
-              <button onClick={bookSlot} style={{
-                padding: "8px 20px", background: GOLD, color: "white", border: "none",
-                borderRadius: 6, fontWeight: 700, fontSize: 12, cursor: "pointer", fontFamily: "inherit",
-              }}>Agendar</button>
+              <button onClick={bookSlot} disabled={bookingLoading} style={{
+                padding: "8px 20px", background: bookingLoading ? '#ddd' : GOLD, color: "white", border: "none",
+                borderRadius: 6, fontWeight: 700, fontSize: 12, cursor: bookingLoading ? 'default' : "pointer", fontFamily: "inherit",
+              }}>{bookingLoading ? 'Salvando...' : 'Agendar'}</button>
               <button onClick={() => { setSelectedRoom(null); setSelectedHour(null); }} style={{
                 padding: "8px 14px", background: "white", color: "#888", border: "1px solid #ddd",
                 borderRadius: 6, fontSize: 12, cursor: "pointer", fontFamily: "inherit",
@@ -6659,12 +6692,7 @@ const [active, setActive] = useState("visao-geral");
     { nome: "Carla R.", tel: "(11) 99666-4444", origem: "Levvai Day", interesse: "Profhilo + Bioflash", status: "atendido", data: "05/04", obs: "Fez Profhilo. Voltar em 30 dias.", agendamento: null },
     { nome: "Fernanda L.", tel: "(11) 99555-5555", origem: "Instagram", interesse: "Harmonização", status: "fidelizado", data: "01/03", obs: "3º procedimento. Indicou 2 amigas.", agendamento: null },
   ]);
-  const [sharedSlots, setSharedSlots] = useState(() => {
-    try { const s = localStorage.getItem('levvai_slots'); return s ? JSON.parse(s) : {}; } catch { return {}; }
-  });
-  useEffect(() => {
-    try { localStorage.setItem('levvai_slots', JSON.stringify(sharedSlots)); } catch {}
-  }, [sharedSlots]);
+  const [sharedSlots, setSharedSlots] = useState({});
 
   // Support both old IDs ("home", "crm") and new IDs ("visao-geral", "crm-leads")
   const navigateTo = (tabId) => { setActive(OLD_TO_NEW_ID[tabId] || tabId); };
