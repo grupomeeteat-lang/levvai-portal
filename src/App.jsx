@@ -786,29 +786,147 @@ const products = [
   { tipo: "Produto", cat: "Emagrecimento", nome: "Tirzepatida (60mg/2,4ml)", protocolo: "Levvai Slim — Injetável Semanal", regiao: "Emagrecimento", qtdUn: "2,4ml (60mg)", valorCompra: 1000, custoUn: 1000, precoSugerido: 2000, estoque: 48, estoqueMin: 10, obs: "Mounjaro. MAIOR ESTOQUE. Requer médico." },
 ];
 
+const FINANCE_CATS = ["Toxina","Preenchedor","Bioestimulador","Skin Booster","Capilar","Revitalização","Fios","Regeneração","Autólogo","Emagrecimento","Outros"];
+const FINANCE_EMPTY = { tipo:"Protocolo", cat:"Toxina", nome:"", protocolo:"", regiao:"", custo_un:"", preco_sugerido:"", estoque:"", estoque_min:"3", obs:"" };
+const finLbl = { fontSize:9, fontWeight:700, color:"#999", marginBottom:2, letterSpacing:"0.05em" };
+const finInp = { width:"100%", padding:"6px 8px", border:"1px solid #ddd", borderRadius:6, fontSize:12, fontFamily:"inherit", outline:"none", boxSizing:"border-box" };
+
+const CatalogForm = ({ form, set }) => (
+  <div>
+    <div style={{ display:"flex", gap:10, marginBottom:10, flexWrap:"wrap" }}>
+      <div style={{ flex:"0 0 110px" }}>
+        <div style={finLbl}>TIPO</div>
+        <select value={form.tipo} onChange={e => set({...form, tipo:e.target.value})} style={finInp}>
+          <option>Protocolo</option>
+          <option>Produto</option>
+        </select>
+      </div>
+      <div style={{ flex:"0 0 140px" }}>
+        <div style={finLbl}>CATEGORIA</div>
+        <input list="fin-cats" value={form.cat} onChange={e => set({...form, cat:e.target.value})} style={finInp} />
+        <datalist id="fin-cats">{FINANCE_CATS.map(c => <option key={c} value={c} />)}</datalist>
+      </div>
+      <div style={{ flex:"1 1 180px" }}>
+        <div style={finLbl}>NOME *</div>
+        <input value={form.nome} onChange={e => set({...form, nome:e.target.value})} placeholder="Ex: Botox 200U" style={finInp} />
+      </div>
+      <div style={{ flex:"1 1 200px" }}>
+        <div style={finLbl}>PROTOCOLO / SERVIÇO</div>
+        <input value={form.protocolo} onChange={e => set({...form, protocolo:e.target.value})} placeholder="Ex: Toxina Botulínica Full Face" style={finInp} />
+      </div>
+    </div>
+    <div style={{ display:"flex", gap:10, marginBottom:10, flexWrap:"wrap", alignItems:"flex-end" }}>
+      <div style={{ flex:"1 1 140px" }}>
+        <div style={finLbl}>REGIÃO</div>
+        <input value={form.regiao} onChange={e => set({...form, regiao:e.target.value})} placeholder="Ex: Full Face / Corporal" style={finInp} />
+      </div>
+      <div style={{ flex:"0 0 120px" }}>
+        <div style={finLbl}>CUSTO UN. (R$) *</div>
+        <input type="number" value={form.custo_un} onChange={e => set({...form, custo_un:e.target.value})} placeholder="0" style={{...finInp, textAlign:"right"}} />
+      </div>
+      <div style={{ flex:"0 0 140px" }}>
+        <div style={finLbl}>PREÇO SUGERIDO (R$) *</div>
+        <input type="number" value={form.preco_sugerido} onChange={e => set({...form, preco_sugerido:e.target.value})} placeholder="0" style={{...finInp, textAlign:"right"}} />
+      </div>
+      <div style={{ flex:"0 0 80px" }}>
+        <div style={finLbl}>MARGEM</div>
+        <div style={{ padding:"6px 8px", background:"white", border:"1px solid #eee", borderRadius:6, fontSize:12, textAlign:"right", color:+form.preco_sugerido>0?"#2E7D32":"#bbb", fontWeight:700 }}>
+          {+form.preco_sugerido>0 ? `${Math.round((+form.preco_sugerido - +form.custo_un) / +form.preco_sugerido * 100)}%` : "—"}
+        </div>
+      </div>
+      <div style={{ flex:"0 0 90px" }}>
+        <div style={finLbl}>ESTOQUE</div>
+        <input type="number" value={form.estoque} onChange={e => set({...form, estoque:e.target.value})} placeholder="0" style={{...finInp, textAlign:"center"}} />
+      </div>
+      <div style={{ flex:"0 0 90px" }}>
+        <div style={finLbl}>ESTOQUE MÍN.</div>
+        <input type="number" value={form.estoque_min} onChange={e => set({...form, estoque_min:e.target.value})} placeholder="3" style={{...finInp, textAlign:"center"}} />
+      </div>
+    </div>
+    <div>
+      <div style={finLbl}>OBSERVAÇÕES</div>
+      <input value={form.obs} onChange={e => set({...form, obs:e.target.value})} placeholder="Fornecedor, armazenamento, validade..." style={finInp} />
+    </div>
+  </div>
+);
+
 const FinanceTab = () => {
   const [filter, setFilter] = useState("TODOS");
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [editingId, setEditingId] = useState(null);
+  const [editForm, setEditForm] = useState({});
+  const [showNewForm, setShowNewForm] = useState(false);
+  const [newForm, setNewForm] = useState(FINANCE_EMPTY);
+  const [saving, setSaving] = useState(false);
+
+  const reload = async () => {
+    const { data } = await supabase.from('produtos').select('*').eq('ativo', true).order('tipo').order('cat');
+    if (data) setProducts(data.map(p => ({
+      ...p, custoUn: p.custo_un, precoSugerido: p.preco_sugerido, estoqueMin: p.estoque_min,
+    })));
+    setLoading(false);
+  };
+
+  useEffect(() => { reload(); }, []);
+
+  const startEdit = (p) => {
+    setEditingId(p.id);
+    setEditForm({ tipo:p.tipo, cat:p.cat, nome:p.nome, protocolo:p.protocolo||"", regiao:p.regiao||"", custo_un:p.custo_un, preco_sugerido:p.preco_sugerido, estoque:p.estoque, estoque_min:p.estoque_min, obs:p.obs||"" });
+    setShowNewForm(false);
+  };
+
+  const saveEdit = async (id) => {
+    setSaving(true);
+    await supabase.from('produtos').update({
+      tipo:editForm.tipo, cat:editForm.cat, nome:editForm.nome, protocolo:editForm.protocolo,
+      regiao:editForm.regiao, custo_un:+editForm.custo_un, preco_sugerido:+editForm.preco_sugerido,
+      estoque:+editForm.estoque, estoque_min:+editForm.estoque_min, obs:editForm.obs,
+    }).eq('id', id);
+    setEditingId(null);
+    await reload();
+    setSaving(false);
+  };
+
+  const deleteProduct = async (id) => {
+    if (!window.confirm("Remover este item do catálogo?")) return;
+    await supabase.from('produtos').update({ ativo:false }).eq('id', id);
+    await reload();
+  };
+
+  const saveNew = async () => {
+    if (!newForm.nome || !newForm.custo_un || !newForm.preco_sugerido) return;
+    setSaving(true);
+    await supabase.from('produtos').insert({
+      tipo:newForm.tipo, cat:newForm.cat, nome:newForm.nome, protocolo:newForm.protocolo,
+      regiao:newForm.regiao, custo_un:+newForm.custo_un, preco_sugerido:+newForm.preco_sugerido,
+      estoque:+newForm.estoque||0, estoque_min:+newForm.estoque_min||3, obs:newForm.obs, ativo:true,
+    });
+    setNewForm(FINANCE_EMPTY);
+    setShowNewForm(false);
+    await reload();
+    setSaving(false);
+  };
 
   const filtered = filter === "TODOS" ? products : products.filter(p => p.tipo === filter);
-
   const totalEstoque = products.reduce((a, p) => a + p.custoUn * p.estoque, 0);
   const totalProtocolos = products.filter(p => p.tipo === "Protocolo").reduce((a, p) => a + p.custoUn * p.estoque, 0);
   const totalProdutos = products.filter(p => p.tipo === "Produto").reduce((a, p) => a + p.custoUn * p.estoque, 0);
   const itemsRepor = products.filter(p => p.estoque <= p.estoqueMin).length;
-  const margemMedia = products.reduce((a, p) => a + (p.precoSugerido - p.custoUn) / p.precoSugerido, 0) / products.length;
-
+  const margemMedia = products.length > 0 ? products.reduce((a, p) => a + (p.precoSugerido - p.custoUn) / p.precoSugerido, 0) / products.length : 0;
   const fmt = (v) => `R$ ${Math.round(v).toLocaleString("pt-BR")}`;
   const getStatus = (p) => {
     if (p.estoque <= p.estoqueMin) return { text: "REPOR", color: "#FFCDD2", tc: "#B71C1C" };
     if (p.estoque <= p.estoqueMin * 1.5) return { text: "ALERTA", color: "#FFF9C4", tc: "#F57F17" };
     return { text: "OK", color: "#E8F5E9", tc: "#2E7D32" };
   };
-
   const catColors = {
-    "Toxina": "#E8EAF6", "Preenchedor": "#E0F2F1", "Bioestimulador": "#FFF3E0",
-    "Skin Booster": "#F3E5F5", "Capilar": "#FBE9E7", "Revitalização": "#E8F5E9",
-    "Fios": "#ECEFF1", "Regeneração": "#FCE4EC", "Autólogo": "#E1F5FE", "Emagrecimento": "#FFF9C4",
+    "Toxina":"#E8EAF6","Preenchedor":"#E0F2F1","Bioestimulador":"#FFF3E0",
+    "Skin Booster":"#F3E5F5","Capilar":"#FBE9E7","Revitalização":"#E8F5E9",
+    "Fios":"#ECEFF1","Regeneração":"#FCE4EC","Autólogo":"#E1F5FE","Emagrecimento":"#FFF9C4",
   };
+
+  if (loading) return <div style={{ padding: 32, textAlign: "center", color: "#aaa" }}>Carregando catálogo...</div>;
 
   return (
     <div>
@@ -841,9 +959,29 @@ const FinanceTab = () => {
         </div>
       </Card>
 
-      {/* CATÁLOGO COMPLETO */}
+      {/* CATÁLOGO — GESTÃO COMPLETA */}
       <Card title="Catálogo de Produtos & Protocolos">
-        {/* FILTER */}
+        {/* BOTÃO NOVO */}
+        <button onClick={() => { setShowNewForm(!showNewForm); setEditingId(null); }} style={{
+          width: "100%", padding: "10px", background: "white", border: `2px dashed ${GOLD}`,
+          borderRadius: 10, cursor: "pointer", fontSize: 13, fontWeight: 600, color: GOLD,
+          fontFamily: "inherit", marginBottom: 12,
+        }}>+ Novo Produto / Protocolo</button>
+
+        {showNewForm && (
+          <div style={{ background: LIGHT, borderRadius: 10, padding: 16, marginBottom: 14, border: `1px solid ${GOLD}` }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: GOLD, marginBottom: 10, letterSpacing: "0.05em" }}>NOVO CADASTRO</div>
+            <CatalogForm form={newForm} set={setNewForm} />
+            <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+              <button onClick={saveNew} disabled={saving} style={{ padding: "8px 20px", background: GOLD, color: "white", border: "none", borderRadius: 8, fontWeight: 700, fontSize: 12, cursor: "pointer", fontFamily: "inherit", opacity: saving ? 0.7 : 1 }}>
+                {saving ? "Salvando..." : "Salvar"}
+              </button>
+              <button onClick={() => { setShowNewForm(false); setNewForm(FINANCE_EMPTY); }} style={{ padding: "8px 14px", background: "white", color: "#888", border: "1px solid #ddd", borderRadius: 8, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>Cancelar</button>
+            </div>
+          </div>
+        )}
+
+        {/* FILTRO */}
         <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>
           {["TODOS", "Protocolo", "Produto"].map(f => (
             <button key={f} onClick={() => setFilter(f)} style={{
@@ -856,62 +994,86 @@ const FinanceTab = () => {
           ))}
         </div>
 
-        {/* TABLE HEADER */}
+        {/* CABEÇALHO */}
         <div style={{ display: "flex", background: DARK, borderRadius: "8px 8px 0 0", padding: "10px 0" }}>
           {[
             { l: "TIPO", f: 0.6 }, { l: "CATEGORIA", f: 0.8 }, { l: "PRODUTO", f: 1.2 },
             { l: "PROTOCOLO", f: 1.2 }, { l: "CUSTO UN.", f: 0.7 }, { l: "PREÇO", f: 0.7 },
-            { l: "MARGEM", f: 0.6 }, { l: "ESTOQUE", f: 0.5 }, { l: "MÍN", f: 0.4 }, { l: "STATUS", f: 0.5 },
+            { l: "MARGEM", f: 0.6 }, { l: "ESTOQUE", f: 0.5 }, { l: "MÍN", f: 0.4 }, { l: "STATUS", f: 0.5 }, { l: "AÇÕES", f: 0.6 },
           ].map((h, i) => (
             <div key={i} style={{ flex: h.f, textAlign: "center", fontSize: 9, fontWeight: 700, color: GOLD, letterSpacing: "0.05em", padding: "0 2px" }}>{h.l}</div>
           ))}
         </div>
 
-        {/* TABLE ROWS */}
+        {/* LINHAS */}
         {filtered.map((p, i) => {
           const margem = Math.round((p.precoSugerido - p.custoUn) / p.precoSugerido * 100);
           const st = getStatus(p);
+          const editing = editingId === p.id;
           return (
-            <div key={i} style={{
-              display: "flex", padding: "8px 0", alignItems: "center",
-              borderBottom: "1px solid #f0ece6",
-              background: i % 2 === 0 ? "white" : "#FAFAF8",
-            }}>
-              <div style={{ flex: 0.6, textAlign: "center" }}>
-                <Badge text={p.tipo === "Protocolo" ? "PROT" : "PROD"}
-                  color={p.tipo === "Protocolo" ? "#E8EAF6" : "#FFF9C4"}
-                  textColor={p.tipo === "Protocolo" ? "#283593" : "#F57F17"} />
+            <div key={p.id}>
+              <div style={{
+                display: "flex", padding: "8px 0", alignItems: "center",
+                borderBottom: editing ? "none" : "1px solid #f0ece6",
+                background: editing ? "#FFF8F0" : i % 2 === 0 ? "white" : "#FAFAF8",
+              }}>
+                <div style={{ flex: 0.6, textAlign: "center" }}>
+                  <Badge text={p.tipo === "Protocolo" ? "PROT" : "PROD"}
+                    color={p.tipo === "Protocolo" ? "#E8EAF6" : "#FFF9C4"}
+                    textColor={p.tipo === "Protocolo" ? "#283593" : "#F57F17"} />
+                </div>
+                <div style={{ flex: 0.8, textAlign: "center" }}>
+                  <Badge text={p.cat} color={catColors[p.cat] || "#eee"} textColor="#555" />
+                </div>
+                <div style={{ flex: 1.2, fontSize: 12, fontWeight: 700, padding: "0 4px" }}>{p.nome}</div>
+                <div style={{ flex: 1.2, fontSize: 11, color: "#777", padding: "0 4px" }}>{p.protocolo}</div>
+                <div style={{ flex: 0.7, textAlign: "center", fontSize: 12, fontWeight: 600, color: "#B71C1C" }}>{fmt(p.custoUn)}</div>
+                <div style={{ flex: 0.7, textAlign: "center", fontSize: 12, fontWeight: 700, color: DARK }}>{fmt(p.precoSugerido)}</div>
+                <div style={{ flex: 0.6, textAlign: "center" }}>
+                  <Badge text={`${margem}%`} color={margem >= 70 ? "#E8F5E9" : margem >= 50 ? "#FFF9C4" : "#FFEBEE"}
+                    textColor={margem >= 70 ? "#2E7D32" : margem >= 50 ? "#F57F17" : "#B71C1C"} />
+                </div>
+                <div style={{ flex: 0.5, textAlign: "center", fontSize: 13, fontWeight: 800,
+                  color: p.estoque <= p.estoqueMin ? "#B71C1C" : DARK }}>{p.estoque}</div>
+                <div style={{ flex: 0.4, textAlign: "center", fontSize: 11, color: "#999" }}>{p.estoqueMin}</div>
+                <div style={{ flex: 0.5, textAlign: "center" }}>
+                  <Badge text={st.text} color={st.color} textColor={st.tc} />
+                </div>
+                <div style={{ flex: 0.6, display: "flex", justifyContent: "center" }}>
+                  <button onClick={() => editing ? setEditingId(null) : startEdit(p)} style={{
+                    padding: "3px 9px", fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
+                    background: editing ? "#f0f0f0" : DARK, color: editing ? "#888" : GOLD,
+                    border: "none", borderRadius: 5,
+                  }}>{editing ? "✕" : "Editar"}</button>
+                </div>
               </div>
-              <div style={{ flex: 0.8, textAlign: "center" }}>
-                <Badge text={p.cat} color={catColors[p.cat] || "#eee"} textColor="#555" />
-              </div>
-              <div style={{ flex: 1.2, fontSize: 12, fontWeight: 700, padding: "0 4px" }}>{p.nome}</div>
-              <div style={{ flex: 1.2, fontSize: 11, color: "#777", padding: "0 4px" }}>{p.protocolo}</div>
-              <div style={{ flex: 0.7, textAlign: "center", fontSize: 12, fontWeight: 600, color: "#B71C1C" }}>{fmt(p.custoUn)}</div>
-              <div style={{ flex: 0.7, textAlign: "center", fontSize: 12, fontWeight: 700, color: DARK }}>{fmt(p.precoSugerido)}</div>
-              <div style={{ flex: 0.6, textAlign: "center" }}>
-                <Badge text={`${margem}%`} color={margem >= 70 ? "#E8F5E9" : margem >= 50 ? "#FFF9C4" : "#FFEBEE"}
-                  textColor={margem >= 70 ? "#2E7D32" : margem >= 50 ? "#F57F17" : "#B71C1C"} />
-              </div>
-              <div style={{ flex: 0.5, textAlign: "center", fontSize: 13, fontWeight: 800,
-                color: p.estoque <= p.estoqueMin ? "#B71C1C" : DARK }}>{p.estoque}</div>
-              <div style={{ flex: 0.4, textAlign: "center", fontSize: 11, color: "#999" }}>{p.estoqueMin}</div>
-              <div style={{ flex: 0.5, textAlign: "center" }}>
-                <Badge text={st.text} color={st.color} textColor={st.tc} />
-              </div>
+
+              {editing && (
+                <div style={{ background: "#FFF8F0", padding: 16, borderBottom: `2px solid ${GOLD}`, borderTop: `1px solid ${GOLD}30` }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: GOLD, marginBottom: 10, letterSpacing: "0.05em" }}>EDITANDO: {p.nome}</div>
+                  <CatalogForm form={editForm} set={setEditForm} />
+                  <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                    <button onClick={() => saveEdit(p.id)} disabled={saving} style={{ padding: "8px 20px", background: GOLD, color: "white", border: "none", borderRadius: 8, fontWeight: 700, fontSize: 12, cursor: "pointer", fontFamily: "inherit", opacity: saving ? 0.7 : 1 }}>
+                      {saving ? "Salvando..." : "Salvar alterações"}
+                    </button>
+                    <button onClick={() => setEditingId(null)} style={{ padding: "8px 14px", background: "white", color: "#888", border: "1px solid #ddd", borderRadius: 8, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>Cancelar</button>
+                    <button onClick={() => deleteProduct(p.id)} style={{ padding: "8px 14px", background: "#FFEBEE", color: "#B71C1C", border: "1px solid #FFCDD2", borderRadius: 8, fontSize: 12, cursor: "pointer", fontFamily: "inherit", marginLeft: "auto" }}>Remover do Catálogo</button>
+                  </div>
+                </div>
+              )}
             </div>
           );
         })}
 
-        {/* TOTAL ROW */}
+        {/* TOTAL */}
         <div style={{ display: "flex", padding: "12px 0", background: LIGHT, borderRadius: "0 0 8px 8px", marginTop: 1 }}>
           <div style={{ flex: 4.8, fontSize: 12, fontWeight: 800, paddingLeft: 8 }}>
             TOTAL: {filtered.length} itens | Valor em estoque: {fmt(filtered.reduce((a,p) => a + p.custoUn * p.estoque, 0))}
           </div>
           <div style={{ flex: 0.6, textAlign: "center", fontSize: 12, fontWeight: 800 }}>
-            {Math.round(filtered.reduce((a,p) => a + (p.precoSugerido - p.custoUn)/p.precoSugerido, 0) / filtered.length * 100)}% média
+            {filtered.length > 0 ? `${Math.round(filtered.reduce((a,p) => a + (p.precoSugerido-p.custoUn)/p.precoSugerido, 0) / filtered.length * 100)}% média` : "—"}
           </div>
-          <div style={{ flex: 1.4 }} />
+          <div style={{ flex: 2.1 }} />
         </div>
       </Card>
 
@@ -925,9 +1087,8 @@ const FinanceTab = () => {
           <Badge text="REPOR = acionar fornecedor" color="#FFCDD2" textColor="#B71C1C" />
         </div>
         <div style={{ fontSize: 11, color: "#999", lineHeight: 1.6 }}>
-          Custo unitário e preço sugerido são editáveis na planilha (Plataforma de Gestão, aba Catálogo).
-          Sylmara atualiza estoque no check-in quinzenal (dia 1 e 15). Preço sugerido só muda com aprovação CEO na weekly.
-          Status calcula automaticamente: REPOR (estoque igual ou abaixo do mínimo), ALERTA (até 1,5x mínimo), OK (acima de 1,5x).
+          Status calculado automaticamente: REPOR (estoque ≤ mínimo), ALERTA (≤ 1,5× mínimo), OK (acima de 1,5×).
+          Clique "Editar" para alterar preço, custo, estoque e demais campos. "Remover do Catálogo" oculta o item sem apagar permanentemente.
         </div>
       </Card>
     </div>
@@ -1998,6 +2159,16 @@ const BudgetTab = () => {
   const [desconto, setDesconto] = useState(0);
   const [parcelas, setParcelas] = useState(1);
   const [showMargin, setShowMargin] = useState(false);
+  const [products, setProducts] = useState([]);
+
+  useEffect(() => {
+    supabase.from('produtos').select('*').eq('ativo', true).order('cat').order('nome')
+      .then(({ data }) => {
+        if (data) setProducts(data.map(p => ({
+          ...p, custoUn: p.custo_un, precoSugerido: p.preco_sugerido, estoqueMin: p.estoque_min,
+        })));
+      });
+  }, []);
 
   const addItem = (product) => {
     const existing = items.find(i => i.nome === product.nome);
@@ -5245,19 +5416,30 @@ const ExecutiveTab = ({ shared }) => {
 
 // FLUXO DE CAIXA TAB
 const CashflowTab = () => {
-  const [entries, setEntries] = useState([
-    { date: "15/04", desc: "Procedimento — Botox Full Face", tipo: "entrada", valor: 3500, cat: "Procedimento" },
-    { date: "15/04", desc: "Aluguel cj 93", tipo: "saida", valor: 4500, cat: "Aluguel" },
-    { date: "16/04", desc: "Procedimento — Levvai Lips", tipo: "entrada", valor: 2200, cat: "Procedimento" },
-    { date: "18/04", desc: "Compra Profhilo (2 un)", tipo: "saida", valor: 1500, cat: "Fornecedor" },
-    { date: "20/04", desc: "Procedimento — Tirzepatida", tipo: "entrada", valor: 2000, cat: "Produto" },
-    { date: "22/04", desc: "Folha Sirlândia", tipo: "saida", valor: 3000, cat: "Pessoas" },
-  ]);
+  const [entries, setEntries] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [showNew, setShowNew] = useState(false);
   const [newEntry, setNewEntry] = useState({ date: "", desc: "", tipo: "entrada", valor: 0, cat: "Procedimento" });
 
-  const addEntry = () => {
+  useEffect(() => {
+    supabase.from('fluxo_caixa').select('*').order('created_at')
+      .then(({ data }) => {
+        if (data) setEntries(data.map(e => ({
+          date: e.data, desc: e.descricao, tipo: e.tipo, valor: e.valor, cat: e.categoria,
+        })));
+        setLoading(false);
+      });
+  }, []);
+
+  const addEntry = async () => {
     if (!newEntry.desc || !newEntry.valor) return;
+    await supabase.from('fluxo_caixa').insert({
+      data: newEntry.date,
+      descricao: newEntry.desc,
+      tipo: newEntry.tipo,
+      valor: newEntry.valor,
+      categoria: newEntry.cat,
+    });
     setEntries([...entries, newEntry]);
     setNewEntry({ date: "", desc: "", tipo: "entrada", valor: 0, cat: "Procedimento" });
     setShowNew(false);
@@ -5267,6 +5449,8 @@ const CashflowTab = () => {
   const totalSaidas = entries.filter(e => e.tipo === "saida").reduce((a, e) => a + e.valor, 0);
   const saldo = totalEntradas - totalSaidas;
   const fmt = (v) => `R$ ${Math.round(v).toLocaleString("pt-BR")}`;
+
+  if (loading) return <div style={{ padding: 32, textAlign: "center", color: "#aaa" }}>Carregando movimentações...</div>;
 
   return (
     <div>
