@@ -6668,117 +6668,46 @@ const [active, setActive] = useState("visao-geral");
   const Content = tabContent[oldId];
 
   useEffect(() => {
-  supabase.auth.getSession().then(({ data: { session } }) => {
-    if (session?.user) {
-      const profile = userProfiles[session.user.email] || { name: session.user.email, role: 'Usuário', color: '#888' };
-      setCurrentUser({ email: session.user.email, ...profile });
-    }
-    setAuthLoading(false);
-  });
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        const profile = userProfiles[session.user.email] || { name: session.user.email, role: 'Usuário', color: '#888' };
+        setCurrentUser({ email: session.user.email, ...profile });
+      }
+      setAuthLoading(false);
+    });
 
-  const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-    if (session?.user) {
-      const profile = userProfiles[session.user.email] || { name: session.user.email, role: 'Usuário', color: '#888' };
-      setCurrentUser({ email: session.user.email, ...profile });
-    } else {
-      setCurrentUser(null);
-    }
-  });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        const profile = userProfiles[session.user.email] || { name: session.user.email, role: 'Usuário', color: '#888' };
+        setCurrentUser({ email: session.user.email, ...profile });
+      } else {
+        setCurrentUser(null);
+      }
+    });
 
-  return () => subscription.unsubscribe();
-}, []);
+    return () => subscription.unsubscribe();
+  }, []);
 
-useEffect(() => {
-  supabase.auth.getSession().then(({ data: { session } }) => {
-    if (session?.user) {
-      const profile = userProfiles[session.user.email] || { name: session.user.email, role: 'Usuário', color: '#888' };
-      setCurrentUser({ email: session.user.email, ...profile });
-    }
-    setAuthLoading(false);
-  });
+  const handleLogin = async () => {
+    setLoginError('');
+    setLoginLoading(true);
+    const { error } = await supabase.auth.signInWithPassword({
+      email: loginEmail.trim(),
+      password: loginPass,
+    });
+    if (error) setLoginError('E-mail ou senha incorretos.');
+    setLoginLoading(false);
+  };
 
-  const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-    if (session?.user) {
-      const profile = userProfiles[session.user.email] || { name: session.user.email, role: 'Usuário', color: '#888' };
-      setCurrentUser({ email: session.user.email, ...profile });
-    } else {
-      setCurrentUser(null);
-    }
-  });
-
-  return () => subscription.unsubscribe();
-}, []);
-
-useEffect(() => {
-  supabase.auth.getSession().then(({ data: { session } }) => {
-    if (session?.user) {
-      const profile = userProfiles[session.user.email] || { name: session.user.email, role: 'Usuário', color: '#888' };
-      setCurrentUser({ email: session.user.email, ...profile });
-    }
-    setAuthLoading(false);
-  });
-
-  const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-    if (session?.user) {
-      const profile = userProfiles[session.user.email] || { name: session.user.email, role: 'Usuário', color: '#888' };
-      setCurrentUser({ email: session.user.email, ...profile });
-    } else {
-      setCurrentUser(null);
-    }
-  });
-
-  return () => subscription.unsubscribe();
-}, []);
-
-useEffect(() => {
-  supabase.auth.getSession().then(({ data: { session } }) => {
-    if (session?.user) {
-      const profile = userProfiles[session.user.email] || { name: session.user.email, role: 'Usuário', color: '#888' };
-      setCurrentUser({ email: session.user.email, ...profile });
-    }
-    setAuthLoading(false);
-  });
-
-  const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-    if (session?.user) {
-      const profile = userProfiles[session.user.email] || { name: session.user.email, role: 'Usuário', color: '#888' };
-      setCurrentUser({ email: session.user.email, ...profile });
-    } else {
-      setCurrentUser(null);
-    }
-  });
-
-  return () => subscription.unsubscribe();
-}, []);
-
-const handleLogin = async () => {
-  setLoginError('');
-  setLoginLoading(true);
-  const { error } = await supabase.auth.signInWithPassword({
-    email: loginEmail.trim(),
-    password: loginPass,
-  });
-  if (error) setLoginError('E-mail ou senha incorretos.');
-  setLoginLoading(false);
-};
-
-const handleLogout = async () => {
-  await supabase.auth.signOut();
-  setCurrentUser(null);
-  setActive("visao-geral");
-};
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setCurrentUser(null);
+    setActive("visao-geral");
+  };
 
   const breadcrumb = TAB_TO_SECTOR[active] || { sector: '—', label: '—' };
   const badges = { 'atas-acoes': 3, 'crm-leads': 5 };
 
-  // LOADING (verificando sessão)
-  if (authLoading) return (
-    <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100vh', background:'#1A1512', color:'#C9A876', fontFamily:'Arial', fontSize:14 }}>
-      Carregando...
-    </div>
-  );
-
-  // LOADING (verificando sessão)
   if (authLoading) return (
     <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100vh', background:'#1A1512', color:'#C9A876', fontFamily:'Arial', fontSize:14 }}>
       Carregando...
