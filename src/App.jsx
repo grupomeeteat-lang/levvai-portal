@@ -3263,13 +3263,13 @@ const FichaPaciente = ({ paciente, onClose, onUpdate }) => {
   const [newProp, setNewProp] = useState({ data: today(), titulo: '', itens: [], valor_total: '', desconto: 0, parcelas: 1, observacoes: '', status: 'rascunho' });
 
   const loadSub = async (resource, setter) => {
-    const res = await fetch(`/api/crm?resource=${resource}&paciente_id=${paciente.id}`);
-    const data = await res.json();
+    const { data } = await supabase.from(resource).select('*').eq('paciente_id', paciente.id).order('data', { ascending: false });
     setter(Array.isArray(data) ? data : []);
   };
 
   useEffect(() => {
-    fetch('/api/crm?resource=produtos').then(r => r.json()).then(d => setProdutosDB(Array.isArray(d) ? d : []));
+    supabase.from('produtos').select('*').eq('ativo', true).order('cat')
+      .then(({ data }) => setProdutosDB(Array.isArray(data) ? data : []));
   }, []);
 
   useEffect(() => {
@@ -3288,24 +3288,14 @@ const FichaPaciente = ({ paciente, onClose, onUpdate }) => {
 
   const saveEdit = async () => {
     setSaving(true);
-    const res = await fetch(`/api/crm?resource=pacientes&id=${paciente.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(editData),
-    });
-    const data = await res.json();
-    if (!data.error) { onUpdate(data); setEditing(false); }
+    const { data, error } = await supabase.from('pacientes').update({ ...editData, updated_at: new Date() }).eq('id', paciente.id).select().single();
+    if (!error) { onUpdate(data); setEditing(false); }
     setSaving(false);
   };
 
   const addItem = async (resource, body, setter, resetFn) => {
-    const res = await fetch(`/api/crm?resource=${resource}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...body, paciente_id: paciente.id }),
-    });
-    const data = await res.json();
-    if (!data.error) {
+    const { data, error } = await supabase.from(resource).insert({ ...body, paciente_id: paciente.id }).select().single();
+    if (!error) {
       setter(prev => [data, ...prev]);
       resetFn();
       setShowForm(false);
@@ -3330,7 +3320,7 @@ const FichaPaciente = ({ paciente, onClose, onUpdate }) => {
 
   const deleteItem = async (resource, id, setter) => {
     if (!confirm('Remover este registro?')) return;
-    await fetch(`/api/crm?resource=${resource}&id=${id}`, { method: 'DELETE' });
+    await supabase.from(resource).delete().eq('id', id);
     setter(prev => prev.filter(i => i.id !== id));
   };
 
@@ -3338,13 +3328,8 @@ const FichaPaciente = ({ paciente, onClose, onUpdate }) => {
     const body = {};
     if (newStatus !== undefined) body.status = newStatus;
     if (newStatusPag !== undefined) body.status_pagamento = newStatusPag;
-    const res = await fetch(`/api/crm?resource=tratamentos&id=${trat.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-    const data = await res.json();
-    if (!data.error) setTratamentos(prev => prev.map(t => t.id === trat.id ? data : t));
+    const { data } = await supabase.from('tratamentos').update(body).eq('id', trat.id).select().single();
+    if (data) setTratamentos(prev => prev.map(t => t.id === trat.id ? data : t));
   };
 
   const st = STATUS_COLORS[paciente.status] || STATUS_COLORS.lead;
@@ -3877,8 +3862,7 @@ const CRMTab = ({ shared }) => {
 
   const load = async () => {
     setLoading(true);
-    const res = await fetch('/api/crm?resource=pacientes');
-    const data = await res.json();
+    const { data } = await supabase.from('pacientes').select('*').order('created_at', { ascending: false });
     setPacientes(Array.isArray(data) ? data : []);
     setLoading(false);
   };
@@ -3888,13 +3872,8 @@ const CRMTab = ({ shared }) => {
   const createPaciente = async () => {
     if (!newPac.nome) return;
     setSaving(true);
-    const res = await fetch('/api/crm?resource=pacientes', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(newPac),
-    });
-    const data = await res.json();
-    if (!data.error) {
+    const { data, error } = await supabase.from('pacientes').insert(newPac).select().single();
+    if (!error) {
       setPacientes(prev => [data, ...prev]);
       setNewPac({ nome: '', telefone: '', email: '', cpf: '', data_nascimento: '', sexo: '', origem: 'Instagram', indicado_por: '', status: 'lead', observacoes_gerais: '' });
       setShowNew(false);
