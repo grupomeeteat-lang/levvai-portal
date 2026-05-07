@@ -6659,7 +6659,12 @@ const [active, setActive] = useState("visao-geral");
     { nome: "Carla R.", tel: "(11) 99666-4444", origem: "Levvai Day", interesse: "Profhilo + Bioflash", status: "atendido", data: "05/04", obs: "Fez Profhilo. Voltar em 30 dias.", agendamento: null },
     { nome: "Fernanda L.", tel: "(11) 99555-5555", origem: "Instagram", interesse: "Harmonização", status: "fidelizado", data: "01/03", obs: "3º procedimento. Indicou 2 amigas.", agendamento: null },
   ]);
-  const [sharedSlots, setSharedSlots] = useState({});
+  const [sharedSlots, setSharedSlots] = useState(() => {
+    try { const s = localStorage.getItem('levvai_slots'); return s ? JSON.parse(s) : {}; } catch { return {}; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem('levvai_slots', JSON.stringify(sharedSlots)); } catch {}
+  }, [sharedSlots]);
 
   // Support both old IDs ("home", "crm") and new IDs ("visao-geral", "crm-leads")
   const navigateTo = (tabId) => { setActive(OLD_TO_NEW_ID[tabId] || tabId); };
