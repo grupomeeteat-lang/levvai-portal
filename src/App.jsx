@@ -3351,7 +3351,7 @@ const FichaPaciente = ({ paciente, onClose, onUpdate }) => {
         {/* HEADER */}
         <div style={{ background: DARK, borderRadius: '16px 16px 0 0', padding: '20px 24px', display: 'flex', alignItems: 'center', gap: 16 }}>
           <div style={{ width: 52, height: 52, borderRadius: '50%', background: st.bg === 'white' ? GOLD : st.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, fontWeight: 800, color: st.tc, flexShrink: 0 }}>
-            {paciente.nome[0].toUpperCase()}
+            {(paciente.nome || '?')[0].toUpperCase()}
           </div>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 18, fontWeight: 800, color: 'white' }}>{paciente.nome}</div>
@@ -3883,7 +3883,7 @@ const CRMTab = ({ shared }) => {
 
   const filtered = pacientes
     .filter(p => filterStatus === 'TODOS' || p.status === filterStatus)
-    .filter(p => !search || p.nome.toLowerCase().includes(search.toLowerCase()) || (p.telefone || '').includes(search) || (p.email || '').toLowerCase().includes(search.toLowerCase()));
+    .filter(p => !search || (p.nome || '').toLowerCase().includes(search.toLowerCase()) || (p.telefone || '').includes(search) || (p.email || '').toLowerCase().includes(search.toLowerCase()));
 
   const counts = Object.keys(STATUS_COLORS).reduce((acc, k) => ({ ...acc, [k]: pacientes.filter(p => p.status === k).length }), {});
 
@@ -3992,7 +3992,7 @@ const CRMTab = ({ shared }) => {
               onMouseOut={e => e.currentTarget.style.background = i % 2 === 0 ? 'white' : '#FAFAF8'}>
                 <div style={{ flex: 2, display: 'flex', alignItems: 'center', gap: 10, paddingLeft: 8 }}>
                   <div style={{ width: 32, height: 32, borderRadius: '50%', background: st.bg === 'white' ? GOLD : st.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 800, color: st.tc, flexShrink: 0 }}>
-                    {p.nome[0].toUpperCase()}
+                    {(p.nome || '?')[0].toUpperCase()}
                   </div>
                   <div>
                     <div style={{ fontSize: 13, fontWeight: 700, color: DARK }}>{p.nome}</div>
