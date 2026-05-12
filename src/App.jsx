@@ -2401,9 +2401,8 @@ const BudgetTab = () => {
 
 // STOCK TAB
 const StockTab = () => {
-  const [stock, setStock] = useState(
-    products.map(p => ({ ...p, movimentos: [] }))
-  );
+  const [stock, setStock] = useState([]);
+  const [stockLoading, setStockLoading] = useState(true);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [moveType, setMoveType] = useState("ENTRADA");
   const [moveQty, setMoveQty] = useState(1);
@@ -2412,6 +2411,22 @@ const StockTab = () => {
   const [newProd, setNewProd] = useState({ tipo: "Protocolo", cat: "", nome: "", custoUn: 0, precoSugerido: 0, estoqueMin: 3 });
   const [showNewForm, setShowNewForm] = useState(false);
 
+  const mapProduto = (p) => ({
+    ...p,
+    custoUn: p.custo_un ?? p.custoUn ?? 0,
+    precoSugerido: p.preco_sugerido ?? p.precoSugerido ?? 0,
+    estoqueMin: p.estoque_min ?? p.estoqueMin ?? 3,
+    movimentos: [],
+  });
+
+  useEffect(() => {
+    supabase.from('produtos').select('*').eq('ativo', true).order('cat')
+      .then(({ data }) => {
+        setStock(Array.isArray(data) ? data.map(mapProduto) : []);
+        setStockLoading(false);
+      });
+  }, []);
+
   const getStatus = (p) => {
     if (p.estoque <= 0) return { text: "ZERADO", color: "#D32F2F", bg: "#FFCDD2" };
     if (p.estoque <= p.estoqueMin) return { text: "REPOR", color: "#B71C1C", bg: "#FFCDD2" };
@@ -2419,13 +2434,16 @@ const StockTab = () => {
     return { text: "OK", color: "#2E7D32", bg: "#E8F5E9" };
   };
 
-  const registrarMovimento = () => {
+  const registrarMovimento = async () => {
     if (!selectedProduct || moveQty <= 0) return;
     const now = new Date();
     const dateStr = `${now.getDate().toString().padStart(2,"0")}/${(now.getMonth()+1).toString().padStart(2,"0")}`;
+    const prod = stock.find(p => p.nome === selectedProduct);
+    if (!prod) return;
+    const newEstoque = moveType === "ENTRADA" ? prod.estoque + moveQty : Math.max(0, prod.estoque - moveQty);
+    await supabase.from('produtos').update({ estoque: newEstoque }).eq('id', prod.id);
     setStock(stock.map(p => {
       if (p.nome === selectedProduct) {
-        const newEstoque = moveType === "ENTRADA" ? p.estoque + moveQty : Math.max(0, p.estoque - moveQty);
         return {
           ...p,
           estoque: newEstoque,
@@ -2439,18 +2457,15 @@ const StockTab = () => {
     setSelectedProduct(null);
   };
 
-  const addNewProduct = () => {
+  const addNewProduct = async () => {
     if (!newProd.nome || !newProd.cat) return;
-    setStock([...stock, {
-      ...newProd,
-      protocolo: "",
-      regiao: "",
-      qtdUn: "1 un",
-      valorCompra: newProd.custoUn,
-      estoque: 0,
-      obs: "Cadastrado manualmente",
-      movimentos: [],
-    }]);
+    const { data, error } = await supabase.from('produtos').insert({
+      tipo: newProd.tipo, cat: newProd.cat, nome: newProd.nome,
+      custo_un: newProd.custoUn || 0, preco_sugerido: newProd.precoSugerido || 0,
+      estoque_min: newProd.estoqueMin || 3, estoque: 0,
+      obs: 'Cadastrado pelo Estoque', ativo: true,
+    }).select().single();
+    if (!error && data) setStock(prev => [...prev, mapProduto(data)]);
     setNewProd({ tipo: "Protocolo", cat: "", nome: "", custoUn: 0, precoSugerido: 0, estoqueMin: 3 });
     setShowNewForm(false);
   };
@@ -2472,6 +2487,8 @@ const StockTab = () => {
     "Skin Booster": "#F3E5F5", "Capilar": "#FBE9E7", "Revitalização": "#E8F5E9",
     "Fios": "#ECEFF1", "Regeneração": "#FCE4EC", "Autólogo": "#E1F5FE", "Emagrecimento": "#FFF9C4",
   };
+
+  if (stockLoading) return <div style={{ textAlign: 'center', padding: 40, color: '#999' }}>Carregando estoque...</div>;
 
   return (
     <div>
@@ -3085,7 +3102,7 @@ const AgendaTab = ({ shared }) => {
                           return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${titulo}&dates=${dataInicio}/${dataFim}&details=${detalhes}&location=${local}`;
                         })()} target="_blank" rel="noopener noreferrer" title="Adicionar ao Google Calendar"
                           onClick={(e) => e.stopPropagation()}
-                          style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 16, height: 16, borderRadius: 4, background: "#E8F5E9", textDecoration: "none", fontSize: 10, flexShrink: 0 }}>📅</a>
+                          style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 20, height: 20, borderRadius: 4, background: "#E8F5E9", textDecoration: "none", fontSize: 12, flexShrink: 0 }}>📅</a>
                       </div>
                     ) : (
                       selectedRoom === r.id && selectedHour === hi ? (
@@ -5772,6 +5789,18 @@ const MarketingTab = () => {
   const [igError, setIgError] = useState(null);
   const [lastFetch, setLastFetch] = useState(null);
 
+  const [igTokenExpiry, setIgTokenExpiry] = useState(() => localStorage.getItem('ig_token_expiry') || '');
+  const [editingExpiry, setEditingExpiry] = useState(false);
+  const [expiryInput, setExpiryInput] = useState('');
+  const tokenDaysLeft = igTokenExpiry
+    ? Math.ceil((new Date(igTokenExpiry) - new Date()) / (1000 * 60 * 60 * 24))
+    : null;
+  const saveExpiry = () => {
+    localStorage.setItem('ig_token_expiry', expiryInput);
+    setIgTokenExpiry(expiryInput);
+    setEditingExpiry(false);
+  };
+
   // AUTO-FETCH from Instagram API
   useEffect(() => {
     const fetchIG = async () => {
@@ -5824,6 +5853,51 @@ const MarketingTab = () => {
       <Card title="Dashboard de Marketing & Instagram" accent>
         <p style={{ color: "#aaa", fontSize: 13, margin: 0 }}>Hub completo: feed, métricas, ações rápidas e performance de conteúdo. Gi alimenta, CEO acompanha na weekly.</p>
       </Card>
+
+      {/* TOKEN EXPIRY ALERT */}
+      {(tokenDaysLeft !== null && tokenDaysLeft <= 14) && (
+        <div style={{
+          background: tokenDaysLeft <= 3 ? '#FFEBEE' : tokenDaysLeft <= 7 ? '#FFF3E0' : '#FFFDE7',
+          border: `1px solid ${tokenDaysLeft <= 3 ? '#FFCDD2' : tokenDaysLeft <= 7 ? '#FFE0B2' : '#FFF9C4'}`,
+          borderRadius: 10, padding: '12px 16px', marginBottom: 12,
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 16 }}>{tokenDaysLeft <= 3 ? '🚨' : '⚠️'}</span>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: tokenDaysLeft <= 3 ? '#B71C1C' : '#E65100' }}>
+                Token Instagram expira em {tokenDaysLeft} dia{tokenDaysLeft !== 1 ? 's' : ''} ({igTokenExpiry})
+              </div>
+              <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>
+                Acesse Meta for Developers → renovar Long-Lived Token antes de expirar
+              </div>
+            </div>
+          </div>
+          <button onClick={() => { setExpiryInput(igTokenExpiry); setEditingExpiry(true); }} style={{
+            padding: '6px 14px', background: 'white', border: '1px solid #ddd',
+            borderRadius: 6, fontSize: 11, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600,
+          }}>Atualizar data</button>
+        </div>
+      )}
+
+      {/* TOKEN EXPIRY FORM */}
+      {editingExpiry && (
+        <div style={{ background: '#F5F0E8', borderRadius: 10, padding: '12px 16px', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ fontSize: 12, fontWeight: 600, color: '#888' }}>Data de expiração do token:</span>
+          <input type="date" value={expiryInput} onChange={e => setExpiryInput(e.target.value)}
+            style={{ padding: '6px 10px', border: '1px solid #ddd', borderRadius: 6, fontSize: 12, fontFamily: 'inherit', outline: 'none' }} />
+          <button onClick={saveExpiry} style={{ padding: '6px 16px', background: GOLD, color: 'white', border: 'none', borderRadius: 6, fontWeight: 700, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>Salvar</button>
+          <button onClick={() => setEditingExpiry(false)} style={{ padding: '6px 12px', background: 'white', border: '1px solid #ddd', borderRadius: 6, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>Cancelar</button>
+        </div>
+      )}
+
+      {/* TOKEN EXPIRY SETUP (when not set) */}
+      {tokenDaysLeft === null && (
+        <div style={{ background: '#F5F0E8', borderRadius: 10, padding: '10px 16px', marginBottom: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span style={{ fontSize: 12, color: '#888' }}>Token Instagram: data de expiração não configurada</span>
+          {!editingExpiry && <button onClick={() => { setExpiryInput(''); setEditingExpiry(true); }} style={{ padding: '5px 14px', background: DARK, color: GOLD, border: 'none', borderRadius: 6, fontSize: 11, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700 }}>Configurar alerta</button>}
+        </div>
+      )}
 
       {/* API STATUS */}
       <div style={{
