@@ -102,8 +102,11 @@ levvai-portal/
 │           └── Topbar.jsx       ← barra superior
 ├── supabase/
 │   └── migrations/
-│       ├── crm.sql              ← tabelas CRM v1
-│       └── crm_v2.sql           ← colunas de pagamento + tabela produtos
+│       ├── crm.sql              ← tabelas CRM v1 (pacientes, tratamentos, prontuarios, propostas, observacoes)
+│       ├── crm_v2.sql           ← colunas de pagamento + tabela produtos (14 seeds)
+│       ├── crm_v3.sql           ← ADD COLUMN horario TEXT em tratamentos
+│       ├── cashflow.sql         ← tabela fluxo_caixa (data como DATE)
+│       └── agendamentos.sql     ← tabela agendamentos + paciente_id FK
 └── public/
 ```
 
@@ -129,9 +132,12 @@ levvai-portal/
 ## 6. BANCO DE DADOS SUPABASE
 
 **Projeto:** wlkshbycdtgvyabcolmd.supabase.co  
-**Todas as tabelas têm RLS habilitado com policy `allow all` (auth feita no portal).**
+**Todas as tabelas têm RLS habilitado com policy `allow all` (auth feita no portal).**  
+**Migrations aplicadas manualmente no Supabase SQL Editor — o projeto NÃO usa Supabase CLI.**
 
-### Tabelas existentes:
+### Tabelas existentes (17 total):
+
+`pacientes`, `tratamentos`, `prontuarios`, `propostas`, `observacoes`, `produtos`, `fluxo_caixa`, `agendamentos`, `associados`, `repasses_associados`, `contratos`, `atas`, `acoes_ata`, `feedbacks_nps`, `fornecedores`, `profissionais`, `quotes` (vazia, ignorar)
 
 #### `pacientes`
 | Coluna | Tipo | Descrição |
@@ -157,6 +163,7 @@ levvai-portal/
 | id | uuid PK | |
 | paciente_id | uuid FK → pacientes | cascade delete |
 | data | date NOT NULL | |
+| horario | text | default '09:00' — adicionado via crm_v3.sql |
 | procedimento | text NOT NULL | |
 | produto | text | |
 | regiao | text | |
@@ -225,6 +232,61 @@ levvai-portal/
 | ativo | boolean | default true (soft delete) |
 
 **14 produtos inseridos:** Botox, Evo H, Evo S, Radiesse, Biogelis, Juvederm Volbella, Restylane Kysse, Profhilo, Mesohyal Redenx, Bioflash NCTC-109, Fios de PDO, Kit Exomine, Kit PRP, Tirzepatida.
+
+#### `fluxo_caixa`
+| Coluna | Tipo | Descrição |
+|--------|------|-----------|
+| id | uuid PK | |
+| data | date NOT NULL | convertido de TEXT para DATE real |
+| descricao | text | |
+| categoria | text | |
+| tipo | text | receita/despesa |
+| valor | numeric | |
+| status | text | confirmado/pendente |
+| origem | text | |
+
+#### `agendamentos`
+| Coluna | Tipo | Descrição |
+|--------|------|-----------|
+| id | uuid PK | |
+| created_at | timestamptz | |
+| data | date NOT NULL | |
+| horario | text NOT NULL | |
+| sala | text NOT NULL | |
+| profissional | text | default 'Lara' |
+| procedimento | text | default 'Consulta' |
+| paciente | text | texto livre (fallback) |
+| paciente_id | uuid FK → pacientes | opcional, adicionado posteriormente |
+| from_crm | boolean | default false |
+| origem | text | |
+
+#### `associados`
+Armazena profissionais associados (médicos, nutricionistas, etc.).
+
+#### `repasses_associados`
+Armazena repasses financeiros para associados. Campos: `id`, `associado_id` FK, `data`, `valor`, `procedimento`, `status_pagamento`, `pago`.
+
+#### `contratos`
+Armazena contratos com fornecedores, associados e serviços. Campos incluem `vencimento` (date) para alertas de vencimento.
+
+#### `atas`
+Atas de reuniões (Weekly Levvai, Board Mensal). Campos: `id`, `tipo`, `data`, `pauta`, `presentes`, `decisoes`.
+**Nota:** o alias `const meetings = atas` é mantido no App.jsx para compatibilidade com o render existente.
+
+#### `acoes_ata`
+Ações derivadas de cada ata. Campos: `id`, `ata_id` FK → atas, `acao`, `resp`, `prazo`, `status` (aberta/concluida/atrasada/cancelada).
+
+#### `feedbacks_nps`
+Feedbacks NPS dos pacientes. Campos: `id`, `nome`, `proc`, `nota` (0-10), `data`, `comentario`, `indicaria` (boolean).
+**Nota:** o alias `const feedbacks = feedbacksNps` é mantido no App.jsx.
+
+#### `fornecedores`
+Cadastro de fornecedores. Campos: `id`, `nome`, `produtos`, `contato`, `tel`, `email`, `prazo`, `pagamento`, `obs`, `ativo` (soft delete).
+**Nota:** o alias `const suppliers = fornecedores` é mantido no App.jsx.
+
+#### `profissionais`
+Profissionais da agenda. Campos: `id`, `nome`, `specialty`, `color`, `rooms` (array), `days`, `ativo`.
+**Nota:** o alias `const professionals = profissionais` é mantido no App.jsx. Filtro `.eq('ativo', true)` ao carregar.
 
 ---
 
@@ -387,20 +449,47 @@ Aba **Docs → Usuários** no portal:
 | Abr/2026 | Google Calendar: Opção B (link direto) em vez de API completa |
 | Abr/2026 | Produtos do catálogo salvos no Supabase (tabela `produtos`) |
 | Abr/2026 | Admin Masters definidos por array de e-mails hardcoded (não por role no DB) |
+| Mai/2026 | Fase 1: Associados, Repasses, Contratos migrados para Supabase |
+| Mai/2026 | Fase 2: Atas, Ações, NPS, Fornecedores, Profissionais migrados para Supabase |
+| Mai/2026 | tratamentos.horario adicionado via ALTER TABLE (dado era descartado silenciosamente) |
+| Mai/2026 | fluxo_caixa.data convertido de TEXT para DATE real (coluna temp + UPDATE + DROP + RENAME) |
+| Mai/2026 | agendamentos.paciente_id adicionado como FK opcional para pacientes.id |
+| Mai/2026 | Padrão alias de compatibilidade adotado: `const oldVar = newVar` para manter render intacto após rename de state |
 
 ---
 
-## 16. PRÓXIMOS PASSOS CONHECIDOS
+## 16. APP.JSX — ESTADO DAS MIGRAÇÕES DE STATE
 
-- [ ] Botão 📅 da AgendaTab ainda não visível — verificar posicionamento no slot
+| Aba | Estado anterior | Estado atual |
+|-----|----------------|--------------|
+| AssociatesTab | useState hardcoded | `associados` + `repasses_associados` (Supabase) |
+| ContratosTab | useState hardcoded | `contratos` (Supabase) |
+| AtasTab | useState hardcoded (meetings) | `atas` + `acoes_ata` (alias `meetings = atas`) |
+| NpsTab | useState hardcoded (feedbacks) | `feedbacks_nps` (alias `feedbacks = feedbacksNps`) |
+| FornecedoresTab | useState hardcoded (suppliers) | `fornecedores` (alias `suppliers = fornecedores`) |
+| AgendaTab (profissionais) | useState hardcoded (professionals) | `profissionais` (alias `professionals = profissionais`) |
+| AgendaTab (slots) | shared.slots in-memory | `agendamentos` (Supabase, chave por data real) |
+| StockTab | useState hardcoded | `produtos` (Supabase, mapProduto() para snake_case) |
+| CashflowTab | useState hardcoded | `fluxo_caixa` (Supabase) |
+| EditorialTab | useState hardcoded | **PENDENTE — Fase 3** |
+| AvaliacaoTab | useState hardcoded | **PENDENTE — Fase 3** |
+| OneOneTab | useState hardcoded | **PENDENTE — Fase 3** |
+
+**Funções adicionadas ao App.jsx:**  
+`salvarAssociado`, `salvarRepasse`, `marcarRepassePago`, `salvarContrato`, `excluirContrato`, `contratosAlerta`, `salvarAta`, `salvarAcaoAta`, `concluirAcao`, `acoesPorAta`, `acoesAbertas`, `salvarFeedbackNps`, `calcularNps`, `salvarFornecedor`, `arquivarFornecedor`, `salvarProfissional`, `desativarProfissional`
+
+---
+
+## 17. PRÓXIMOS PASSOS CONHECIDOS
+
+- [ ] **Fase 3:** Criar tabelas `editorial_calendario`, `avaliacoes_equipe`, `sessoes_oneone` e conectar abas Editorial, Avaliação e 1:1s
 - [ ] Sincronização bidirecional com Google Calendar (Opção C futura)
-- [ ] Token Instagram expira periodicamente — criar lembrete de renovação
-- [ ] Estoque do portal ainda usa estado local — migrar para Supabase (`produtos`)
-- [ ] DRE e financeiro ainda usam dados mockados — conectar ao Supabase
+- [ ] Token Instagram expira a cada 60 dias — renovar no Meta Graph API Explorer
+- [ ] DRE ainda usa dados mockados — conectar ao Supabase futuramente
 
 ---
 
-## 17. CONTATOS E ACESSOS
+## 18. CONTATOS E ACESSOS
 
 | Recurso | Info |
 |---------|------|
