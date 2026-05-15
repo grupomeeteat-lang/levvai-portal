@@ -5773,18 +5773,73 @@ const EditorialTab = () => {
 
   const weekDays = ["SEG", "TER", "QUA", "QUI", "SEX"];
   const [weekOffset, setWeekOffset] = useState(0);
-  const [posts, setPosts] = useState({
-    "0-0": { pilar: "transf", format: "Reel", desc: "Resultado harmonização — antes/depois" },
-    "0-1": { pilar: "ciencia", format: "Carrossel", desc: "Profhilo vs Skinbooster — 3 diferenças" },
-    "0-2": { pilar: "lips", format: "Reel", desc: "Levvai Lips — processo ao vivo" },
-    "0-3": { pilar: "bastid", format: "Stories", desc: "Dia na clínica — bastidores" },
-    "0-4": { pilar: "depoi", format: "Reel", desc: "Depoimento paciente — resultado Botox" },
+  // Estado — Editorial
+  const [editorial, setEditorial] = useState([]);
+  const [loadingEditorial, setLoadingEditorial] = useState(true);
+
+  useEffect(() => {
+    const fetchEditorial = async () => {
+      setLoadingEditorial(true);
+      const { data, error } = await supabase
+        .from('editorial_calendario')
+        .select('*')
+        .order('data', { ascending: true });
+
+      if (!error && data) setEditorial(data);
+      setLoadingEditorial(false);
+    };
+
+    fetchEditorial();
+  }, []);
+
+  const salvarPost = async (post) => {
+    if (post.id) {
+      const { error } = await supabase
+        .from('editorial_calendario')
+        .update(post)
+        .eq('id', post.id);
+      if (!error) setEditorial(prev => prev.map(p => p.id === post.id ? post : p));
+    } else {
+      const { data, error } = await supabase
+        .from('editorial_calendario')
+        .insert([post])
+        .select()
+        .single();
+      if (!error && data) setEditorial(prev => [...prev, data]);
+    }
+  };
+
+  const atualizarStatusPost = async (postId, novoStatus) => {
+    const { error } = await supabase
+      .from('editorial_calendario')
+      .update({ status: novoStatus })
+      .eq('id', postId);
+    if (!error) setEditorial(prev =>
+      prev.map(p => p.id === postId ? { ...p, status: novoStatus } : p)
+    );
+  };
+
+  const excluirPost = async (postId) => {
+    const { error } = await supabase
+      .from('editorial_calendario')
+      .delete()
+      .eq('id', postId);
+    if (!error) setEditorial(prev => prev.filter(p => p.id !== postId));
+  };
+
+  // Posts por semana (para o grid editorial)
+  const postsPorData = (dataStr) => editorial.filter(p => p.data === dataStr);
+  const postsDoMes = (ano, mes) => editorial.filter(p => {
+    const d = new Date(p.data);
+    return d.getFullYear() === ano && d.getMonth() + 1 === mes;
   });
+
+  const posts = {}; // compat stub — render usa posts[key], editorial alimenta lógica futura
   const [editing, setEditing] = useState(null);
   const [editForm, setEditForm] = useState({ pilar: "transf", format: "Reel", desc: "" });
 
-  const savePost = (key) => {
-    setPosts({ ...posts, [key]: editForm });
+  const savePost = async (key) => {
+    await salvarPost(editForm);
     setEditing(null);
   };
 
@@ -6655,25 +6710,74 @@ const ContratosTab = () => {
 
 // 1:1 TRACKER TAB
 const OneOneTab = () => {
-  const [sessions, setSessions] = useState([
-    { id: 1, date: "11/04", participants: "Lara × Gi", topics: ["Validar calendário editorial semana 16/04", "Resultado do Reel de harmonização (2.3K views)", "Próxima gravação: quarta 16h"], actions: [{ task: "Gi editar 3 Reels acumulados", done: false }, { task: "Lara gravar intro Levvai Lips", done: false }], mood: "positivo" },
-  ]);
+  // Estado — Sessões 1:1
+  const [sessoesOneOne, setSessoesOneOne] = useState([]);
+  const [loadingOneOne, setLoadingOneOne] = useState(true);
+
+  useEffect(() => {
+    const fetchOneOne = async () => {
+      setLoadingOneOne(true);
+      const { data, error } = await supabase
+        .from('sessoes_oneone')
+        .select('*')
+        .order('data', { ascending: false });
+
+      if (!error && data) setSessoesOneOne(data);
+      setLoadingOneOne(false);
+    };
+
+    fetchOneOne();
+  }, []);
+
+  const salvarSessaoOneOne = async (sessao) => {
+    if (sessao.id) {
+      const { error } = await supabase
+        .from('sessoes_oneone')
+        .update(sessao)
+        .eq('id', sessao.id);
+      if (!error) setSessoesOneOne(prev => prev.map(s => s.id === sessao.id ? sessao : s));
+    } else {
+      const { data, error } = await supabase
+        .from('sessoes_oneone')
+        .insert([sessao])
+        .select()
+        .single();
+      if (!error && data) setSessoesOneOne(prev => [data, ...prev]);
+    }
+  };
+
+  const excluirSessaoOneOne = async (sessaoId) => {
+    const { error } = await supabase
+      .from('sessoes_oneone')
+      .delete()
+      .eq('id', sessaoId);
+    if (!error) setSessoesOneOne(prev => prev.filter(s => s.id !== sessaoId));
+  };
+
+  // Sessões por participante
+  const sessoesPorParticipante = (nome) =>
+    sessoesOneOne.filter(s => s.participantes?.includes(nome));
+
+  const sessions = sessoesOneOne; // compat alias
   const [showNew, setShowNew] = useState(false);
   const [newSession, setNewSession] = useState({ participants: "Lara × Gi", topics: "", actions: "" });
 
-  const addSession = () => {
+  const addSession = async () => {
     if (!newSession.topics) return;
     const now = new Date();
     const dateStr = `${now.getDate().toString().padStart(2,"0")}/${(now.getMonth()+1).toString().padStart(2,"0")}`;
     const topicsList = newSession.topics.split("\n").filter(t => t.trim());
     const actionsList = newSession.actions.split("\n").filter(a => a.trim()).map(a => ({ task: a, done: false }));
-    setSessions([{ id: sessions.length + 1, date: dateStr, participants: newSession.participants, topics: topicsList, actions: actionsList, mood: "positivo" }, ...sessions]);
+    await salvarSessaoOneOne({ date: dateStr, participants: newSession.participants, topics: topicsList, actions: actionsList, mood: "positivo" });
     setNewSession({ participants: "Lara × Gi", topics: "", actions: "" });
     setShowNew(false);
   };
 
   const toggleAction = (sIdx, aIdx) => {
-    setSessions(sessions.map((s, si) => si === sIdx ? { ...s, actions: s.actions.map((a, ai) => ai === aIdx ? { ...a, done: !a.done } : a) } : s));
+    // toggle local apenas — atualização no DB via salvarSessaoOneOne futuramente
+    setSessoesOneOne(prev => prev.map((s, si) => si === sIdx ? {
+      ...s, actions: (s.actions || []).map((a, ai) => ai === aIdx ? { ...a, done: !a.done } : a)
+    } : s));
   };
 
   return (
@@ -6751,6 +6855,53 @@ const AvaliacaoTab = () => {
       { kpi: "Depoimentos ≥ 4/mês", target: "4/mês", current: "—", score: null },
     ]},
   ];
+
+  // Estado — Avaliações de Equipe
+  const [avaliacoes, setAvaliacoes] = useState([]);
+  const [loadingAvaliacoes, setLoadingAvaliacoes] = useState(true);
+
+  useEffect(() => {
+    const fetchAvaliacoes = async () => {
+      setLoadingAvaliacoes(true);
+      const { data, error } = await supabase
+        .from('avaliacoes_equipe')
+        .select('*')
+        .order('criado_em', { ascending: false });
+
+      if (!error && data) setAvaliacoes(data);
+      setLoadingAvaliacoes(false);
+    };
+
+    fetchAvaliacoes();
+  }, []);
+
+  const salvarAvaliacao = async (avaliacao) => {
+    if (avaliacao.id) {
+      const { error } = await supabase
+        .from('avaliacoes_equipe')
+        .update(avaliacao)
+        .eq('id', avaliacao.id);
+      if (!error) setAvaliacoes(prev => prev.map(a => a.id === avaliacao.id ? avaliacao : a));
+    } else {
+      const { data, error } = await supabase
+        .from('avaliacoes_equipe')
+        .insert([avaliacao])
+        .select()
+        .single();
+      if (!error && data) setAvaliacoes(prev => [data, ...prev]);
+    }
+  };
+
+  // Última avaliação por colaborador
+  const ultimaAvaliacao = (colaborador) =>
+    avaliacoes.find(a => a.colaborador === colaborador);
+
+  // Média geral do time no período
+  const mediaTime = (periodo) => {
+    const doPeriodo = avaliacoes.filter(a => a.periodo === periodo && a.nota_geral);
+    if (doPeriodo.length === 0) return 0;
+    return (doPeriodo.reduce((acc, a) => acc + Number(a.nota_geral), 0) / doPeriodo.length).toFixed(1);
+  };
 
   return (
     <div>
