@@ -2784,17 +2784,58 @@ const AgendaTab = ({ shared }) => {
 
   const colorOptions = ["#E91E63", "#FF9800", "#2196F3", "#4CAF50", "#9C27B0", "#009688", "#795548", "#607D8B"];
 
-  const [professionals, setProfessionals] = useState([
-    { name: "Lara", specialty: "Dir. Clínica — Harmonização e Estética", color: "#E91E63", rooms: ["maca1", "maca2", "consultorio"], days: "Seg a Sex", active: true },
-    { name: "Nutrólogo (futuro)", specialty: "Nutrologia — Tirzepatida / Levvai Slim", color: "#FF9800", rooms: ["consultorio", "soro"], days: "A definir", active: false },
-    { name: "Dermato (futuro)", specialty: "Dermatologia — Pele, peelings, skincare", color: "#2196F3", rooms: ["maca1", "maca2", "consultorio"], days: "A definir", active: false },
-  ]);
+  // Estado — Profissionais da Agenda
+  const [profissionais, setProfissionais] = useState([]);
+  const [loadingProfissionais, setLoadingProfissionais] = useState(true);
+
+  useEffect(() => {
+    const fetchProfissionais = async () => {
+      setLoadingProfissionais(true);
+      const { data, error } = await supabase
+        .from('profissionais')
+        .select('*')
+        .eq('ativo', true)
+        .order('nome');
+
+      if (!error && data) setProfissionais(data);
+      setLoadingProfissionais(false);
+    };
+
+    fetchProfissionais();
+  }, []);
+
+  const salvarProfissional = async (profissional) => {
+    if (profissional.id) {
+      const { error } = await supabase
+        .from('profissionais')
+        .update(profissional)
+        .eq('id', profissional.id);
+      if (!error) setProfissionais(prev => prev.map(p => p.id === profissional.id ? profissional : p));
+    } else {
+      const { data, error } = await supabase
+        .from('profissionais')
+        .insert([profissional])
+        .select()
+        .single();
+      if (!error && data) setProfissionais(prev => [...prev, data]);
+    }
+  };
+
+  const desativarProfissional = async (profissionalId) => {
+    const { error } = await supabase
+      .from('profissionais')
+      .update({ ativo: false })
+      .eq('id', profissionalId);
+    if (!error) setProfissionais(prev => prev.filter(p => p.id !== profissionalId));
+  };
+
+  const professionals = profissionais;
   const [showAddProf, setShowAddProf] = useState(false);
   const [newProf, setNewProf] = useState({ name: "", specialty: "", color: "#4CAF50", rooms: ["maca2"], days: "" });
 
-  const addProfessional = () => {
+  const addProfessional = async () => {
     if (!newProf.name) return;
-    setProfessionals([...professionals, { ...newProf, active: false }]);
+    await salvarProfissional({ ...newProf, ativo: true });
     setNewProf({ name: "", specialty: "", color: colorOptions[professionals.length % colorOptions.length], rooms: ["maca2"], days: "" });
     setShowAddProf(false);
   };
@@ -2803,8 +2844,14 @@ const AgendaTab = ({ shared }) => {
     setNewProf({ ...newProf, rooms: newProf.rooms.includes(room) ? newProf.rooms.filter(r => r !== room) : [...newProf.rooms, room] });
   };
 
-  const toggleActive = (idx) => {
-    setProfessionals(professionals.map((p, i) => i === idx ? { ...p, active: !p.active } : p));
+  const toggleActive = async (idx) => {
+    const p = profissionais[idx];
+    if (!p?.id) return;
+    if (p.ativo) {
+      await desativarProfissional(p.id);
+    } else {
+      await salvarProfissional({ ...p, ativo: true });
+    }
   };
 
   const days = ["SEGUNDA", "TERÇA", "QUARTA", "QUINTA", "SEXTA"];
@@ -5185,25 +5232,93 @@ const TermosTab = () => {
 
 // ATAS & AÇÕES TAB
 const AtasTab = () => {
-  const [meetings, setMeetings] = useState([
-    { id: 1, type: "weekly", date: "15/04/2026", pauta: "Semana 1 — Sprint Fundação", presentes: "Ike, Lara, Sirlândia, Sylmara, Gi", decisoes: ["Aprovar calendário editorial abril", "Definir tema Levvai Day abril: Glow Day", "Iniciar prospecção nutrólogo"], acoes: [
-      { acao: "Criar Google Business Profile", resp: "Gi", prazo: "17/04", status: "pendente" },
-      { acao: "Sessão de fotos Lara (30 imagens)", resp: "Gi", prazo: "19/04", status: "pendente" },
-      { acao: "Enviar briefing contrato associados pro Luciano", resp: "Ike", prazo: "18/04", status: "pendente" },
-      { acao: "Cotar seguro RC profissional", resp: "Sylmara", prazo: "22/04", status: "pendente" },
-    ]},
-  ]);
-  const [showNewMeeting, setShowNewMeeting] = useState(false);
+  // Estado — Atas
+  const [atas, setAtas] = useState([]);
+  const [acoesAta, setAcoesAta] = useState([]);
+  const [loadingAtas, setLoadingAtas] = useState(true);
 
-  const updateActionStatus = (meetIdx, actIdx, newStatus) => {
-    setMeetings(meetings.map((m, mi) => mi === meetIdx ? {
-      ...m, acoes: m.acoes.map((a, ai) => ai === actIdx ? { ...a, status: newStatus } : a)
-    } : m));
+  useEffect(() => {
+    const fetchAtas = async () => {
+      setLoadingAtas(true);
+
+      const { data: atasData, error: atasError } = await supabase
+        .from('atas')
+        .select('*')
+        .order('data', { ascending: false });
+
+      if (!atasError && atasData) setAtas(atasData);
+
+      const { data: acoesData, error: acoesError } = await supabase
+        .from('acoes_ata')
+        .select('*')
+        .order('prazo', { ascending: true });
+
+      if (!acoesError && acoesData) setAcoesAta(acoesData);
+
+      setLoadingAtas(false);
+    };
+
+    fetchAtas();
+  }, []);
+
+  const salvarAta = async (ata) => {
+    if (ata.id) {
+      const { error } = await supabase
+        .from('atas')
+        .update(ata)
+        .eq('id', ata.id);
+      if (!error) setAtas(prev => prev.map(a => a.id === ata.id ? ata : a));
+    } else {
+      const { data, error } = await supabase
+        .from('atas')
+        .insert([ata])
+        .select()
+        .single();
+      if (!error && data) setAtas(prev => [data, ...prev]);
+    }
   };
 
-  const allActions = meetings.flatMap((m, mi) => m.acoes.map((a, ai) => ({ ...a, meetIdx: mi, actIdx: ai, meetDate: m.date, meetType: m.type })));
-  const pendentes = allActions.filter(a => a.status === "pendente");
-  const atrasadas = allActions.filter(a => a.status === "atrasada");
+  const salvarAcaoAta = async (acao) => {
+    if (acao.id) {
+      const { error } = await supabase
+        .from('acoes_ata')
+        .update(acao)
+        .eq('id', acao.id);
+      if (!error) setAcoesAta(prev => prev.map(a => a.id === acao.id ? acao : a));
+    } else {
+      const { data, error } = await supabase
+        .from('acoes_ata')
+        .insert([acao])
+        .select()
+        .single();
+      if (!error && data) setAcoesAta(prev => [...prev, data]);
+    }
+  };
+
+  const concluirAcao = async (acaoId) => {
+    const { error } = await supabase
+      .from('acoes_ata')
+      .update({ status: 'concluida' })
+      .eq('id', acaoId);
+    if (!error) setAcoesAta(prev =>
+      prev.map(a => a.id === acaoId ? { ...a, status: 'concluida' } : a)
+    );
+  };
+
+  // Ações abertas por ata (para exibir no painel)
+  const acoesPorAta = (ataId) => acoesAta.filter(a => a.ata_id === ataId);
+  const acoesAbertas = acoesAta.filter(a => a.status === 'aberta');
+
+  const meetings = atas;
+  const [showNewMeeting, setShowNewMeeting] = useState(false);
+
+  const updateActionStatus = async (meetIdx, actIdx, status) => {
+    const a = acoesAta[actIdx];
+    if (a?.id) await salvarAcaoAta({ ...a, status });
+  };
+  const allActions = acoesAta.map((a, i) => ({ ...a, meetIdx: atas.findIndex(m => m.id === a.ata_id), actIdx: i }));
+  const pendentes = acoesAta.filter(a => a.status === 'pendente' || a.status === 'aberta');
+  const atrasadas = acoesAta.filter(a => a.status === 'atrasada');
 
   return (
     <div>
@@ -5762,20 +5877,59 @@ const EditorialTab = () => {
 
 // NPS & SATISFAÇÃO TAB
 const NpsTab = () => {
-  const [feedbacks, setFeedbacks] = useState([
-    { nome: "Fernanda L.", proc: "Harmonização", nota: 10, data: "01/03", comentario: "Melhor experiência que já tive. Lara é incrível.", indicaria: true },
-    { nome: "Carla R.", proc: "Profhilo", nota: 9, data: "05/04", comentario: "Amei o resultado. Voltarei para a segunda sessão.", indicaria: true },
-    { nome: "Julia M.", proc: "Botox Full Face", nota: 8, data: "10/04", comentario: "Bom atendimento. Esperava um pouco mais de explicação.", indicaria: true },
-    { nome: "Ana P.", proc: "Consulta", nota: 7, data: "12/04", comentario: "Achei o preço um pouco alto. Mas a clínica é linda.", indicaria: false },
-  ]);
+  // Estado — NPS
+  const [feedbacksNps, setFeedbacksNps] = useState([]);
+  const [loadingNps, setLoadingNps] = useState(true);
+
+  useEffect(() => {
+    const fetchNps = async () => {
+      setLoadingNps(true);
+      const { data, error } = await supabase
+        .from('feedbacks_nps')
+        .select('*')
+        .order('data', { ascending: false });
+
+      if (!error && data) setFeedbacksNps(data);
+      setLoadingNps(false);
+    };
+
+    fetchNps();
+  }, []);
+
+  const salvarFeedbackNps = async (feedback) => {
+    if (feedback.id) {
+      const { error } = await supabase
+        .from('feedbacks_nps')
+        .update(feedback)
+        .eq('id', feedback.id);
+      if (!error) setFeedbacksNps(prev => prev.map(f => f.id === feedback.id ? feedback : f));
+    } else {
+      const { data, error } = await supabase
+        .from('feedbacks_nps')
+        .insert([feedback])
+        .select()
+        .single();
+      if (!error && data) setFeedbacksNps(prev => [data, ...prev]);
+    }
+  };
+
+  // Cálculo NPS: % promotores (9-10) - % detratores (0-6)
+  const calcularNps = () => {
+    if (feedbacksNps.length === 0) return 0;
+    const promotores = feedbacksNps.filter(f => f.nota >= 9).length;
+    const detratores = feedbacksNps.filter(f => f.nota <= 6).length;
+    return Math.round(((promotores - detratores) / feedbacksNps.length) * 100);
+  };
+
+  const feedbacks = feedbacksNps;
   const [showNew, setShowNew] = useState(false);
   const [newFb, setNewFb] = useState({ nome: "", proc: "", nota: 10, data: "", comentario: "", indicaria: true });
 
-  const addFb = () => {
+  const addFb = async () => {
     if (!newFb.nome) return;
     const now = new Date();
     const dateStr = `${now.getDate().toString().padStart(2,"0")}/${(now.getMonth()+1).toString().padStart(2,"0")}`;
-    setFeedbacks([{ ...newFb, data: dateStr }, ...feedbacks]);
+    await salvarFeedbackNps({ ...newFb, data: dateStr });
     setNewFb({ nome: "", proc: "", nota: 10, data: "", comentario: "", indicaria: true });
     setShowNew(false);
   };
@@ -6308,21 +6462,58 @@ const IcpTab = () => (
 
 // FORNECEDORES TAB
 const FornecedoresTab = () => {
-  const [suppliers, setSuppliers] = useState([
-    { nome: "Allergan (Abbvie)", produtos: "Botox, Juvederm Volbella", contato: "Representante SP", tel: "(11) XXXXX-XXXX", email: "rep@allergan.com", prazo: "15 dias", pagamento: "30 DDL", obs: "Premium. Pedir NF e lote sempre." },
-    { nome: "Galderma", produtos: "Restylane Kysse, Sculptra", contato: "Representante SP", tel: "(11) XXXXX-XXXX", email: "rep@galderma.com", prazo: "10 dias", pagamento: "Boleto 30 dias", obs: "Excelente margem no Kysse." },
-    { nome: "Merz", produtos: "Radiesse Duo", contato: "Distribuidor SP", tel: "(11) XXXXX-XXXX", email: "dist@merz.com", prazo: "7 dias", pagamento: "PIX ou boleto", obs: "Preço varia. Negociar volume." },
-    { nome: "IBSA", produtos: "Profhilo", contato: "Distribuidor Brasil", tel: "(11) XXXXX-XXXX", email: "contato@ibsa.com.br", prazo: "10-15 dias", pagamento: "Boleto 30 dias", obs: "Tendência 2026. Manter estoque." },
-    { nome: "Distribuidor Evo", produtos: "Evo H, Evo S", contato: "—", tel: "—", email: "—", prazo: "—", pagamento: "—", obs: "Preencher dados do fornecedor." },
-    { nome: "Exomine", produtos: "Kit Exomine (exossomos)", contato: "—", tel: "—", email: "—", prazo: "—", pagamento: "—", obs: "Premium diferencial. Repor." },
-    { nome: "Fornecedor Tirzepatida", produtos: "Tirzepatida 60mg", contato: "—", tel: "—", email: "—", prazo: "—", pagamento: "—", obs: "Estoque alto (48 un). Girar antes de repor." },
-  ]);
+  // Estado — Fornecedores
+  const [fornecedores, setFornecedores] = useState([]);
+  const [loadingFornecedores, setLoadingFornecedores] = useState(true);
+
+  useEffect(() => {
+    const fetchFornecedores = async () => {
+      setLoadingFornecedores(true);
+      const { data, error } = await supabase
+        .from('fornecedores')
+        .select('*')
+        .eq('ativo', true)
+        .order('nome');
+
+      if (!error && data) setFornecedores(data);
+      setLoadingFornecedores(false);
+    };
+
+    fetchFornecedores();
+  }, []);
+
+  const salvarFornecedor = async (fornecedor) => {
+    if (fornecedor.id) {
+      const { error } = await supabase
+        .from('fornecedores')
+        .update(fornecedor)
+        .eq('id', fornecedor.id);
+      if (!error) setFornecedores(prev => prev.map(f => f.id === fornecedor.id ? fornecedor : f));
+    } else {
+      const { data, error } = await supabase
+        .from('fornecedores')
+        .insert([fornecedor])
+        .select()
+        .single();
+      if (!error && data) setFornecedores(prev => [...prev, data]);
+    }
+  };
+
+  const arquivarFornecedor = async (fornecedorId) => {
+    const { error } = await supabase
+      .from('fornecedores')
+      .update({ ativo: false })
+      .eq('id', fornecedorId);
+    if (!error) setFornecedores(prev => prev.filter(f => f.id !== fornecedorId));
+  };
+
+  const suppliers = fornecedores;
   const [showNew, setShowNew] = useState(false);
   const [newSup, setNewSup] = useState({ nome: "", produtos: "", contato: "", tel: "", email: "", prazo: "", pagamento: "", obs: "" });
 
-  const addSup = () => {
+  const addSup = async () => {
     if (!newSup.nome) return;
-    setSuppliers([...suppliers, newSup]);
+    await salvarFornecedor({ ...newSup, ativo: true });
     setNewSup({ nome: "", produtos: "", contato: "", tel: "", email: "", prazo: "", pagamento: "", obs: "" });
     setShowNew(false);
   };
