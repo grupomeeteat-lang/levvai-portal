@@ -455,10 +455,13 @@ Aba **Docs → Usuários** no portal:
 | Mai/2026 | fluxo_caixa.data convertido de TEXT para DATE real (coluna temp + UPDATE + DROP + RENAME) |
 | Mai/2026 | agendamentos.paciente_id adicionado como FK opcional para pacientes.id |
 | Mai/2026 | Padrão alias de compatibilidade adotado: `const oldVar = newVar` para manter render intacto após rename de state |
+| Mai/2026 | Fase 3: Editorial, Avaliação e 1:1s conectados ao Supabase — portal 100% sem useState hardcoded operacional |
 
 ---
 
 ## 16. APP.JSX — ESTADO DAS MIGRAÇÕES DE STATE
+
+**Portal 100% conectado ao Supabase. Nenhuma aba operacional depende de useState hardcoded.**
 
 | Aba | Estado anterior | Estado atual |
 |-----|----------------|--------------|
@@ -469,27 +472,44 @@ Aba **Docs → Usuários** no portal:
 | FornecedoresTab | useState hardcoded (suppliers) | `fornecedores` (alias `suppliers = fornecedores`) |
 | AgendaTab (profissionais) | useState hardcoded (professionals) | `profissionais` (alias `professionals = profissionais`) |
 | AgendaTab (slots) | shared.slots in-memory | `agendamentos` (Supabase, chave por data real) |
-| StockTab | useState hardcoded | `produtos` (Supabase, mapProduto() para snake_case) |
+| StockTab | useState hardcoded | `produtos` (Supabase, `mapProduto()` para snake_case) |
 | CashflowTab | useState hardcoded | `fluxo_caixa` (Supabase) |
-| EditorialTab | useState hardcoded | **PENDENTE — Fase 3** |
-| AvaliacaoTab | useState hardcoded | **PENDENTE — Fase 3** |
-| OneOneTab | useState hardcoded | **PENDENTE — Fase 3** |
+| EditorialTab | useState posts: {} hardcoded | `editorial_calendario` (Supabase); `const posts = {}` mantém render |
+| AvaliacaoTab | team array hardcoded | `avaliacoes_equipe` (Supabase); `team` permanece como config estática |
+| OneOneTab | useState sessions hardcoded | `sessoes_oneone` (Supabase); alias `const sessions = sessoesOneOne` |
 
-**Funções adicionadas ao App.jsx:**  
-`salvarAssociado`, `salvarRepasse`, `marcarRepassePago`, `salvarContrato`, `excluirContrato`, `contratosAlerta`, `salvarAta`, `salvarAcaoAta`, `concluirAcao`, `acoesPorAta`, `acoesAbertas`, `salvarFeedbackNps`, `calcularNps`, `salvarFornecedor`, `arquivarFornecedor`, `salvarProfissional`, `desativarProfissional`
+**Funções adicionadas ao App.jsx (todas as fases):**  
+Fase 1: `salvarAssociado`, `salvarRepasse`, `marcarRepassePago`, `salvarContrato`, `excluirContrato`, `contratosAlerta`  
+Fase 2: `salvarAta`, `salvarAcaoAta`, `concluirAcao`, `acoesPorAta`, `acoesAbertas`, `salvarFeedbackNps`, `calcularNps`, `salvarFornecedor`, `arquivarFornecedor`, `salvarProfissional`, `desativarProfissional`  
+Fase 3: `salvarPost`, `atualizarStatusPost`, `excluirPost`, `postsPorData`, `postsDoMes`, `salvarAvaliacao`, `ultimaAvaliacao`, `mediaTime`, `salvarSessaoOneOne`, `excluirSessaoOneOne`, `sessoesPorParticipante`
+
+**Pendências conhecidas:**
+- `AvaliacaoTab` — array `team` com Lara, Sirlândia, Sylmara e Gi ainda hardcoded como estrutura base. Avaliações persistem no banco mas cadastro de novos colaboradores exige ajuste manual nesse array.
+- `OneOneTab` — `toggleAction` mantém toggle local. Update no banco fica pendente até schema de ações individuais ser definido.
 
 ---
 
-## 17. PRÓXIMOS PASSOS CONHECIDOS
+## 17. BANCO DE DADOS — ESTADO FINAL
 
-- [ ] **Fase 3:** Criar tabelas `editorial_calendario`, `avaliacoes_equipe`, `sessoes_oneone` e conectar abas Editorial, Avaliação e 1:1s
+**20 tabelas no Supabase** (projeto wlkshbycdtgvyabcolmd). Todas com RLS `allow all`.
+
+`pacientes`, `tratamentos`, `prontuarios`, `propostas`, `observacoes`, `produtos`, `fluxo_caixa`, `agendamentos`, `associados`, `repasses_associados`, `contratos`, `atas`, `acoes_ata`, `feedbacks_nps`, `fornecedores`, `profissionais`, `editorial_calendario`, `avaliacoes_equipe`, `sessoes_oneone`, `quotes` (vazia — ignorar)
+
+Migrations aplicadas manualmente no Supabase SQL Editor (arquivos em `/supabase/migrations/`).
+
+---
+
+## 18. PRÓXIMOS PASSOS CONHECIDOS
+
 - [ ] Sincronização bidirecional com Google Calendar (Opção C futura)
 - [ ] Token Instagram expira a cada 60 dias — renovar no Meta Graph API Explorer
 - [ ] DRE ainda usa dados mockados — conectar ao Supabase futuramente
+- [ ] EditorialTab — reconectar grid semanal às datas reais do banco (atualmente `const posts = {}` stub)
+- [ ] OneOneTab — implementar `toggleAction` com update no banco quando schema de ações estiver definido
 
 ---
 
-## 18. CONTATOS E ACESSOS
+## 19. CONTATOS E ACESSOS
 
 | Recurso | Info |
 |---------|------|
