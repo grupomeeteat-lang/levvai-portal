@@ -1139,12 +1139,84 @@ const CompetitorsTab = () => (
 
 // ASSOCIATES TAB
 const AssociatesTab = () => {
-  const [entries, setEntries] = useState([
-    { associado: "Dra. Exemplo (Nutri)", paciente: "Maria S.", origem: "LEVVAI", procedimento: "Tirzepatida 5mg", valor: 2000, insumo: true },
-    { associado: "Dra. Exemplo (Nutri)", paciente: "Ana P.", origem: "PROPRIO", procedimento: "Consulta + Prescrição", valor: 800, insumo: false },
-    { associado: "Dr. Exemplo (Derma)", paciente: "Julia M.", origem: "CROSS-SELL", procedimento: "Profhilo 2 sessões", valor: 3600, insumo: true },
-    { associado: "Dr. Exemplo (Derma)", paciente: "Carla R.", origem: "LEVVAI", procedimento: "Peeling + Skincare", valor: 1200, insumo: false },
-  ]);
+  // Estado — Associados
+  const [associados, setAssociados] = useState([]);
+  const [repasses, setRepasses] = useState([]);
+  const [loadingAssociados, setLoadingAssociados] = useState(true);
+
+  useEffect(() => {
+    const fetchAssociados = async () => {
+      setLoadingAssociados(true);
+      const { data: assocData, error: assocError } = await supabase
+        .from('associados')
+        .select('*')
+        .eq('ativo', true)
+        .order('nome');
+
+      if (!assocError && assocData) setAssociados(assocData);
+
+      const { data: repasseData, error: repasseError } = await supabase
+        .from('repasses_associados')
+        .select('*')
+        .order('mes', { ascending: false });
+
+      if (!repasseError && repasseData) setRepasses(repasseData);
+
+      setLoadingAssociados(false);
+    };
+
+    fetchAssociados();
+  }, []);
+
+  const salvarAssociado = async (associado) => {
+    if (associado.id) {
+      const { error } = await supabase
+        .from('associados')
+        .update(associado)
+        .eq('id', associado.id);
+      if (!error) setAssociados(prev => prev.map(a => a.id === associado.id ? associado : a));
+    } else {
+      const { data, error } = await supabase
+        .from('associados')
+        .insert([associado])
+        .select()
+        .single();
+      if (!error && data) setAssociados(prev => [...prev, data]);
+    }
+  };
+
+  const salvarRepasse = async (repasse) => {
+    const liquido = (repasse.bruto * repasse.split_percentual) / 100;
+    const repasseCompleto = { ...repasse, liquido };
+
+    if (repasse.id) {
+      const { error } = await supabase
+        .from('repasses_associados')
+        .update(repasseCompleto)
+        .eq('id', repasse.id);
+      if (!error) setRepasses(prev => prev.map(r => r.id === repasse.id ? repasseCompleto : r));
+    } else {
+      const { data, error } = await supabase
+        .from('repasses_associados')
+        .insert([repasseCompleto])
+        .select()
+        .single();
+      if (!error && data) setRepasses(prev => [...prev, data]);
+    }
+  };
+
+  const marcarRepassePago = async (repasseId) => {
+    const { error } = await supabase
+      .from('repasses_associados')
+      .update({ pago: true, data_pagamento: new Date().toISOString().split('T')[0] })
+      .eq('id', repasseId);
+    if (!error) setRepasses(prev =>
+      prev.map(r => r.id === repasseId ? { ...r, pago: true } : r)
+    );
+  };
+
+  const entries = repasses;
+  const associates = associados;
 
   const getSplit = (origem, insumo) => {
     if (insumo) return { assoc: 0.55, levvai: 0.45 };
@@ -1170,23 +1242,11 @@ const AssociatesTab = () => {
     return acc;
   }, {});
 
-  const [associates, setAssociates] = useState([
-    { nome: "", especialidade: "", crm: "", dias: "", sala: "Sala Associados", contrato: "", status: "VAGA ABERTA", splitModelo: "60/40", telefone: "", email: "", obs: "Nutrólogo — prioridade #1. Resolve Tirzepatida." },
-    { nome: "", especialidade: "", crm: "", dias: "", sala: "Sala Associados / Consultório", contrato: "", status: "VAGA ABERTA", splitModelo: "60/40", telefone: "", email: "", obs: "Dermatologista — prioridade #2. Recorrência + pele." },
-  ]);
   const [showNewAssoc, setShowNewAssoc] = useState(false);
   const [newAssoc, setNewAssoc] = useState({ nome: "", especialidade: "", crm: "", dias: "", sala: "Sala Associados", contrato: "", status: "EM PROSPECÇÃO", splitModelo: "60/40", telefone: "", email: "", obs: "" });
 
-  const addAssociate = () => {
-    if (!newAssoc.nome || !newAssoc.especialidade) return;
-    setAssociates([...associates, { ...newAssoc }]);
-    setNewAssoc({ nome: "", especialidade: "", crm: "", dias: "", sala: "Sala Associados", contrato: "", status: "EM PROSPECÇÃO", splitModelo: "60/40", telefone: "", email: "", obs: "" });
-    setShowNewAssoc(false);
-  };
-
-  const updateAssociate = (idx, field, value) => {
-    setAssociates(associates.map((a, i) => i === idx ? { ...a, [field]: value } : a));
-  };
+  const addAssociate = () => { if (!newAssoc.nome || !newAssoc.especialidade) return; salvarAssociado({ ...newAssoc }); setNewAssoc({ nome: "", especialidade: "", crm: "", dias: "", sala: "Sala Associados", contrato: "", status: "EM PROSPECÇÃO", splitModelo: "60/40", telefone: "", email: "", obs: "" }); setShowNewAssoc(false); };
+  const updateAssociate = (idx, field, value) => { const a = associados[idx]; if (a) salvarAssociado({ ...a, [field]: value }); };
 
   const fmt = (v) => `R$ ${v.toLocaleString("pt-BR", { minimumFractionDigits: 0 })}`;
 
@@ -6308,17 +6368,61 @@ const FornecedoresTab = () => {
 
 // CONTRATOS TAB
 const ContratosTab = () => {
-  const [contracts, setContracts] = useState([
-    { tipo: "Aluguel", parte: "Proprietário cj 93", inicio: "Jan/2026", vencimento: "Jan/2027", valor: "R$4.500/mês", status: "ATIVO", resp: "Sylmara", alerta: false, obs: "Rua do Rocio 288, cj 93. Reajuste anual IGP-M." },
-    { tipo: "Contabilidade", parte: "Escritório contábil", inicio: "Jan/2026", vencimento: "Indeterminado", valor: "~R$800/mês", status: "ATIVO", resp: "Sylmara", alerta: false, obs: "Fechamento até dia 10. DAS + folha." },
-    { tipo: "Assessoria Jurídica", parte: "Luciano Gebara David", inicio: "Jan/2026", vencimento: "Indeterminado", valor: "Sob demanda", status: "ATIVO", resp: "CEO", alerta: false, obs: "Compartilhado KPH/HOS. Contrato + regulatório." },
-    { tipo: "CRM / Software", parte: "A definir", inicio: "—", vencimento: "—", valor: "—", status: "PENDENTE", resp: "CEO", alerta: true, obs: "Avaliar opções: Clinicorp, Dental Office, Simples Dental." },
-    { tipo: "Seguro RC", parte: "A cotar", inicio: "—", vencimento: "—", valor: "—", status: "PENDENTE", resp: "Sylmara", alerta: true, obs: "URGENTE. Lara responde com patrimônio pessoal sem seguro." },
-    { tipo: "Associado — Nutrólogo", parte: "A contratar", inicio: "—", vencimento: "—", valor: "Split 60/40", status: "VAGA ABERTA", resp: "CEO + Lara", alerta: false, obs: "Luciano Gebara redige. Briefing 11 cláusulas pronto." },
-    { tipo: "Associado — Dermato", parte: "A contratar", inicio: "—", vencimento: "—", valor: "Split 60/40", status: "VAGA ABERTA", resp: "CEO + Lara", alerta: false, obs: "Segundo associado. Após nutrólogo." },
-    { tipo: "Alvará Sanitário", parte: "COVISA / Prefeitura SP", inicio: "—", vencimento: "Anual", valor: "Taxa", status: "VERIFICAR", resp: "Lara + Sylmara", alerta: true, obs: "Verificar validade. Interdição se vencido." },
-    { tipo: "CRM/CRO Lara", parte: "CRO-SP", inicio: "—", vencimento: "Anual", valor: "Anuidade", status: "VERIFICAR", resp: "Lara", alerta: false, obs: "Manter ativo. Sem CRO = exercício ilegal." },
-  ]);
+  // Estado — Contratos
+  const [contratos, setContratos] = useState([]);
+  const [loadingContratos, setLoadingContratos] = useState(true);
+
+  useEffect(() => {
+    const fetchContratos = async () => {
+      setLoadingContratos(true);
+      const { data, error } = await supabase
+        .from('contratos')
+        .select('*')
+        .order('vencimento', { ascending: true });
+
+      if (!error && data) setContratos(data);
+      setLoadingContratos(false);
+    };
+
+    fetchContratos();
+  }, []);
+
+  const salvarContrato = async (contrato) => {
+    if (contrato.id) {
+      const { error } = await supabase
+        .from('contratos')
+        .update(contrato)
+        .eq('id', contrato.id);
+      if (!error) setContratos(prev => prev.map(c => c.id === contrato.id ? contrato : c));
+    } else {
+      const { data, error } = await supabase
+        .from('contratos')
+        .insert([contrato])
+        .select()
+        .single();
+      if (!error && data) setContratos(prev => [...prev, data]);
+    }
+  };
+
+  const excluirContrato = async (contratoId) => {
+    const { error } = await supabase
+      .from('contratos')
+      .update({ status: 'encerrado' })
+      .eq('id', contratoId);
+    if (!error) setContratos(prev =>
+      prev.map(c => c.id === contratoId ? { ...c, status: 'encerrado' } : c)
+    );
+  };
+
+  const contratosAlerta = contratos.filter(c => {
+    if (!c.vencimento || c.status !== 'ativo') return false;
+    const diasRestantes = Math.ceil(
+      (new Date(c.vencimento) - new Date()) / (1000 * 60 * 60 * 24)
+    );
+    return diasRestantes <= (c.alerta_dias || 30) && diasRestantes >= 0;
+  });
+
+  const contracts = contratos;
 
   const statusColors = { "ATIVO": { bg: "#E8F5E9", tc: "#2E7D32" }, "PENDENTE": { bg: "#FFF9C4", tc: "#F57F17" }, "VAGA ABERTA": { bg: "#E3F2FD", tc: "#1565C0" }, "VERIFICAR": { bg: "#FFCDD2", tc: "#B71C1C" }, "VENCIDO": { bg: "#FFCDD2", tc: "#B71C1C" }, "ENCERRADO": { bg: "#ECEFF1", tc: "#546E7A" } };
 
