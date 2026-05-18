@@ -5731,20 +5731,24 @@ const CashflowTab = () => {
 
   const addEntry = async () => {
     if (!newEntry.desc || !newEntry.valor) return;
+    const today = new Date().toISOString().split('T')[0];
     const { data, error } = await supabase
       .from('fluxo_caixa')
       .insert([{
-        data: newEntry.date || new Date().toISOString().split('T')[0],
+        data: newEntry.date || today,
+        data_vencimento: newEntry.date || today,
         descricao: newEntry.desc,
-        tipo: newEntry.tipo === 'entrada' ? 'receita' : 'despesa',
+        fornecedor: newEntry.fornecedor || null,
+        tipo: 'despesa',
         valor: Number(newEntry.valor),
         categoria: newEntry.cat,
         origem: 'manual',
+        status: 'em_aberto',
       }])
       .select()
       .single();
     if (!error && data) setFluxoCaixa(prev => [...prev, data]);
-    setNewEntry({ date: "", desc: "", tipo: "entrada", valor: 0, cat: "Procedimento" });
+    setNewEntry({ date: "", desc: "", tipo: "entrada", valor: 0, cat: "Insumos", fornecedor: "" });
     setShowNew(false);
   };
 
@@ -5755,39 +5759,155 @@ const CashflowTab = () => {
 
   if (loading) return <div style={{ padding: 32, textAlign: "center", color: "#aaa" }}>Carregando movimentações...</div>;
 
+  const receitas = fluxoCaixa.filter(f => f.tipo === 'receita');
+  const despesas = fluxoCaixa.filter(f => f.tipo === 'despesa');
+  const subtotalReceitas = receitas.reduce((acc, f) => acc + (f.valor || 0), 0);
+  const subtotalDespesas = despesas.reduce((acc, f) => acc + (f.valor || 0), 0);
+
+  const statusColor = (s) => {
+    if (s === 'pago') return { bg: '#E8F5E9', text: '#2E7D32' };
+    if (s === 'vencido') return { bg: '#FFEBEE', text: '#B71C1C' };
+    return { bg: '#FFF9C4', text: '#F57F17' };
+  };
+
+  const colLabel = (label) => (
+    <span style={{ fontSize: 9, fontWeight: 700, color: "#999", textTransform: "uppercase" }}>{label}</span>
+  );
+
   return (
     <div>
+      {/* KPIs */}
       <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 16 }}>
         <Metric label="Entradas" value={fmt(totalEntradas)} color="#2E7D32" sub="receitas do período" />
         <Metric label="Saídas" value={fmt(totalSaidas)} color="#B71C1C" sub="custos e despesas" />
         <Metric label="Saldo" value={fmt(saldo)} color={saldo >= 0 ? "#2E7D32" : "#B71C1C"} sub={saldo >= 0 ? "positivo" : "NEGATIVO — atenção"} />
+        <div style={{ display: "flex", alignItems: "center", gap: 8, background: "white", border: "1px solid #E8E4DE", borderRadius: 10, padding: "10px 14px" }}>
+          <span style={{ fontSize: 11, color: "#888" }}>Mês:</span>
+          <input type="month" value={mesSelecionado} onChange={e => setMesSelecionado(e.target.value)}
+            style={{ border: "1px solid #ddd", borderRadius: 6, padding: "4px 8px", fontSize: 12, fontFamily: "inherit", outline: "none" }} />
+        </div>
       </div>
 
-      <Card title="Movimentações">
-        <button onClick={() => setShowNew(!showNew)} style={{
-          width: "100%", padding: "10px", background: "white", border: `2px dashed ${GOLD}`,
-          borderRadius: 10, cursor: "pointer", fontSize: 13, fontWeight: 600, color: GOLD, fontFamily: "inherit", marginBottom: 12,
-        }}>+ Registrar movimentação</button>
+      {/* SEÇÃO 1 — ENTRADAS */}
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ width: 28, height: 28, borderRadius: "50%", background: "#E8F5E9", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, color: "#2E7D32", fontWeight: 900 }}>↑</div>
+            <span style={{ fontSize: 15, fontWeight: 800, color: "#2E7D32" }}>ENTRADAS</span>
+            <span style={{ fontSize: 11, color: "#aaa" }}>{receitas.length} registros</span>
+          </div>
+          <span style={{ fontSize: 16, fontWeight: 900, color: "#2E7D32" }}>+ {fmt(subtotalReceitas)}</span>
+        </div>
 
-        {showNew && (
-          <div style={{ background: LIGHT, borderRadius: 10, padding: "14px 16px", marginBottom: 12 }}>
+        <div style={{ background: "white", border: "1px solid #E8E4DE", borderRadius: 10, overflow: "hidden" }}>
+          {/* Header */}
+          <div style={{ display: "grid", gridTemplateColumns: "90px 1fr 1fr 110px 90px 110px", gap: 0, background: "#F5F0E8", padding: "7px 14px" }}>
+            {["DATA", "PACIENTE", "PROCEDIMENTO", "FORMA PGTO", "VALOR", "STATUS"].map((h, i) => (
+              <span key={i} style={{ fontSize: 9, fontWeight: 700, color: "#8B7355" }}>{h}</span>
+            ))}
+          </div>
+
+          {receitas.length === 0 ? (
+            <div style={{ padding: "20px 14px", textAlign: "center", color: "#ccc", fontSize: 12 }}>
+              Nenhuma receita registrada neste período
+            </div>
+          ) : receitas.map((f) => (
+            <div key={f.id} style={{ display: "grid", gridTemplateColumns: "90px 1fr 1fr 110px 90px 110px", gap: 0, padding: "9px 14px", borderBottom: "1px solid #f5f0e8", alignItems: "center" }}>
+              <span style={{ fontSize: 11, color: "#888" }}>{f.data}</span>
+              <span style={{ fontSize: 12, fontWeight: 600, color: DARK }}>{f.paciente_nome || f.descricao || '—'}</span>
+              <span style={{ fontSize: 11, color: "#666" }}>{f.procedimento || f.categoria || '—'}</span>
+              <span style={{ fontSize: 11, color: "#888" }}>{f.forma_pagamento || '—'}</span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: "#2E7D32" }}>+ {fmt(f.valor || 0)}</span>
+              <select value={f.status || 'em_aberto'} onChange={e => confirmarStatus(f.id, e.target.value)}
+                style={{
+                  padding: "3px 6px", borderRadius: 10, fontSize: 10, fontWeight: 700, border: "none",
+                  cursor: "pointer", fontFamily: "inherit", outline: "none",
+                  background: statusColor(f.status).bg, color: statusColor(f.status).text,
+                }}>
+                <option value="pago">PAGO</option>
+                <option value="em_aberto">EM ABERTO</option>
+              </select>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* SEÇÃO 2 — SAÍDAS */}
+      <div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ width: 28, height: 28, borderRadius: "50%", background: "#FFEBEE", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, color: "#B71C1C", fontWeight: 900 }}>↓</div>
+            <span style={{ fontSize: 15, fontWeight: 800, color: "#B71C1C" }}>SAÍDAS</span>
+            <span style={{ fontSize: 11, color: "#aaa" }}>{despesas.length} registros</span>
+          </div>
+          <span style={{ fontSize: 16, fontWeight: 900, color: "#B71C1C" }}>- {fmt(subtotalDespesas)}</span>
+        </div>
+
+        <div style={{ background: "white", border: "1px solid #E8E4DE", borderRadius: 10, overflow: "hidden", marginBottom: 10 }}>
+          {/* Header */}
+          <div style={{ display: "grid", gridTemplateColumns: "100px 1fr 1fr 100px 90px 110px", gap: 0, background: "#FFF5F5", padding: "7px 14px" }}>
+            {["VENCIMENTO", "FORNECEDOR", "DESCRIÇÃO", "CATEGORIA", "VALOR", "STATUS"].map((h, i) => (
+              <span key={i} style={{ fontSize: 9, fontWeight: 700, color: "#B71C1C" }}>{h}</span>
+            ))}
+          </div>
+
+          {despesas.length === 0 ? (
+            <div style={{ padding: "20px 14px", textAlign: "center", color: "#ccc", fontSize: 12 }}>
+              Nenhuma despesa registrada neste período
+            </div>
+          ) : despesas.map((f) => (
+            <div key={f.id} style={{ display: "grid", gridTemplateColumns: "100px 1fr 1fr 100px 90px 110px", gap: 0, padding: "9px 14px", borderBottom: "1px solid #fff5f5", alignItems: "center" }}>
+              <span style={{ fontSize: 11, color: "#888" }}>{f.data_vencimento || f.data || '—'}</span>
+              <span style={{ fontSize: 12, fontWeight: 600, color: DARK }}>{f.fornecedor || '—'}</span>
+              <span style={{ fontSize: 11, color: "#666" }}>{f.descricao || '—'}</span>
+              <Badge text={f.categoria || '—'} color={LIGHT} textColor="#888" />
+              <span style={{ fontSize: 13, fontWeight: 700, color: "#B71C1C" }}>- {fmt(f.valor || 0)}</span>
+              <select value={f.status || 'em_aberto'} onChange={e => confirmarStatus(f.id, e.target.value)}
+                style={{
+                  padding: "3px 6px", borderRadius: 10, fontSize: 10, fontWeight: 700, border: "none",
+                  cursor: "pointer", fontFamily: "inherit", outline: "none",
+                  background: statusColor(f.status).bg, color: statusColor(f.status).text,
+                }}>
+                <option value="pago">PAGO</option>
+                <option value="em_aberto">EM ABERTO</option>
+                <option value="vencido">VENCIDO</option>
+              </select>
+            </div>
+          ))}
+        </div>
+
+        {/* Formulário nova despesa */}
+        {!showNew ? (
+          <button onClick={() => setShowNew(true)} style={{
+            width: "100%", padding: "10px", background: "white", border: `2px dashed #E57373`,
+            borderRadius: 10, cursor: "pointer", fontSize: 13, fontWeight: 600, color: "#B71C1C", fontFamily: "inherit",
+          }}>+ Registrar saída</button>
+        ) : (
+          <div style={{ background: "#FFF5F5", border: "1px solid #FFCDD2", borderRadius: 10, padding: "14px 16px" }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: "#B71C1C", marginBottom: 10 }}>NOVA SAÍDA</div>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-end" }}>
-              <div style={{ flex: "0 0 90px" }}>
-                <div style={{ fontSize: 9, fontWeight: 700, color: "#999", marginBottom: 2 }}>DATA</div>
-                <input value={newEntry.date} onChange={e => setNewEntry({...newEntry, date: e.target.value})} placeholder="DD/MM"
+              <div style={{ flex: "0 0 110px" }}>
+                <div style={{ fontSize: 9, fontWeight: 700, color: "#999", marginBottom: 2 }}>VENCIMENTO</div>
+                <input type="date" value={newEntry.date} onChange={e => setNewEntry({...newEntry, date: e.target.value})}
                   style={{ width: "100%", padding: "7px 8px", border: "1px solid #ddd", borderRadius: 6, fontSize: 12, fontFamily: "inherit", boxSizing: "border-box" }} />
               </div>
-              <div style={{ flex: "1 1 180px" }}>
+              <div style={{ flex: "1 1 140px" }}>
+                <div style={{ fontSize: 9, fontWeight: 700, color: "#999", marginBottom: 2 }}>FORNECEDOR</div>
+                <input value={newEntry.fornecedor || ""} onChange={e => setNewEntry({...newEntry, fornecedor: e.target.value})} placeholder="Allergan, aluguel..."
+                  style={{ width: "100%", padding: "7px 8px", border: "1px solid #ddd", borderRadius: 6, fontSize: 12, fontFamily: "inherit", boxSizing: "border-box" }} />
+              </div>
+              <div style={{ flex: "1 1 160px" }}>
                 <div style={{ fontSize: 9, fontWeight: 700, color: "#999", marginBottom: 2 }}>DESCRIÇÃO</div>
-                <input value={newEntry.desc} onChange={e => setNewEntry({...newEntry, desc: e.target.value})} placeholder="Procedimento, fornecedor..."
+                <input value={newEntry.desc} onChange={e => setNewEntry({...newEntry, desc: e.target.value})} placeholder="NF 1234, parcela 2/3..."
                   style={{ width: "100%", padding: "7px 8px", border: "1px solid #ddd", borderRadius: 6, fontSize: 12, fontFamily: "inherit", boxSizing: "border-box" }} />
               </div>
-              <div style={{ flex: "0 0 100px" }}>
-                <div style={{ fontSize: 9, fontWeight: 700, color: "#999", marginBottom: 2 }}>TIPO</div>
-                <select value={newEntry.tipo} onChange={e => setNewEntry({...newEntry, tipo: e.target.value})}
+              <div style={{ flex: "0 0 120px" }}>
+                <div style={{ fontSize: 9, fontWeight: 700, color: "#999", marginBottom: 2 }}>CATEGORIA</div>
+                <select value={newEntry.cat} onChange={e => setNewEntry({...newEntry, cat: e.target.value})}
                   style={{ width: "100%", padding: "7px 8px", border: "1px solid #ddd", borderRadius: 6, fontSize: 12, fontFamily: "inherit", background: "white", boxSizing: "border-box" }}>
-                  <option value="entrada">Entrada</option>
-                  <option value="saida">Saída</option>
+                  {["Insumos", "Aluguel", "Folha", "Marketing", "Equipamentos", "Impostos", "Serviços", "Outros"].map(c => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
                 </select>
               </div>
               <div style={{ flex: "0 0 100px" }}>
@@ -5795,23 +5915,14 @@ const CashflowTab = () => {
                 <input type="number" value={newEntry.valor || ""} onChange={e => setNewEntry({...newEntry, valor: Number(e.target.value)})}
                   style={{ width: "100%", padding: "7px 8px", border: "1px solid #ddd", borderRadius: 6, fontSize: 12, fontFamily: "inherit", textAlign: "center", boxSizing: "border-box" }} />
               </div>
-              <button onClick={addEntry} style={{ padding: "8px 16px", background: GOLD, color: "white", border: "none", borderRadius: 6, fontWeight: 700, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>Adicionar</button>
+              <div style={{ display: "flex", gap: 6 }}>
+                <button onClick={addEntry} style={{ padding: "8px 16px", background: "#B71C1C", color: "white", border: "none", borderRadius: 6, fontWeight: 700, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>Adicionar</button>
+                <button onClick={() => setShowNew(false)} style={{ padding: "8px 12px", background: "white", color: "#888", border: "1px solid #ddd", borderRadius: 6, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>Cancelar</button>
+              </div>
             </div>
           </div>
         )}
-
-        {entries.map((e, i) => (
-          <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: "1px solid #f0ece6" }}>
-            <span style={{ fontSize: 11, color: "#bbb", minWidth: 45 }}>{e.date}</span>
-            <Badge text={e.tipo === "entrada" ? "↑" : "↓"} color={e.tipo === "entrada" ? "#E8F5E9" : "#FFEBEE"} textColor={e.tipo === "entrada" ? "#2E7D32" : "#B71C1C"} />
-            <div style={{ flex: 1, fontSize: 12 }}>{e.desc}</div>
-            <Badge text={e.cat} color={LIGHT} textColor="#888" />
-            <span style={{ fontSize: 13, fontWeight: 700, color: e.tipo === "entrada" ? "#2E7D32" : "#B71C1C", minWidth: 80, textAlign: "right" }}>
-              {e.tipo === "entrada" ? "+" : "-"} {fmt(e.valor)}
-            </span>
-          </div>
-        ))}
-      </Card>
+      </div>
     </div>
   );
 };
