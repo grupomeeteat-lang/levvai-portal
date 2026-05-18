@@ -234,16 +234,41 @@ levvai-portal/
 **14 produtos inseridos:** Botox, Evo H, Evo S, Radiesse, Biogelis, Juvederm Volbella, Restylane Kysse, Profhilo, Mesohyal Redenx, Bioflash NCTC-109, Fios de PDO, Kit Exomine, Kit PRP, Tirzepatida.
 
 #### `fluxo_caixa`
+Tabela recriada com estrutura completa em Mai/2026.
+
 | Coluna | Tipo | Descrição |
 |--------|------|-----------|
 | id | uuid PK | |
-| data | date NOT NULL | convertido de TEXT para DATE real |
+| created_at | timestamptz | |
+| tipo | text | receita / despesa |
+| categoria | text | Insumos / Aluguel / Folha / Marketing / Equipamentos / Impostos / Serviços / Procedimento / Outros |
 | descricao | text | |
-| categoria | text | |
-| tipo | text | receita/despesa |
+| fornecedor | text | para despesas |
 | valor | numeric | |
-| status | text | confirmado/pendente |
-| origem | text | |
+| forma_pagamento | text | para receitas (pix/dinheiro/débito/crédito/etc) |
+| status | text | pago / em_aberto / vencido |
+| data | date | data da movimentação |
+| data_vencimento | date | principal campo de filtragem mensal |
+| data_pagamento | date | preenchido ao confirmar pagamento |
+| origem | text | crm / manual / recorrencia |
+| recorrente | boolean | true = template de despesa fixa |
+| dia_vencimento | int | dia do mês (para recorrentes) |
+| paciente_id | uuid FK → pacientes | nullable, para receitas do CRM |
+| paciente_nome | text | denormalizado para exibição |
+| tratamento_id | uuid FK → tratamentos | nullable, para rastreio |
+| procedimento | text | denormalizado do tratamento |
+
+**Funções no banco:**
+- `criar_receita_do_tratamento()` — trigger em `tratamentos`: insere receita automaticamente ao salvar tratamento com valor > 0
+- `gerar_despesas_recorrentes(ano int, mes int)` — gera cópias mensais dos templates recorrentes (recorrente = true)
+- `registrar_parcelas(p_fornecedor, p_descricao, p_categoria, p_valor_total, p_num_parcelas, p_data_primeira)` — cria N linhas com vencimentos mensais
+
+**Despesas recorrentes cadastradas (11 templates):**  
+Aluguel, Energia, Água, Internet, Contabilidade, Salário Sirlândia, Salário Giovana, Repasse Lara, Repasse Sylmara, Victa, Mercado Livre
+
+**Meses pré-gerados:** Maio, Junho, Julho, Agosto/2026
+
+**Auto-geração:** `fetchFluxoCaixa` detecta mês sem entradas com `origem = 'recorrencia'` e chama `gerar_despesas_recorrentes` automaticamente.
 
 #### `agendamentos`
 | Coluna | Tipo | Descrição |
@@ -456,6 +481,7 @@ Aba **Docs → Usuários** no portal:
 | Mai/2026 | agendamentos.paciente_id adicionado como FK opcional para pacientes.id |
 | Mai/2026 | Padrão alias de compatibilidade adotado: `const oldVar = newVar` para manter render intacto após rename de state |
 | Mai/2026 | Fase 3: Editorial, Avaliação e 1:1s conectados ao Supabase — portal 100% sem useState hardcoded operacional |
+| Mai/2026 | fluxo_caixa recriada com estrutura completa: FKs para CRM, trigger automático, parcelamento, recorrência |
 
 ---
 
@@ -473,7 +499,7 @@ Aba **Docs → Usuários** no portal:
 | AgendaTab (profissionais) | useState hardcoded (professionals) | `profissionais` (alias `professionals = profissionais`) |
 | AgendaTab (slots) | shared.slots in-memory | `agendamentos` (Supabase, chave por data real) |
 | StockTab | useState hardcoded | `produtos` (Supabase, `mapProduto()` para snake_case) |
-| CashflowTab | useState hardcoded | `fluxo_caixa` (Supabase) |
+| CashflowTab | useState hardcoded | `fluxo_caixa` (Supabase); seções ENTRADAS/SAÍDAS; parcelamento; recorrência automática |
 | EditorialTab | useState posts: {} hardcoded | `editorial_calendario` (Supabase); `const posts = {}` mantém render |
 | AvaliacaoTab | team array hardcoded | `avaliacoes_equipe` (Supabase); `team` permanece como config estática |
 | OneOneTab | useState sessions hardcoded | `sessoes_oneone` (Supabase); alias `const sessions = sessoesOneOne` |
@@ -481,7 +507,8 @@ Aba **Docs → Usuários** no portal:
 **Funções adicionadas ao App.jsx (todas as fases):**  
 Fase 1: `salvarAssociado`, `salvarRepasse`, `marcarRepassePago`, `salvarContrato`, `excluirContrato`, `contratosAlerta`  
 Fase 2: `salvarAta`, `salvarAcaoAta`, `concluirAcao`, `acoesPorAta`, `acoesAbertas`, `salvarFeedbackNps`, `calcularNps`, `salvarFornecedor`, `arquivarFornecedor`, `salvarProfissional`, `desativarProfissional`  
-Fase 3: `salvarPost`, `atualizarStatusPost`, `excluirPost`, `postsPorData`, `postsDoMes`, `salvarAvaliacao`, `ultimaAvaliacao`, `mediaTime`, `salvarSessaoOneOne`, `excluirSessaoOneOne`, `sessoesPorParticipante`
+Fase 3: `salvarPost`, `atualizarStatusPost`, `excluirPost`, `postsPorData`, `postsDoMes`, `salvarAvaliacao`, `ultimaAvaliacao`, `mediaTime`, `salvarSessaoOneOne`, `excluirSessaoOneOne`, `sessoesPorParticipante`  
+CashflowTab: `fetchFluxoCaixa`, `confirmarStatus`, `registrarDespesa` (com parcelas via RPC), `excluirEntrada`, `gerarRecorrentes`, `totalReceitas`, `totalDespesas`, `resultadoBruto`, `receitasPorForma`
 
 **Pendências conhecidas:**
 - `AvaliacaoTab` — array `team` com Lara, Sirlândia, Sylmara e Gi ainda hardcoded como estrutura base. Avaliações persistem no banco mas cadastro de novos colaboradores exige ajuste manual nesse array.
@@ -491,7 +518,8 @@ Fase 3: `salvarPost`, `atualizarStatusPost`, `excluirPost`, `postsPorData`, `pos
 
 ## 17. BANCO DE DADOS — ESTADO FINAL
 
-**20 tabelas no Supabase** (projeto wlkshbycdtgvyabcolmd). Todas com RLS `allow all`.
+**20 tabelas no Supabase** (projeto wlkshbycdtgvyabcolmd). Todas com RLS `allow all`.  
+**3 funções/triggers:** `criar_receita_do_tratamento`, `gerar_despesas_recorrentes`, `registrar_parcelas`
 
 `pacientes`, `tratamentos`, `prontuarios`, `propostas`, `observacoes`, `produtos`, `fluxo_caixa`, `agendamentos`, `associados`, `repasses_associados`, `contratos`, `atas`, `acoes_ata`, `feedbacks_nps`, `fornecedores`, `profissionais`, `editorial_calendario`, `avaliacoes_equipe`, `sessoes_oneone`, `quotes` (vazia — ignorar)
 
