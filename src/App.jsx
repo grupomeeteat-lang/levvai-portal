@@ -3408,6 +3408,7 @@ const FichaPaciente = ({ paciente, onClose, onUpdate }) => {
   const [propostas, setPropostas] = useState([]);
   const [observacoes, setObservacoes] = useState([]);
   const [produtosDB, setProdutosDB] = useState([]);
+  const [associadosDB, setAssociadosDB] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [editData, setEditData] = useState({ ...paciente });
@@ -3431,6 +3432,8 @@ const FichaPaciente = ({ paciente, onClose, onUpdate }) => {
   useEffect(() => {
     supabase.from('produtos').select('*').eq('ativo', true).order('cat')
       .then(({ data }) => setProdutosDB(Array.isArray(data) ? data : []));
+    supabase.from('associados').select('id, nome, especialidade').eq('ativo', true).order('nome')
+      .then(({ data }) => setAssociadosDB(Array.isArray(data) ? data : []));
   }, []);
 
   useEffect(() => {
@@ -3678,7 +3681,19 @@ const FichaPaciente = ({ paciente, onClose, onUpdate }) => {
                     </div>
                     <div><div style={labelStyle}>PRODUTO USADO</div><input value={newTrat.produto} onChange={e => setNewTrat({ ...newTrat, produto: e.target.value })} placeholder="Ex: Juvederm 1ml" style={inputStyle} /></div>
                     <div><div style={labelStyle}>REGIÃO</div><input value={newTrat.regiao} onChange={e => setNewTrat({ ...newTrat, regiao: e.target.value })} placeholder="Ex: Labial" style={inputStyle} /></div>
-                    <div><div style={labelStyle}>PROFISSIONAL</div><input value={newTrat.profissional} onChange={e => setNewTrat({ ...newTrat, profissional: e.target.value })} style={inputStyle} /></div>
+                    <div>
+                      <div style={labelStyle}>PROFISSIONAL</div>
+                      {associadosDB.length > 0 ? (
+                        <select value={newTrat.profissional} onChange={e => setNewTrat({ ...newTrat, profissional: e.target.value })} style={inputStyle}>
+                          <option value="">Selecionar profissional...</option>
+                          {associadosDB.map(a => (
+                            <option key={a.id} value={a.nome}>{a.nome}{a.especialidade ? ` — ${a.especialidade}` : ''}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input value={newTrat.profissional} onChange={e => setNewTrat({ ...newTrat, profissional: e.target.value })} style={inputStyle} />
+                      )}
+                    </div>
                     <div><div style={labelStyle}>SESSÃO Nº</div><input type="number" value={newTrat.sessao} onChange={e => setNewTrat({ ...newTrat, sessao: Number(e.target.value) })} style={inputStyle} /></div>
                     <div><div style={labelStyle}>TOTAL SESSÕES</div><input type="number" value={newTrat.total_sessoes} onChange={e => setNewTrat({ ...newTrat, total_sessoes: Number(e.target.value) })} style={inputStyle} /></div>
                     <div><div style={labelStyle}>VALOR (R$)</div><input type="number" value={newTrat.valor} onChange={e => setNewTrat({ ...newTrat, valor: e.target.value })} style={inputStyle} /></div>
