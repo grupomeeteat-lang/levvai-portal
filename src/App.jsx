@@ -5620,38 +5620,137 @@ const ExecutiveTab = ({ shared }) => {
 
 // FLUXO DE CAIXA TAB
 const CashflowTab = () => {
-  const [entries, setEntries] = useState([]);
-  const [loading, setLoading] = useState(true);
+  // Estado — Fluxo de Caixa
+  const [fluxoCaixa, setFluxoCaixa] = useState([]);
+  const [loadingFluxo, setLoadingFluxo] = useState(true);
+  const [mesSelecionado, setMesSelecionado] = useState(() => {
+    const hoje = new Date();
+    return `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`;
+  });
+
+  useEffect(() => {
+    fetchFluxoCaixa();
+  }, [mesSelecionado]);
+
+  const fetchFluxoCaixa = async () => {
+    setLoadingFluxo(true);
+    const [ano, mes] = mesSelecionado.split('-');
+    const inicio = `${ano}-${mes}-01`;
+    const fim = new Date(ano, mes, 0).toISOString().split('T')[0];
+
+    const { data, error } = await supabase
+      .from('fluxo_caixa')
+      .select('*')
+      .or(`data.gte.${inicio},data_vencimento.gte.${inicio}`)
+      .or(`data.lte.${fim},data_vencimento.lte.${fim}`)
+      .order('data', { ascending: true });
+
+    if (!error && data) setFluxoCaixa(data);
+    setLoadingFluxo(false);
+  };
+
+  // Confirmar status (campo que Sylmara usa)
+  const confirmarStatus = async (id, novoStatus) => {
+    const update = {
+      status: novoStatus,
+      ...(novoStatus === 'pago' ? { data_pagamento: new Date().toISOString().split('T')[0] } : {})
+    };
+    const { error } = await supabase
+      .from('fluxo_caixa')
+      .update(update)
+      .eq('id', id);
+    if (!error) setFluxoCaixa(prev =>
+      prev.map(f => f.id === id ? { ...f, ...update } : f)
+    );
+  };
+
+  // Registrar despesa avulsa
+  const registrarDespesa = async (despesa) => {
+    const { data, error } = await supabase
+      .from('fluxo_caixa')
+      .insert([{ ...despesa, tipo: 'despesa', origem: 'manual' }])
+      .select()
+      .single();
+    if (!error && data) {
+      setFluxoCaixa(prev => [...prev, data]);
+      // Se recorrente, já avisa Sylmara que vai se repetir
+    }
+  };
+
+  // Excluir entrada manual
+  const excluirEntrada = async (id) => {
+    const { error } = await supabase
+      .from('fluxo_caixa')
+      .delete()
+      .eq('id', id);
+    if (!error) setFluxoCaixa(prev => prev.filter(f => f.id !== id));
+  };
+
+  // Gerar despesas recorrentes do próximo mês
+  const gerarRecorrentes = async (ano, mes) => {
+    const { data, error } = await supabase
+      .rpc('gerar_despesas_recorrentes', { ano, mes });
+    if (!error) {
+      await fetchFluxoCaixa();
+      return data; // número de entradas geradas
+    }
+  };
+
+  // Totalizadores do mês
+  const totalReceitas = fluxoCaixa
+    .filter(f => f.tipo === 'receita')
+    .reduce((acc, f) => acc + (f.valor || 0), 0);
+
+  const totalDespesas = fluxoCaixa
+    .filter(f => f.tipo === 'despesa')
+    .reduce((acc, f) => acc + (f.valor || 0), 0);
+
+  const resultadoBruto = totalReceitas - totalDespesas;
+
+  const receitasPorForma = fluxoCaixa
+    .filter(f => f.tipo === 'receita')
+    .reduce((acc, f) => {
+      const forma = f.forma_pagamento || 'outro';
+      acc[forma] = (acc[forma] || 0) + (f.valor || 0);
+      return acc;
+    }, {});
+
+  // Compat aliases para o render existente
+  const entries = fluxoCaixa.map(f => ({
+    id: f.id,
+    date: f.data,
+    desc: f.descricao,
+    tipo: f.tipo === 'receita' ? 'entrada' : 'saida',
+    valor: f.valor || 0,
+    cat: f.categoria,
+    status: f.status,
+  }));
+  const loading = loadingFluxo;
   const [showNew, setShowNew] = useState(false);
   const [newEntry, setNewEntry] = useState({ date: "", desc: "", tipo: "entrada", valor: 0, cat: "Procedimento" });
 
-  useEffect(() => {
-    supabase.from('fluxo_caixa').select('*').order('created_at')
-      .then(({ data }) => {
-        if (data) setEntries(data.map(e => ({
-          date: e.data, desc: e.descricao, tipo: e.tipo, valor: e.valor, cat: e.categoria,
-        })));
-        setLoading(false);
-      });
-  }, []);
-
   const addEntry = async () => {
     if (!newEntry.desc || !newEntry.valor) return;
-    await supabase.from('fluxo_caixa').insert({
-      data: newEntry.date,
-      descricao: newEntry.desc,
-      tipo: newEntry.tipo,
-      valor: newEntry.valor,
-      categoria: newEntry.cat,
-    });
-    setEntries([...entries, newEntry]);
+    const { data, error } = await supabase
+      .from('fluxo_caixa')
+      .insert([{
+        data: newEntry.date || new Date().toISOString().split('T')[0],
+        descricao: newEntry.desc,
+        tipo: newEntry.tipo === 'entrada' ? 'receita' : 'despesa',
+        valor: Number(newEntry.valor),
+        categoria: newEntry.cat,
+        origem: 'manual',
+      }])
+      .select()
+      .single();
+    if (!error && data) setFluxoCaixa(prev => [...prev, data]);
     setNewEntry({ date: "", desc: "", tipo: "entrada", valor: 0, cat: "Procedimento" });
     setShowNew(false);
   };
 
-  const totalEntradas = entries.filter(e => e.tipo === "entrada").reduce((a, e) => a + e.valor, 0);
-  const totalSaidas = entries.filter(e => e.tipo === "saida").reduce((a, e) => a + e.valor, 0);
-  const saldo = totalEntradas - totalSaidas;
+  const totalEntradas = totalReceitas;
+  const totalSaidas = totalDespesas;
+  const saldo = resultadoBruto;
   const fmt = (v) => `R$ ${Math.round(v).toLocaleString("pt-BR")}`;
 
   if (loading) return <div style={{ padding: 32, textAlign: "center", color: "#aaa" }}>Carregando movimentações...</div>;
