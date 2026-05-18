@@ -5634,18 +5634,35 @@ const CashflowTab = () => {
 
   const fetchFluxoCaixa = async () => {
     setLoadingFluxo(true);
-    const [ano, mes] = mesSelecionado.split('-');
-    const inicio = `${ano}-${mes}-01`;
-    const fim = new Date(ano, mes, 0).toISOString().split('T')[0];
+    const [ano, mes] = mesSelecionado.split('-').map(Number);
+    const inicio = `${ano}-${String(mes).padStart(2, '0')}-01`;
+    const ultimoDia = new Date(ano, mes, 0).getDate();
+    const fim = `${ano}-${String(mes).padStart(2, '0')}-${ultimoDia}`;
 
     const { data, error } = await supabase
       .from('fluxo_caixa')
       .select('*')
-      .or(`data.gte.${inicio},data_vencimento.gte.${inicio}`)
-      .or(`data.lte.${fim},data_vencimento.lte.${fim}`)
-      .order('data', { ascending: true });
+      .gte('data_vencimento', inicio)
+      .lte('data_vencimento', fim)
+      .order('data_vencimento', { ascending: true });
 
-    if (!error && data) setFluxoCaixa(data);
+    if (!error && data) {
+      // Auto-geração: se não tem recorrentes no mês, gera automaticamente
+      const temRecorrentes = data.some(f => f.origem === 'recorrencia');
+      if (!temRecorrentes) {
+        await supabase.rpc('gerar_despesas_recorrentes', { ano, mes });
+        // Rebusca após gerar
+        const { data: dataAtualizada } = await supabase
+          .from('fluxo_caixa')
+          .select('*')
+          .gte('data_vencimento', inicio)
+          .lte('data_vencimento', fim)
+          .order('data_vencimento', { ascending: true });
+        if (dataAtualizada) setFluxoCaixa(dataAtualizada);
+      } else {
+        setFluxoCaixa(data);
+      }
+    }
     setLoadingFluxo(false);
   };
 
@@ -5666,15 +5683,35 @@ const CashflowTab = () => {
 
   // Registrar despesa avulsa
   const registrarDespesa = async (despesa) => {
+    const { numParcelas, dataprimeira, ...resto } = despesa;
+
+    // Compra parcelada
+    if (numParcelas && numParcelas > 1) {
+      const { error } = await supabase.rpc('registrar_parcelas', {
+        p_fornecedor: resto.fornecedor,
+        p_descricao: resto.descricao,
+        p_categoria: resto.categoria,
+        p_valor_total: resto.valor,
+        p_num_parcelas: parseInt(numParcelas),
+        p_data_primeira: dataprimeira
+      });
+      if (!error) await fetchFluxoCaixa();
+      return;
+    }
+
+    // Despesa simples (à vista)
     const { data, error } = await supabase
       .from('fluxo_caixa')
-      .insert([{ ...despesa, tipo: 'despesa', origem: 'manual' }])
+      .insert([{
+        ...resto,
+        tipo: 'despesa',
+        origem: 'manual',
+        recorrente: resto.recorrente || false
+      }])
       .select()
       .single();
-    if (!error && data) {
-      setFluxoCaixa(prev => [...prev, data]);
-      // Se recorrente, já avisa Sylmara que vai se repetir
-    }
+
+    if (!error && data) setFluxoCaixa(prev => [...prev, data]);
   };
 
   // Excluir entrada manual
@@ -5727,28 +5764,25 @@ const CashflowTab = () => {
   }));
   const loading = loadingFluxo;
   const [showNew, setShowNew] = useState(false);
-  const [newEntry, setNewEntry] = useState({ date: "", desc: "", tipo: "entrada", valor: 0, cat: "Procedimento" });
+  const emptyEntry = { date: "", desc: "", tipo: "entrada", valor: 0, cat: "Insumos", fornecedor: "", numParcelas: 1, recorrente: false, dataprimeira: "" };
+  const [newEntry, setNewEntry] = useState(emptyEntry);
 
   const addEntry = async () => {
     if (!newEntry.desc || !newEntry.valor) return;
     const today = new Date().toISOString().split('T')[0];
-    const { data, error } = await supabase
-      .from('fluxo_caixa')
-      .insert([{
-        data: newEntry.date || today,
-        data_vencimento: newEntry.date || today,
-        descricao: newEntry.desc,
-        fornecedor: newEntry.fornecedor || null,
-        tipo: 'despesa',
-        valor: Number(newEntry.valor),
-        categoria: newEntry.cat,
-        origem: 'manual',
-        status: 'em_aberto',
-      }])
-      .select()
-      .single();
-    if (!error && data) setFluxoCaixa(prev => [...prev, data]);
-    setNewEntry({ date: "", desc: "", tipo: "entrada", valor: 0, cat: "Insumos", fornecedor: "" });
+    await registrarDespesa({
+      data: newEntry.date || today,
+      data_vencimento: newEntry.date || today,
+      descricao: newEntry.desc,
+      fornecedor: newEntry.fornecedor || null,
+      valor: Number(newEntry.valor),
+      categoria: newEntry.cat,
+      status: 'em_aberto',
+      recorrente: newEntry.recorrente,
+      numParcelas: newEntry.numParcelas,
+      dataprimeira: newEntry.dataprimeira || newEntry.date || today,
+    });
+    setNewEntry(emptyEntry);
     setShowNew(false);
   };
 
@@ -5886,22 +5920,28 @@ const CashflowTab = () => {
           <div style={{ background: "#FFF5F5", border: "1px solid #FFCDD2", borderRadius: 10, padding: "14px 16px" }}>
             <div style={{ fontSize: 12, fontWeight: 700, color: "#B71C1C", marginBottom: 10 }}>NOVA SAÍDA</div>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-end" }}>
-              <div style={{ flex: "0 0 110px" }}>
-                <div style={{ fontSize: 9, fontWeight: 700, color: "#999", marginBottom: 2 }}>VENCIMENTO</div>
-                <input type="date" value={newEntry.date} onChange={e => setNewEntry({...newEntry, date: e.target.value})}
+              {/* Data — vencimento (simples) ou 1ª parcela */}
+              <div style={{ flex: "0 0 130px" }}>
+                <div style={{ fontSize: 9, fontWeight: 700, color: "#999", marginBottom: 2 }}>
+                  {newEntry.numParcelas > 1 ? "DATA 1ª PARCELA" : "VENCIMENTO"}
+                </div>
+                <input type="date" value={newEntry.numParcelas > 1 ? newEntry.dataprimeira : newEntry.date}
+                  onChange={e => newEntry.numParcelas > 1
+                    ? setNewEntry({...newEntry, dataprimeira: e.target.value})
+                    : setNewEntry({...newEntry, date: e.target.value})}
                   style={{ width: "100%", padding: "7px 8px", border: "1px solid #ddd", borderRadius: 6, fontSize: 12, fontFamily: "inherit", boxSizing: "border-box" }} />
               </div>
-              <div style={{ flex: "1 1 140px" }}>
+              <div style={{ flex: "1 1 130px" }}>
                 <div style={{ fontSize: 9, fontWeight: 700, color: "#999", marginBottom: 2 }}>FORNECEDOR</div>
                 <input value={newEntry.fornecedor || ""} onChange={e => setNewEntry({...newEntry, fornecedor: e.target.value})} placeholder="Allergan, aluguel..."
                   style={{ width: "100%", padding: "7px 8px", border: "1px solid #ddd", borderRadius: 6, fontSize: 12, fontFamily: "inherit", boxSizing: "border-box" }} />
               </div>
-              <div style={{ flex: "1 1 160px" }}>
+              <div style={{ flex: "1 1 150px" }}>
                 <div style={{ fontSize: 9, fontWeight: 700, color: "#999", marginBottom: 2 }}>DESCRIÇÃO</div>
-                <input value={newEntry.desc} onChange={e => setNewEntry({...newEntry, desc: e.target.value})} placeholder="NF 1234, parcela 2/3..."
+                <input value={newEntry.desc} onChange={e => setNewEntry({...newEntry, desc: e.target.value})} placeholder="NF 1234, Botox Allergan..."
                   style={{ width: "100%", padding: "7px 8px", border: "1px solid #ddd", borderRadius: 6, fontSize: 12, fontFamily: "inherit", boxSizing: "border-box" }} />
               </div>
-              <div style={{ flex: "0 0 120px" }}>
+              <div style={{ flex: "0 0 110px" }}>
                 <div style={{ fontSize: 9, fontWeight: 700, color: "#999", marginBottom: 2 }}>CATEGORIA</div>
                 <select value={newEntry.cat} onChange={e => setNewEntry({...newEntry, cat: e.target.value})}
                   style={{ width: "100%", padding: "7px 8px", border: "1px solid #ddd", borderRadius: 6, fontSize: 12, fontFamily: "inherit", background: "white", boxSizing: "border-box" }}>
@@ -5910,15 +5950,41 @@ const CashflowTab = () => {
                   ))}
                 </select>
               </div>
-              <div style={{ flex: "0 0 100px" }}>
+              <div style={{ flex: "0 0 90px" }}>
                 <div style={{ fontSize: 9, fontWeight: 700, color: "#999", marginBottom: 2 }}>VALOR R$</div>
                 <input type="number" value={newEntry.valor || ""} onChange={e => setNewEntry({...newEntry, valor: Number(e.target.value)})}
                   style={{ width: "100%", padding: "7px 8px", border: "1px solid #ddd", borderRadius: 6, fontSize: 12, fontFamily: "inherit", textAlign: "center", boxSizing: "border-box" }} />
               </div>
-              <div style={{ display: "flex", gap: 6 }}>
-                <button onClick={addEntry} style={{ padding: "8px 16px", background: "#B71C1C", color: "white", border: "none", borderRadius: 6, fontWeight: 700, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>Adicionar</button>
-                <button onClick={() => setShowNew(false)} style={{ padding: "8px 12px", background: "white", color: "#888", border: "1px solid #ddd", borderRadius: 6, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>Cancelar</button>
+              <div style={{ flex: "0 0 70px" }}>
+                <div style={{ fontSize: 9, fontWeight: 700, color: "#999", marginBottom: 2 }}>Nº PARCELAS</div>
+                <input type="number" min="1" max="48" value={newEntry.numParcelas}
+                  onChange={e => setNewEntry({...newEntry, numParcelas: Math.max(1, parseInt(e.target.value) || 1)})}
+                  style={{ width: "100%", padding: "7px 8px", border: "1px solid #ddd", borderRadius: 6, fontSize: 12, fontFamily: "inherit", textAlign: "center", boxSizing: "border-box" }} />
               </div>
+            </div>
+
+            {/* Preview parcelamento */}
+            {newEntry.numParcelas > 1 && newEntry.valor > 0 && (
+              <div style={{ marginTop: 8, padding: "6px 10px", background: "#FFF3E0", borderRadius: 6, fontSize: 11, color: "#E65100" }}>
+                {newEntry.numParcelas}x de {fmt(newEntry.valor / newEntry.numParcelas)} — vencimentos mensais a partir de {newEntry.dataprimeira || "data não selecionada"}
+              </div>
+            )}
+
+            {/* Checkbox recorrente — só quando parcela única */}
+            {newEntry.numParcelas === 1 && (
+              <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 10, fontSize: 12, color: "#555", cursor: "pointer" }}>
+                <input type="checkbox" checked={newEntry.recorrente}
+                  onChange={e => setNewEntry({...newEntry, recorrente: e.target.checked})}
+                  style={{ width: 14, height: 14, cursor: "pointer" }} />
+                Despesa recorrente (se repete todo mês)
+              </label>
+            )}
+
+            <div style={{ display: "flex", gap: 6, marginTop: 12 }}>
+              <button onClick={addEntry} style={{ padding: "8px 16px", background: "#B71C1C", color: "white", border: "none", borderRadius: 6, fontWeight: 700, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
+                {newEntry.numParcelas > 1 ? `Parcelar em ${newEntry.numParcelas}x` : "Adicionar"}
+              </button>
+              <button onClick={() => { setShowNew(false); setNewEntry(emptyEntry); }} style={{ padding: "8px 12px", background: "white", color: "#888", border: "1px solid #ddd", borderRadius: 6, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>Cancelar</button>
             </div>
           </div>
         )}
