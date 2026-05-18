@@ -1218,14 +1218,14 @@ const AssociatesTab = () => {
   const entries = repasses;
   const associates = associados;
 
-  const getSplit = (origem, insumo) => {
-    if (insumo) return { assoc: 0.55, levvai: 0.45 };
-    if (origem === "PROPRIO") return { assoc: 0.70, levvai: 0.30 };
-    return { assoc: 0.60, levvai: 0.40 };
+  const getSplit = (e) => {
+    const assoc = associates.find(a => a.nome === e.associado);
+    const pct = assoc?.split_percentual ?? 60;
+    return { assoc: pct / 100, levvai: 1 - pct / 100 };
   };
 
   const totals = entries.reduce((acc, e) => {
-    const s = getSplit(e.origem, e.insumo);
+    const s = getSplit(e);
     acc.bruto += e.valor;
     acc.assoc += e.valor * s.assoc;
     acc.levvai += e.valor * s.levvai;
@@ -1233,7 +1233,7 @@ const AssociatesTab = () => {
   }, { bruto: 0, assoc: 0, levvai: 0 });
 
   const byAssoc = entries.reduce((acc, e) => {
-    const s = getSplit(e.origem, e.insumo);
+    const s = getSplit(e);
     if (!acc[e.associado]) acc[e.associado] = { count: 0, bruto: 0, assoc: 0, levvai: 0 };
     acc[e.associado].count++;
     acc[e.associado].bruto += e.valor;
@@ -5468,7 +5468,7 @@ const AtasTab = () => {
           <div style={{ fontSize: 11, fontWeight: 700, color: GOLD, marginBottom: 4 }}>DECISÕES</div>
           {m.decisoes.map((d, di) => <div key={di} style={{ fontSize: 12, color: "#555", padding: "3px 0 3px 12px" }}>› {d}</div>)}
           <div style={{ fontSize: 11, fontWeight: 700, color: GOLD, marginTop: 10, marginBottom: 4 }}>AÇÕES</div>
-          {m.acoes.map((a, ai) => (
+          {acoesPorAta(m.id).map((a, ai) => (
             <div key={ai} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", borderBottom: "1px solid #f0ece6" }}>
               <Badge text={a.resp} color={LIGHT} textColor={GOLD} />
               <div style={{ flex: 1, fontSize: 12 }}>{a.acao}</div>
@@ -6059,7 +6059,7 @@ const CashflowTab = () => {
                 <div style={{ fontSize: 9, fontWeight: 700, color: "#999", marginBottom: 2 }}>CATEGORIA</div>
                 <select value={newEntry.cat} onChange={e => setNewEntry({...newEntry, cat: e.target.value})}
                   style={{ width: "100%", padding: "7px 8px", border: "1px solid #ddd", borderRadius: 6, fontSize: 12, fontFamily: "inherit", background: "white", boxSizing: "border-box" }}>
-                  {["Insumos", "Aluguel", "Folha", "Marketing", "Equipamentos", "Impostos", "Serviços", "Outros"].map(c => (
+                  {["Insumos", "Procedimento", "Aluguel", "Energia", "Água", "Internet", "Salário", "Repasse", "Marketing", "Contabilidade", "Equipamentos", "Impostos", "Serviços", "Outros"].map(c => (
                     <option key={c} value={c}>{c}</option>
                   ))}
                 </select>
@@ -6224,7 +6224,7 @@ const EditorialTab = () => {
     return d.getFullYear() === ano && d.getMonth() + 1 === mes;
   });
 
-  const posts = {}; // compat stub — render usa posts[key], editorial alimenta lógica futura
+  const posts = editorial.reduce((acc, p) => { if (p.data) acc[p.data] = [...(acc[p.data] || []), p]; return acc; }, {});
   const [editing, setEditing] = useState(null);
   const [editForm, setEditForm] = useState({ pilar: "transf", format: "Reel", desc: "" });
 
@@ -7149,6 +7149,12 @@ const OneOneTab = () => {
     sessoesOneOne.filter(s => s.participantes?.includes(nome));
 
   const sessions = sessoesOneOne; // compat alias
+
+  const [profissOnOne, setProfissOnOne] = useState([]);
+  useEffect(() => {
+    supabase.from('profissionais').select('*').eq('ativo', true).order('nome').then(({ data }) => { if (data) setProfissOnOne(data); });
+  }, []);
+
   const [showNew, setShowNew] = useState(false);
   const [newSession, setNewSession] = useState({ participants: "Lara × Gi", topics: "", actions: "" });
 
@@ -7183,7 +7189,7 @@ const OneOneTab = () => {
             <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
               <div style={{ flex: "0 0 160px" }}><div style={{ fontSize: 9, fontWeight: 700, color: "#999", marginBottom: 2 }}>PARTICIPANTES</div>
                 <select value={newSession.participants} onChange={e => setNewSession({...newSession, participants: e.target.value})} style={{ width: "100%", padding: "7px 8px", border: "1px solid #ddd", borderRadius: 6, fontSize: 12, fontFamily: "inherit", background: "white", boxSizing: "border-box" }}>
-                  <option>Lara × Gi</option><option>CEO × Lara</option><option>CEO × Sirlândia</option><option>CEO × Sylmara</option><option>CEO × Associado</option>
+                  {profissOnOne.map(p => <option key={p.id} value={p.nome}>{p.nome}</option>)}
                 </select></div>
             </div>
             <div style={{ marginBottom: 8 }}><div style={{ fontSize: 9, fontWeight: 700, color: "#999", marginBottom: 2 }}>TÓPICOS (um por linha)</div>
@@ -7246,6 +7252,14 @@ const AvaliacaoTab = () => {
     ]},
   ];
 
+  const [profissAvaliacao, setProfissAvaliacao] = useState([]);
+  useEffect(() => {
+    supabase.from('profissionais').select('*').eq('ativo', true).order('nome').then(({ data }) => { if (data) setProfissAvaliacao(data); });
+  }, []);
+  const teamDinamico = profissAvaliacao.length > 0
+    ? profissAvaliacao.map(p => team.find(t => t.name === p.nome) || { name: p.nome, role: p.specialty || '', kpis: [] })
+    : team;
+
   // Estado — Avaliações de Equipe
   const [avaliacoes, setAvaliacoes] = useState([]);
   const [loadingAvaliacoes, setLoadingAvaliacoes] = useState(true);
@@ -7298,7 +7312,7 @@ const AvaliacaoTab = () => {
       <Card title="Avaliação de Desempenho — Trimestral" accent>
         <p style={{ color: "#aaa", fontSize: 13, margin: 0 }}>CEO avalia na última semana do trimestre, junto com review de OKRs. Baseada nos KPIs do descritivo de cargos v3.</p>
       </Card>
-      {team.map((p, pi) => (
+      {teamDinamico.map((p, pi) => (
         <Card key={pi} title={`${p.name} — ${p.role}`}>
           <div style={{ display: "flex", background: DARK, borderRadius: "8px 8px 0 0", padding: "8px 0" }}>
             {["KPI", "META", "ATUAL", "SCORE", "STATUS"].map((h, i) => (
