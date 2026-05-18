@@ -204,6 +204,8 @@ levvai-portal/
 | parcelas | int | default 1 |
 | status | text | rascunho/enviada/aprovada/recusada |
 | observacoes | text | |
+| tratamento_id | uuid FK → tratamentos.id | preenchido ao converter em venda |
+| convertida_em | timestamptz | timestamp da conversão |
 
 #### `observacoes`
 | Coluna | Tipo | Descrição |
@@ -397,10 +399,14 @@ O portal usa sidebar vertical com 29 abas em 9 setores:
 ### FichaPaciente (modal)
 5 abas internas:
 1. **Sobre** — dados cadastrais, edição inline
-2. **Tratamentos** — lista com status de tratamento + status de pagamento inline editável, totais financeiros, botão 📅 Google Calendar
+2. **Tratamentos** — lista com status de tratamento + status de pagamento inline editável, totais financeiros, botão 📅 Google Calendar; form de novo tratamento tem checkbox "Registrar entrada no prontuário" que expande campos título + anotações clínicas (salva ambos em uma operação via `salvarTratamentoComProntuario`)
 3. **Prontuário** — registros clínicos por data
-4. **Propostas** — orçamentos com itens do catálogo (produtos do Supabase), cálculo de desconto/parcelas, botão imprimir/PDF
+4. **Propostas** — orçamentos com itens do catálogo (produtos do Supabase), cálculo de desconto/parcelas, botão imprimir/PDF; botão "✓ Converter em Venda" em propostas não aprovadas abre modal de confirmação e chama `converterPropostaEmVenda` (cria tratamento finalizado + marca proposta como aprovada + trigger dispara receita no fluxo_caixa)
 5. **Observações** — anotações por tipo (geral/clínico/comercial/financeiro/alerta)
+
+### Funções em FichaPaciente (adicionadas Mai/2026)
+- `salvarTratamentoComProntuario()` — salva tratamento + prontuário linkados (mesmo paciente_id/profissional/data). Usa `setTratamentos`/`setProntuarios` local (não `setPacientes`).
+- `converterPropostaEmVenda()` — cria tratamento com `status: 'finalizado'` a partir da proposta; atualiza proposta para `status: 'aprovada'`; trigger `criar_receita_do_tratamento` gera receita automaticamente no fluxo_caixa.
 
 ### Google Calendar (Opção B — link direto)
 Botão 📅 em cada tratamento gera link `calendar.google.com/calendar/render?action=TEMPLATE&...` com nome do paciente, procedimento, data, hora e localização preenchidos.
@@ -482,6 +488,8 @@ Aba **Docs → Usuários** no portal:
 | Mai/2026 | Padrão alias de compatibilidade adotado: `const oldVar = newVar` para manter render intacto após rename de state |
 | Mai/2026 | Fase 3: Editorial, Avaliação e 1:1s conectados ao Supabase — portal 100% sem useState hardcoded operacional |
 | Mai/2026 | fluxo_caixa recriada com estrutura completa: FKs para CRM, trigger automático, parcelamento, recorrência |
+| Mai/2026 | FichaPaciente: checkbox prontuário integrado no form de tratamento; botão "Converter em Venda" em propostas com modal de confirmação |
+| Mai/2026 | propostas: colunas tratamento_id FK + convertida_em adicionadas para rastrear conversão em venda |
 
 ---
 
