@@ -3418,6 +3418,10 @@ const FichaPaciente = ({ paciente, onClose, onUpdate }) => {
   const [newPront, setNewPront] = useState({ data: today(), titulo: '', conteudo: '', profissional: 'Lara' });
   const [newObs, setNewObs] = useState({ data: today(), conteudo: '', autor: 'Sirlândia', tipo: 'geral' });
   const [newProp, setNewProp] = useState({ data: today(), titulo: '', itens: [], valor_total: '', desconto: 0, parcelas: 1, observacoes: '', status: 'rascunho' });
+  const [comProntuario, setComProntuario] = useState(false);
+  const [newProntuarioInline, setNewProntuarioInline] = useState({ titulo: '', conteudo: '' });
+  const [propostaConverting, setPropostaConverting] = useState(null);
+  const [convertForm, setConvertForm] = useState({ procedimento: '', valor: '', forma_pagamento: 'pix', status_pagamento: 'pendente', data_pagamento: '', observacoes: '' });
 
   const loadSub = async (resource, setter) => {
     const { data } = await supabase.from(resource).select('*').eq('paciente_id', paciente.id).order('data', { ascending: false });
@@ -3479,6 +3483,40 @@ const FichaPaciente = ({ paciente, onClose, onUpdate }) => {
     if (!confirm('Remover este registro?')) return;
     await supabase.from(resource).delete().eq('id', id);
     setter(prev => prev.filter(i => i.id !== id));
+  };
+
+  const salvarTratamentoComProntuario = async () => {
+    const { data: novoTratamento, error } = await supabase.from('tratamentos').insert({ ...newTrat, paciente_id: paciente.id }).select().single();
+    if (error) return;
+    setTratamentos(prev => [novoTratamento, ...prev]);
+    if (comProntuario && newProntuarioInline.titulo) {
+      const { data: novoPront } = await supabase.from('prontuarios').insert({ paciente_id: paciente.id, data: newTrat.data, titulo: newProntuarioInline.titulo, conteudo: newProntuarioInline.conteudo, profissional: newTrat.profissional }).select().single();
+      if (novoPront) setProntuarios(prev => [novoPront, ...prev]);
+    }
+    setNewTrat({ data: today(), horario: '09:00', procedimento: '', produto: '', regiao: '', sessao: 1, total_sessoes: 1, profissional: 'Lara', valor: '', observacoes: '', status: 'pendente', forma_pagamento: 'pix', status_pagamento: 'pendente', data_pagamento: '' });
+    setComProntuario(false);
+    setNewProntuarioInline({ titulo: '', conteudo: '' });
+    setShowForm(false);
+  };
+
+  const converterPropostaEmVenda = async () => {
+    if (!propostaConverting) return;
+    const { data: novoTrat, error } = await supabase.from('tratamentos').insert({
+      paciente_id: paciente.id, data: today(),
+      procedimento: convertForm.procedimento || propostaConverting.titulo || 'Procedimento',
+      valor: convertForm.valor || propostaConverting.valor_total,
+      forma_pagamento: convertForm.forma_pagamento,
+      status_pagamento: convertForm.status_pagamento,
+      data_pagamento: convertForm.data_pagamento || null,
+      profissional: 'Lara', status: 'finalizado',
+      observacoes: convertForm.observacoes,
+    }).select().single();
+    if (error) return;
+    setTratamentos(prev => [novoTrat, ...prev]);
+    const { data: propostaAtualizada } = await supabase.from('propostas').update({ status: 'aprovada' }).eq('id', propostaConverting.id).select().single();
+    if (propostaAtualizada) setPropostas(prev => prev.map(p => p.id === propostaConverting.id ? propostaAtualizada : p));
+    setPropostaConverting(null);
+    setConvertForm({ procedimento: '', valor: '', forma_pagamento: 'pix', status_pagamento: 'pendente', data_pagamento: '', observacoes: '' });
   };
 
   const updateTratStatus = async (trat, newStatus, newStatusPag) => {
@@ -3659,8 +3697,20 @@ const FichaPaciente = ({ paciente, onClose, onUpdate }) => {
                     <div><div style={labelStyle}>DATA PAGAMENTO</div><input type="date" value={newTrat.data_pagamento || ''} onChange={e => setNewTrat({ ...newTrat, data_pagamento: e.target.value })} style={inputStyle} /></div>
                   </div>
                   <div style={{ marginBottom: 8 }}><div style={labelStyle}>OBSERVAÇÕES</div><textarea value={newTrat.observacoes} onChange={e => setNewTrat({ ...newTrat, observacoes: e.target.value })} rows={2} style={{ ...inputStyle, resize: 'vertical' }} /></div>
+                  <div style={{ marginBottom: 8 }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, cursor: 'pointer', color: '#555' }}>
+                      <input type="checkbox" checked={comProntuario} onChange={e => setComProntuario(e.target.checked)} />
+                      Registrar entrada no prontuário
+                    </label>
+                  </div>
+                  {comProntuario && (
+                    <div style={{ background: '#E8F5E9', borderRadius: 8, padding: 10, marginBottom: 8 }}>
+                      <div style={{ marginBottom: 6 }}><div style={labelStyle}>TÍTULO DO PRONTUÁRIO</div><input value={newProntuarioInline.titulo} onChange={e => setNewProntuarioInline({ ...newProntuarioInline, titulo: e.target.value })} placeholder="Ex: Aplicação Botox — fronte" style={inputStyle} /></div>
+                      <div><div style={labelStyle}>ANOTAÇÕES CLÍNICAS</div><textarea value={newProntuarioInline.conteudo} onChange={e => setNewProntuarioInline({ ...newProntuarioInline, conteudo: e.target.value })} rows={2} placeholder="Detalhes do procedimento, observações..." style={{ ...inputStyle, resize: 'vertical' }} /></div>
+                    </div>
+                  )}
                   <div style={{ display: 'flex', gap: 8 }}>
-                    <button onClick={() => addItem('tratamentos', newTrat, setTratamentos, () => setNewTrat({ data: today(), horario: '09:00', procedimento: '', produto: '', regiao: '', sessao: 1, total_sessoes: 1, profissional: 'Lara', valor: '', observacoes: '', status: 'pendente', forma_pagamento: 'pix', status_pagamento: 'pendente', data_pagamento: '' }))} style={{ padding: '8px 20px', background: GOLD, color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>Salvar</button>
+                    <button onClick={salvarTratamentoComProntuario} style={{ padding: '8px 20px', background: GOLD, color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>Salvar</button>
                     <button onClick={() => setShowForm(false)} style={{ padding: '8px 14px', background: 'white', color: '#888', border: '1px solid #ddd', borderRadius: 8, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>Cancelar</button>
                   </div>
                 </div>
@@ -3927,6 +3977,11 @@ const FichaPaciente = ({ paciente, onClose, onUpdate }) => {
                         </div>
                         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                           <Badge text={p.status} color={sc.bg} textColor={sc.tc} />
+                          {p.status !== 'aprovada' ? (
+                            <button onClick={() => { setPropostaConverting(p); setConvertForm({ procedimento: p.titulo || '', valor: p.valor_total || '', forma_pagamento: 'pix', status_pagamento: 'pendente', data_pagamento: '', observacoes: '' }); }} style={{ padding: '5px 12px', background: '#E8F5E9', color: '#2E7D32', border: '1px solid #A5D6A7', borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>✓ Converter em Venda</button>
+                          ) : (
+                            <span style={{ fontSize: 11, fontWeight: 700, color: '#2E7D32' }}>✓ Venda realizada</span>
+                          )}
                           <button onClick={printProposta} style={{ padding: '5px 12px', background: DARK, color: GOLD, border: 'none', borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>🖨 Imprimir / PDF</button>
                           <button onClick={() => deleteItem('propostas', p.id, setPropostas)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: '#ddd', fontFamily: 'inherit' }}>✕</button>
                         </div>
@@ -4003,6 +4058,50 @@ const FichaPaciente = ({ paciente, onClose, onUpdate }) => {
 
         </div>
       </div>
+
+      {/* MODAL: Converter Proposta em Venda */}
+      {propostaConverting && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          <div style={{ background: 'white', borderRadius: 14, padding: 24, width: '100%', maxWidth: 480, boxShadow: '0 20px 60px rgba(0,0,0,0.4)' }}>
+            <div style={{ fontSize: 16, fontWeight: 800, color: DARK, marginBottom: 4 }}>Converter Proposta em Venda</div>
+            <div style={{ fontSize: 12, color: '#888', marginBottom: 16 }}>Confirme os dados do tratamento que será gerado.</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+              <div style={{ gridColumn: '1 / -1' }}>
+                <div style={{ fontSize: 9, fontWeight: 700, color: '#999', marginBottom: 3 }}>PROCEDIMENTO</div>
+                <input value={convertForm.procedimento} onChange={e => setConvertForm({ ...convertForm, procedimento: e.target.value })} style={{ width: '100%', padding: '7px 10px', border: '1px solid #ddd', borderRadius: 6, fontSize: 12, fontFamily: 'inherit', boxSizing: 'border-box' }} />
+              </div>
+              <div>
+                <div style={{ fontSize: 9, fontWeight: 700, color: '#999', marginBottom: 3 }}>VALOR (R$)</div>
+                <input type="number" value={convertForm.valor} onChange={e => setConvertForm({ ...convertForm, valor: e.target.value })} style={{ width: '100%', padding: '7px 10px', border: '1px solid #ddd', borderRadius: 6, fontSize: 12, fontFamily: 'inherit', boxSizing: 'border-box' }} />
+              </div>
+              <div>
+                <div style={{ fontSize: 9, fontWeight: 700, color: '#999', marginBottom: 3 }}>FORMA DE PAGAMENTO</div>
+                <select value={convertForm.forma_pagamento} onChange={e => setConvertForm({ ...convertForm, forma_pagamento: e.target.value })} style={{ width: '100%', padding: '7px 10px', border: '1px solid #ddd', borderRadius: 6, fontSize: 12, fontFamily: 'inherit', boxSizing: 'border-box' }}>
+                  {['pix','dinheiro','débito','crédito 1x','crédito 2x','crédito 3x','crédito 6x','crédito 10x','crédito 12x','transferência','cortesia'].map(f => <option key={f}>{f}</option>)}
+                </select>
+              </div>
+              <div>
+                <div style={{ fontSize: 9, fontWeight: 700, color: '#999', marginBottom: 3 }}>STATUS PAGAMENTO</div>
+                <select value={convertForm.status_pagamento} onChange={e => setConvertForm({ ...convertForm, status_pagamento: e.target.value })} style={{ width: '100%', padding: '7px 10px', border: '1px solid #ddd', borderRadius: 6, fontSize: 12, fontFamily: 'inherit', boxSizing: 'border-box' }}>
+                  {['pendente','pago','parcial','isento'].map(s => <option key={s}>{s}</option>)}
+                </select>
+              </div>
+              <div>
+                <div style={{ fontSize: 9, fontWeight: 700, color: '#999', marginBottom: 3 }}>DATA PAGAMENTO</div>
+                <input type="date" value={convertForm.data_pagamento} onChange={e => setConvertForm({ ...convertForm, data_pagamento: e.target.value })} style={{ width: '100%', padding: '7px 10px', border: '1px solid #ddd', borderRadius: 6, fontSize: 12, fontFamily: 'inherit', boxSizing: 'border-box' }} />
+              </div>
+              <div style={{ gridColumn: '1 / -1' }}>
+                <div style={{ fontSize: 9, fontWeight: 700, color: '#999', marginBottom: 3 }}>OBSERVAÇÕES</div>
+                <textarea value={convertForm.observacoes} onChange={e => setConvertForm({ ...convertForm, observacoes: e.target.value })} rows={2} style={{ width: '100%', padding: '7px 10px', border: '1px solid #ddd', borderRadius: 6, fontSize: 12, fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box' }} />
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button onClick={() => setPropostaConverting(null)} style={{ padding: '8px 16px', background: 'white', color: '#888', border: '1px solid #ddd', borderRadius: 8, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>Cancelar</button>
+              <button onClick={converterPropostaEmVenda} style={{ padding: '8px 20px', background: '#2E7D32', color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>✓ Confirmar Venda</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
