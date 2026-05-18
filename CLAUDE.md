@@ -93,7 +93,7 @@ levvai-portal/
 ├── src/
 │   ├── main.jsx                 ← bootstrap React
 │   ├── supabase.js              ← cliente Supabase (anon key)
-│   ├── App.jsx                  ← portal completo (~6000 linhas)
+│   ├── App.jsx                  ← portal completo (~7500 linhas)
 │   ├── levvai-design-system.css ← design tokens
 │   └── components/
 │       └── layout/
@@ -105,6 +105,7 @@ levvai-portal/
 │       ├── crm.sql              ← tabelas CRM v1 (pacientes, tratamentos, prontuarios, propostas, observacoes)
 │       ├── crm_v2.sql           ← colunas de pagamento + tabela produtos (14 seeds)
 │       ├── crm_v3.sql           ← ADD COLUMN horario TEXT em tratamentos
+│       ├── crm_v4.sql           ← ADD COLUMN tratamento_id + convertida_em em propostas
 │       ├── cashflow.sql         ← tabela fluxo_caixa (data como DATE)
 │       └── agendamentos.sql     ← tabela agendamentos + paciente_id FK
 └── public/
@@ -135,9 +136,9 @@ levvai-portal/
 **Todas as tabelas têm RLS habilitado com policy `allow all` (auth feita no portal).**  
 **Migrations aplicadas manualmente no Supabase SQL Editor — o projeto NÃO usa Supabase CLI.**
 
-### Tabelas existentes (17 total):
+### Tabelas existentes (20 total):
 
-`pacientes`, `tratamentos`, `prontuarios`, `propostas`, `observacoes`, `produtos`, `fluxo_caixa`, `agendamentos`, `associados`, `repasses_associados`, `contratos`, `atas`, `acoes_ata`, `feedbacks_nps`, `fornecedores`, `profissionais`, `quotes` (vazia, ignorar)
+`pacientes`, `tratamentos`, `prontuarios`, `propostas`, `observacoes`, `produtos`, `fluxo_caixa`, `agendamentos`, `associados`, `repasses_associados`, `contratos`, `atas`, `acoes_ata`, `feedbacks_nps`, `fornecedores`, `profissionais`, `editorial_calendario`, `avaliacoes_equipe`, `sessoes_oneone`, `quotes` (vazia, ignorar)
 
 #### `pacientes`
 | Coluna | Tipo | Descrição |
@@ -288,7 +289,15 @@ Aluguel, Energia, Água, Internet, Contabilidade, Salário Sirlândia, Salário 
 | origem | text | |
 
 #### `associados`
-Armazena profissionais associados (médicos, nutricionistas, etc.).
+Armazena profissionais associados (médicos, nutricionistas, etc.). Também usada no dropdown de PROFISSIONAL no form de tratamento da FichaPaciente.
+
+| Coluna | Tipo | Descrição |
+|--------|------|-----------|
+| id | uuid PK | |
+| nome | text NOT NULL | exibido no dropdown como "Nome — Especialidade" |
+| especialidade | text | ex: "Harmonização Facial" |
+| ativo | boolean | soft delete — `.eq('ativo', true)` ao carregar |
+| (outros campos) | | contato, repasse, etc. |
 
 #### `repasses_associados`
 Armazena repasses financeiros para associados. Campos: `id`, `associado_id` FK, `data`, `valor`, `procedimento`, `status_pagamento`, `pago`.
@@ -408,6 +417,19 @@ O portal usa sidebar vertical com 29 abas em 9 setores:
 - `salvarTratamentoComProntuario()` — salva tratamento + prontuário linkados (mesmo paciente_id/profissional/data). Usa `setTratamentos`/`setProntuarios` local (não `setPacientes`).
 - `converterPropostaEmVenda()` — cria tratamento com `status: 'finalizado'` a partir da proposta; atualiza proposta para `status: 'aprovada'`; trigger `criar_receita_do_tratamento` gera receita automaticamente no fluxo_caixa.
 
+### Estado local da FichaPaciente
+```
+tratamentos, prontuarios, propostas, observacoes   ← dados do paciente (loadSub)
+produtosDB        ← catálogo de procedimentos (select ativo=true)
+associadosDB      ← profissionais para dropdown (select ativo=true, order nome)
+comProntuario     ← checkbox "Registrar entrada no prontuário"
+newProntuarioInline  ← { titulo, conteudo } para prontuário inline
+propostaConverting   ← proposta em processo de conversão em venda (ou null)
+convertForm          ← campos do modal de conversão
+```
+
+**Importante:** `FichaPaciente` é componente standalone (fora de `LevvaiPortal`). Não tem acesso a `setPacientes`. Toda atualização de state local usa `setTratamentos`, `setPropostas`, `setProntuarios` — nunca `setPacientes`.
+
 ### Google Calendar (Opção B — link direto)
 Botão 📅 em cada tratamento gera link `calendar.google.com/calendar/render?action=TEMPLATE&...` com nome do paciente, procedimento, data, hora e localização preenchidos.
 
@@ -490,6 +512,7 @@ Aba **Docs → Usuários** no portal:
 | Mai/2026 | fluxo_caixa recriada com estrutura completa: FKs para CRM, trigger automático, parcelamento, recorrência |
 | Mai/2026 | FichaPaciente: checkbox prontuário integrado no form de tratamento; botão "Converter em Venda" em propostas com modal de confirmação |
 | Mai/2026 | propostas: colunas tratamento_id FK + convertida_em adicionadas para rastrear conversão em venda |
+| Mai/2026 | FichaPaciente: campo PROFISSIONAL vira select populado de associados ativos; fallback para input texto se tabela vazia |
 
 ---
 
@@ -516,7 +539,8 @@ Aba **Docs → Usuários** no portal:
 Fase 1: `salvarAssociado`, `salvarRepasse`, `marcarRepassePago`, `salvarContrato`, `excluirContrato`, `contratosAlerta`  
 Fase 2: `salvarAta`, `salvarAcaoAta`, `concluirAcao`, `acoesPorAta`, `acoesAbertas`, `salvarFeedbackNps`, `calcularNps`, `salvarFornecedor`, `arquivarFornecedor`, `salvarProfissional`, `desativarProfissional`  
 Fase 3: `salvarPost`, `atualizarStatusPost`, `excluirPost`, `postsPorData`, `postsDoMes`, `salvarAvaliacao`, `ultimaAvaliacao`, `mediaTime`, `salvarSessaoOneOne`, `excluirSessaoOneOne`, `sessoesPorParticipante`  
-CashflowTab: `fetchFluxoCaixa`, `confirmarStatus`, `registrarDespesa` (com parcelas via RPC), `excluirEntrada`, `gerarRecorrentes`, `totalReceitas`, `totalDespesas`, `resultadoBruto`, `receitasPorForma`
+CashflowTab: `fetchFluxoCaixa`, `confirmarStatus`, `registrarDespesa` (com parcelas via RPC), `excluirEntrada`, `gerarRecorrentes`, `totalReceitas`, `totalDespesas`, `resultadoBruto`, `receitasPorForma`  
+FichaPaciente (Mai/2026): `salvarTratamentoComProntuario`, `converterPropostaEmVenda`
 
 **Pendências conhecidas:**
 - `AvaliacaoTab` — array `team` com Lara, Sirlândia, Sylmara e Gi ainda hardcoded como estrutura base. Avaliações persistem no banco mas cadastro de novos colaboradores exige ajuste manual nesse array.
@@ -531,7 +555,16 @@ CashflowTab: `fetchFluxoCaixa`, `confirmarStatus`, `registrarDespesa` (com parce
 
 `pacientes`, `tratamentos`, `prontuarios`, `propostas`, `observacoes`, `produtos`, `fluxo_caixa`, `agendamentos`, `associados`, `repasses_associados`, `contratos`, `atas`, `acoes_ata`, `feedbacks_nps`, `fornecedores`, `profissionais`, `editorial_calendario`, `avaliacoes_equipe`, `sessoes_oneone`, `quotes` (vazia — ignorar)
 
-Migrations aplicadas manualmente no Supabase SQL Editor (arquivos em `/supabase/migrations/`).
+**Migrations aplicadas** (manualmente no Supabase SQL Editor):
+
+| Arquivo | O que faz |
+|---------|-----------|
+| `crm.sql` | Cria tabelas CRM v1 |
+| `crm_v2.sql` | Colunas de pagamento + tabela produtos com 14 seeds |
+| `crm_v3.sql` | `ALTER TABLE tratamentos ADD COLUMN horario` |
+| `crm_v4.sql` | `ALTER TABLE propostas ADD COLUMN tratamento_id, convertida_em` |
+| `cashflow.sql` | Tabela fluxo_caixa estrutura completa |
+| `agendamentos.sql` | Tabela agendamentos + paciente_id FK |
 
 ---
 
