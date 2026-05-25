@@ -3423,6 +3423,8 @@ const FichaPaciente = ({ paciente, onClose, onUpdate }) => {
   const [newProntuarioInline, setNewProntuarioInline] = useState({ titulo: '', conteudo: '' });
   const [propostaConverting, setPropostaConverting] = useState(null);
   const [convertForm, setConvertForm] = useState({ procedimento: '', valor: '', forma_pagamento: 'pix', status_pagamento: 'pendente', data_pagamento: '', observacoes: '' });
+  const [editingTrat, setEditingTrat] = useState(null);
+  const [editTratForm, setEditTratForm] = useState({});
 
   const loadSub = async (resource, setter) => {
     const { data } = await supabase.from(resource).select('*').eq('paciente_id', paciente.id).order('data', { ascending: false });
@@ -3528,6 +3530,15 @@ const FichaPaciente = ({ paciente, onClose, onUpdate }) => {
     if (newStatusPag !== undefined) body.status_pagamento = newStatusPag;
     const { data } = await supabase.from('tratamentos').update(body).eq('id', trat.id).select().single();
     if (data) setTratamentos(prev => prev.map(t => t.id === trat.id ? data : t));
+  };
+
+  const atualizarTratamento = async () => {
+    const { data, error } = await supabase.from('tratamentos').update(editTratForm).eq('id', editingTrat).select().single();
+    if (!error && data) {
+      setTratamentos(prev => prev.map(t => t.id === editingTrat ? data : t));
+      setEditingTrat(null);
+      setEditTratForm({});
+    }
   };
 
   const st = STATUS_COLORS[paciente.status] || STATUS_COLORS.lead;
@@ -3740,6 +3751,66 @@ const FichaPaciente = ({ paciente, onClose, onUpdate }) => {
                     ))}
                   </div>
                   {tratamentos.map((t, i) => {
+                    if (editingTrat === t.id) {
+                      const ef = editTratForm;
+                      const setEf = patch => setEditTratForm(prev => ({ ...prev, ...patch }));
+                      return (
+                        <div key={i} style={{ background: '#FFF9F0', borderBottom: `2px solid ${GOLD}`, padding: 14 }}>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 8 }}>
+                            <div><div style={labelStyle}>DATA</div><input type="date" value={ef.data || ''} onChange={e => setEf({ data: e.target.value })} style={inputStyle} /></div>
+                            <div><div style={labelStyle}>HORÁRIO</div><input type="time" value={ef.horario || '09:00'} onChange={e => setEf({ horario: e.target.value })} style={inputStyle} /></div>
+                            <div style={{ gridColumn: 'span 2' }}>
+                              <div style={labelStyle}>PROCEDIMENTO</div>
+                              <select value={ef.procedimento || ''} onChange={e => setEf({ procedimento: e.target.value })} style={inputStyle}>
+                                <option value="">Selecione...</option>
+                                {produtosDB.map(p => <option key={p.id} value={p.nome}>{p.nome}</option>)}
+                                <option value="Outro">Outro</option>
+                              </select>
+                            </div>
+                            <div><div style={labelStyle}>PRODUTO USADO</div><input value={ef.produto || ''} onChange={e => setEf({ produto: e.target.value })} style={inputStyle} /></div>
+                            <div><div style={labelStyle}>REGIÃO</div><input value={ef.regiao || ''} onChange={e => setEf({ regiao: e.target.value })} style={inputStyle} /></div>
+                            <div>
+                              <div style={labelStyle}>PROFISSIONAL</div>
+                              {associadosDB.length > 0 ? (
+                                <select value={ef.profissional || ''} onChange={e => setEf({ profissional: e.target.value })} style={inputStyle}>
+                                  <option value="">Selecionar...</option>
+                                  {associadosDB.map(a => <option key={a.id} value={a.nome}>{a.nome}{a.especialidade ? ` — ${a.especialidade}` : ''}</option>)}
+                                </select>
+                              ) : (
+                                <input value={ef.profissional || ''} onChange={e => setEf({ profissional: e.target.value })} style={inputStyle} />
+                              )}
+                            </div>
+                            <div><div style={labelStyle}>SESSÃO Nº</div><input type="number" value={ef.sessao || 1} onChange={e => setEf({ sessao: Number(e.target.value) })} style={inputStyle} /></div>
+                            <div><div style={labelStyle}>TOTAL SESSÕES</div><input type="number" value={ef.total_sessoes || 1} onChange={e => setEf({ total_sessoes: Number(e.target.value) })} style={inputStyle} /></div>
+                            <div><div style={labelStyle}>VALOR (R$)</div><input type="number" value={ef.valor || ''} onChange={e => setEf({ valor: e.target.value })} style={inputStyle} /></div>
+                            <div>
+                              <div style={labelStyle}>FORMA PAGAMENTO</div>
+                              <select value={ef.forma_pagamento || 'pix'} onChange={e => setEf({ forma_pagamento: e.target.value })} style={inputStyle}>
+                                {['pix','dinheiro','débito','crédito 1x','crédito 2x','crédito 3x','crédito 4x','crédito 5x','crédito 6x','crédito 10x','crédito 12x','transferência','cortesia'].map(f => <option key={f}>{f}</option>)}
+                              </select>
+                            </div>
+                            <div>
+                              <div style={labelStyle}>STATUS PAGAMENTO</div>
+                              <select value={ef.status_pagamento || 'pendente'} onChange={e => setEf({ status_pagamento: e.target.value })} style={inputStyle}>
+                                {['pendente','pago','parcial','isento'].map(s => <option key={s}>{s}</option>)}
+                              </select>
+                            </div>
+                            <div><div style={labelStyle}>DATA PAGAMENTO</div><input type="date" value={ef.data_pagamento || ''} onChange={e => setEf({ data_pagamento: e.target.value })} style={inputStyle} /></div>
+                            <div>
+                              <div style={labelStyle}>STATUS TRATAMENTO</div>
+                              <select value={ef.status || 'pendente'} onChange={e => setEf({ status: e.target.value })} style={inputStyle}>
+                                {['pendente','em_andamento','finalizado','cancelado'].map(s => <option key={s}>{s}</option>)}
+                              </select>
+                            </div>
+                          </div>
+                          <div style={{ marginBottom: 10 }}><div style={labelStyle}>OBSERVAÇÕES</div><textarea value={ef.observacoes || ''} onChange={e => setEf({ observacoes: e.target.value })} rows={2} style={{ ...inputStyle, resize: 'vertical' }} /></div>
+                          <div style={{ display: 'flex', gap: 8 }}>
+                            <button onClick={atualizarTratamento} style={{ padding: '8px 20px', background: GOLD, color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>Salvar alterações</button>
+                            <button onClick={() => { setEditingTrat(null); setEditTratForm({}); }} style={{ padding: '8px 14px', background: 'white', color: '#888', border: '1px solid #ddd', borderRadius: 8, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>Cancelar</button>
+                          </div>
+                        </div>
+                      );
+                    }
                     const pgColors = { pago: { bg: '#E8F5E9', tc: '#2E7D32' }, pendente: { bg: '#FFF9C4', tc: '#F57F17' }, parcial: { bg: '#E3F2FD', tc: '#1565C0' }, isento: { bg: '#F3E5F5', tc: '#6A1B9A' } };
                     const pg = pgColors[t.status_pagamento] || pgColors.pendente;
                     return (
@@ -3773,6 +3844,7 @@ const FichaPaciente = ({ paciente, onClose, onUpdate }) => {
                             style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24, borderRadius: 6, background: '#E8F5E9', textDecoration: 'none', fontSize: 13 }}>
                             📅
                           </a>
+                          <button onClick={() => { setEditingTrat(t.id); setEditTratForm({ ...t }); }} title="Editar tratamento" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24, borderRadius: 6, background: '#FFF3E0', border: 'none', cursor: 'pointer', fontSize: 13 }}>✏️</button>
                           <button onClick={() => deleteItem('tratamentos', t.id, setTratamentos)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: '#ddd', fontFamily: 'inherit' }}>✕</button>
                         </div>
                       </div>
