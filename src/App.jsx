@@ -878,11 +878,16 @@ const FinanceTab = () => {
 
   const saveEdit = async (id) => {
     setSaving(true);
+    const oldNome = products.find(p => p.id === id)?.nome;
     await supabase.from('produtos').update({
       tipo:editForm.tipo, cat:editForm.cat, nome:editForm.nome, protocolo:editForm.protocolo,
       regiao:editForm.regiao, custo_un:+editForm.custo_un, preco_sugerido:+editForm.preco_sugerido,
       estoque:+editForm.estoque, estoque_min:+editForm.estoque_min, obs:editForm.obs,
     }).eq('id', id);
+    if (oldNome && editForm.nome && oldNome !== editForm.nome) {
+      await supabase.from('tratamentos').update({ procedimento: editForm.nome }).eq('procedimento', oldNome);
+      await supabase.from('fluxo_caixa').update({ procedimento: editForm.nome }).eq('procedimento', oldNome);
+    }
     setEditingId(null);
     await reload();
     setSaving(false);
@@ -3486,6 +3491,9 @@ const FichaPaciente = ({ paciente, onClose, onUpdate }) => {
 
   const deleteItem = async (resource, id, setter) => {
     if (!confirm('Remover este registro?')) return;
+    if (resource === 'tratamentos') {
+      await supabase.from('fluxo_caixa').delete().eq('tratamento_id', id).eq('origem', 'crm');
+    }
     await supabase.from(resource).delete().eq('id', id);
     setter(prev => prev.filter(i => i.id !== id));
   };
@@ -3535,6 +3543,16 @@ const FichaPaciente = ({ paciente, onClose, onUpdate }) => {
   const atualizarTratamento = async () => {
     const { data, error } = await supabase.from('tratamentos').update(editTratForm).eq('id', editingTrat).select().single();
     if (!error && data) {
+      const fluxoUpdate = {};
+      if (editTratForm.valor !== undefined) fluxoUpdate.valor = editTratForm.valor;
+      if (editTratForm.procedimento !== undefined) fluxoUpdate.procedimento = editTratForm.procedimento;
+      if (editTratForm.data !== undefined) { fluxoUpdate.data = editTratForm.data; fluxoUpdate.data_vencimento = editTratForm.data; }
+      if (editTratForm.forma_pagamento !== undefined) fluxoUpdate.forma_pagamento = editTratForm.forma_pagamento;
+      if (editTratForm.status_pagamento !== undefined) fluxoUpdate.status = editTratForm.status_pagamento === 'pago' ? 'pago' : 'em_aberto';
+      if (editTratForm.data_pagamento !== undefined) fluxoUpdate.data_pagamento = editTratForm.data_pagamento || null;
+      if (Object.keys(fluxoUpdate).length > 0) {
+        await supabase.from('fluxo_caixa').update(fluxoUpdate).eq('tratamento_id', editingTrat).eq('origem', 'crm');
+      }
       setTratamentos(prev => prev.map(t => t.id === editingTrat ? data : t));
       setEditingTrat(null);
       setEditTratForm({});
