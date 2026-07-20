@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from './supabase';
 import AppShell from './components/layout/AppShell';
 import VisaoGeral from './components/dashboard/VisaoGeral';
+import { getCicloLabel, getPeriodoAtual, parseDiaMesNascimento } from './utils/periodo';
 
 const GOLD = "#C8A96E";
 const DARK = "#1A1A1A";
@@ -477,27 +478,9 @@ const HomeTab = ({ shared }) => {
     { month: "Jun", target: 60, current: 0, color: "#E8F5E9" },
   ];
 
-  const parseDiaMesNascimento = (str) => {
-    if (!str || typeof str !== "string") return null;
-    const s = str.trim();
-    if (!s) return null;
-    let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
-    if (m) {
-      const mes = Number(m[2]), dia = Number(m[3]);
-      if (mes >= 1 && mes <= 12 && dia >= 1 && dia <= 31) return { dia, mes };
-    }
-    m = s.match(/^(\d{1,2})\/(\d{1,2})(?:\/\d{2,4})?$/);
-    if (m) {
-      const dia = Number(m[1]), mes = Number(m[2]);
-      if (mes >= 1 && mes <= 12 && dia >= 1 && dia <= 31) return { dia, mes };
-    }
-    return null;
-  };
-
-  const nomesMeses = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
-  const hoje = new Date();
-  const mesAtual = hoje.getMonth() + 1;
-  const diaHoje = hoje.getDate();
+  const periodo = getPeriodoAtual();
+  const mesAtual = periodo.mes;
+  const diaHoje = periodo.dia;
 
   const aniversariantes = pacientesAniversario
     .map(p => ({ ...p, _nasc: parseDiaMesNascimento(p.data_nascimento) }))
@@ -581,7 +564,7 @@ const HomeTab = ({ shared }) => {
       </div>
 
       {/* PROGRESS BARS */}
-      <Card title="Progresso Q2 — Abril 2026">
+      <Card title={`Progresso Q2 — ${periodo.mesExtenso} ${periodo.ano}`}>
         <div className="grid-4" style={{ gap: 16 }}>
           <MiniBar value={286} max={1000} label="286" sub="Seguidores → 1.000" color="#E91E63" />
           <MiniBar value={20} max={70} label="20" sub="Posts → 70" color="#2196F3" />
@@ -677,7 +660,7 @@ const HomeTab = ({ shared }) => {
       </div>
 
       {/* ANIVERSARIANTES DO MÊS */}
-      <Card title={`🎂 Aniversariantes de ${nomesMeses[mesAtual - 1]}`}>
+      <Card title={`🎂 Aniversariantes de ${periodo.mesExtenso}`}>
         {loadingAniversariantes ? (
           <div style={{ textAlign: "center", padding: 20, color: "#aaa" }}>Carregando...</div>
         ) : aniversariantes.length === 0 ? (
@@ -8262,7 +8245,7 @@ const [active, setActive] = useState("visao-geral");
       badges={badges}
       sector={breadcrumb.sector}
       tab={breadcrumb.label}
-      cycleLabel="Ciclo Q2 · Abr 26"
+      cycleLabel={getCicloLabel()}
     >
       {active === 'visao-geral' ? (
         <VisaoGeral />

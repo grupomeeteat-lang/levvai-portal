@@ -1,4 +1,5 @@
 import React from 'react';
+import { getCicloLabel } from '../../utils/periodo';
 
 /**
  * Topbar — barra superior com breadcrumb, busca e ações
@@ -6,13 +7,13 @@ import React from 'react';
  * Props:
  *  - sector: string (ex: "Estratégia")
  *  - tab: string (ex: "Visão Geral")
- *  - cycleLabel: string (ex: "Ciclo Q2 · Abr 26")
+ *  - cycleLabel: string (ex: "Ciclo Q3 · Jul 26") — default calculado da data atual
  *  - onSearch: (query) => void (opcional)
  */
 export default function Topbar({
   sector = 'Estratégia',
   tab = 'Visão Geral',
-  cycleLabel = 'Ciclo Q2 · Abr 26',
+  cycleLabel = getCicloLabel(),
   onSearch = () => {},
   menuOpen = false,
   onToggleMenu = () => {},

@@ -1,4 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { supabase } from '../../supabase';
+import { getPeriodoAtual, parseDiaMesNascimento } from '../../utils/periodo';
 
 /**
  * VisaoGeral — aba "Visão Geral" do Portal Levvai
@@ -10,6 +12,21 @@ import React from 'react';
  *    }
  */
 export default function VisaoGeral({ data = {} }) {
+  const [pacientesAniversario, setPacientesAniversario] = useState([]);
+  const [loadingAniversariantes, setLoadingAniversariantes] = useState(true);
+
+  useEffect(() => {
+    supabase.from('pacientes').select('nome,telefone,data_nascimento,status').then(({ data: rows }) => {
+      setPacientesAniversario(Array.isArray(rows) ? rows : []);
+      setLoadingAniversariantes(false);
+    });
+  }, []);
+
+  const periodo = getPeriodoAtual();
+  const aniversariantes = pacientesAniversario
+    .map(p => ({ ...p, _nasc: parseDiaMesNascimento(p.data_nascimento) }))
+    .filter(p => p._nasc && p._nasc.mes === periodo.mes)
+    .sort((a, b) => a._nasc.dia - b._nasc.dia);
   const d = {
     faturamento: { valor: 'R$20', valor2: '–50K', metaPct: 58, meta: 'R$60K', trend: '+28%', trendDir: 'up' },
     pacientesMes: { valor: 20, meta: 30, trend: '~20', trendDir: 'neutral' },
@@ -48,7 +65,7 @@ export default function VisaoGeral({ data = {} }) {
       {/* PAGE HEADER */}
       <div className="page-header fade-in">
         <div>
-          <div className="page-eyebrow">Dashboard · Abril 2026</div>
+          <div className="page-eyebrow">Dashboard · {periodo.mesExtenso} {periodo.ano}</div>
           <h1 className="page-title">
             Visão <span className="italic">geral</span> do instituto.
           </h1>
@@ -252,6 +269,52 @@ export default function VisaoGeral({ data = {} }) {
             </div>
           ))}
         </div>
+      </div>
+
+      {/* ANIVERSARIANTES DO MÊS */}
+      <div className="card fade-in fade-in-3">
+        <div className="card-header">
+          <div className="card-title">
+            <span className="card-title-eyebrow">Relacionamento</span>
+            <span className="card-title-main">🎂 Aniversariantes de {periodo.mesExtenso}</span>
+          </div>
+        </div>
+        {loadingAniversariantes ? (
+          <div style={{ textAlign: 'center', padding: 20, color: '#aaa' }}>Carregando...</div>
+        ) : aniversariantes.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: 20, color: '#ccc', fontSize: 13 }}>Nenhum aniversariante este mês.</div>
+        ) : (
+          <div>
+            {aniversariantes.map((p, i) => {
+              const isHoje = p._nasc.dia === periodo.dia;
+              const telDigits = (p.telefone || '').replace(/\D/g, '');
+              const waLink = telDigits ? `https://wa.me/55${telDigits}` : null;
+              return (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: i < aniversariantes.length - 1 ? '1px solid var(--border)' : 'none', flexWrap: 'wrap' }}>
+                  <div style={{ width: 44, flexShrink: 0, textAlign: 'center', fontSize: 13, fontWeight: 800, color: isHoje ? '#C8A96E' : '#1A1A1A' }}>
+                    {String(p._nasc.dia).padStart(2, '0')}/{String(periodo.mes).padStart(2, '0')}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 120 }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: '#1A1A1A' }}>{p.nome}</div>
+                    <div style={{ fontSize: 11, color: '#999' }}>{p.telefone || '—'}</div>
+                  </div>
+                  {p.status && (
+                    <span style={{ display: 'inline-block', background: '#F5F0E8', color: '#C8A96E', fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 20 }}>{p.status}</span>
+                  )}
+                  {isHoje && (
+                    <span style={{ display: 'inline-block', background: '#C8A96E', color: 'white', fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 20 }}>🎂 Hoje!</span>
+                  )}
+                  {waLink && (
+                    <a href={waLink} target="_blank" rel="noopener noreferrer" title="Chamar no WhatsApp"
+                      style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, borderRadius: 6, background: '#E8F5E9', textDecoration: 'none', fontSize: 14, flexShrink: 0 }}>
+                      💬
+                    </a>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* LINE CHARTS */}
