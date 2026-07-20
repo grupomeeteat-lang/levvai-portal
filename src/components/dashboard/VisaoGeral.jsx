@@ -1,17 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../supabase';
-import { getPeriodoAtual, parseDiaMesNascimento } from '../../utils/periodo';
+import { getPeriodoAtual, getPeriodoDoMes, mesStringAtual, parseDiaMesNascimento } from '../../utils/periodo';
 
 /**
  * VisaoGeral — aba "Visão Geral" do Portal Levvai
  *
  * Props (todas opcionais — tem defaults com os números atuais):
+ *  - mesGlobal: string "AAAA-MM" — mês selecionado no seletor global do header
  *  - data: {
  *      faturamento, pacientesMes, ticketMedio, conversao, instagram, nps,
  *      funnel, revenueHistory, q2Progress
  *    }
  */
-export default function VisaoGeral({ data = {} }) {
+export default function VisaoGeral({ mesGlobal, data = {} }) {
   const [pacientesAniversario, setPacientesAniversario] = useState([]);
   const [loadingAniversariantes, setLoadingAniversariantes] = useState(true);
 
@@ -22,11 +23,18 @@ export default function VisaoGeral({ data = {} }) {
     });
   }, []);
 
-  const periodo = getPeriodoAtual();
+  // Aniversariantes seguem o mês selecionado no header (não mais "sempre o mês atual")
+  const mesSelecionado = mesGlobal || mesStringAtual();
+  const periodo = getPeriodoDoMes(mesSelecionado);
+  const hoje = getPeriodoAtual(); // dia/mês real — só usado pro badge "🎂 Hoje!"
+  const isMesAtualSelecionado = mesSelecionado === mesStringAtual();
   const aniversariantes = pacientesAniversario
     .map(p => ({ ...p, _nasc: parseDiaMesNascimento(p.data_nascimento) }))
     .filter(p => p._nasc && p._nasc.mes === periodo.mes)
     .sort((a, b) => a._nasc.dia - b._nasc.dia);
+  // TODO: conectar ao Supabase por mês para obedecer o seletor global
+  // (KPIs abaixo — faturamento, pacientesMes, ticketMedio, conversao, instagram, nps —
+  // e os gráficos de tendência são mockados; só os aniversariantes são dado real)
   const d = {
     faturamento: { valor: 'R$20', valor2: '–50K', metaPct: 58, meta: 'R$60K', trend: '+28%', trendDir: 'up' },
     pacientesMes: { valor: 20, meta: 30, trend: '~20', trendDir: 'neutral' },
@@ -286,7 +294,7 @@ export default function VisaoGeral({ data = {} }) {
         ) : (
           <div>
             {aniversariantes.map((p, i) => {
-              const isHoje = p._nasc.dia === periodo.dia;
+              const isHoje = isMesAtualSelecionado && p._nasc.dia === hoje.dia;
               const telDigits = (p.telefone || '').replace(/\D/g, '');
               const waLink = telDigits ? `https://wa.me/55${telDigits}` : null;
               return (

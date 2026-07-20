@@ -21,6 +21,33 @@ export function getCicloLabel(date = new Date()) {
   return `Ciclo Q${p.trimestre} · ${p.mesAbrev} ${p.anoAbrev}`;
 }
 
+// String "AAAA-MM" (mesma convenção do <input type="month">) — usada como formato
+// canônico do mês selecionado globalmente no portal.
+export function mesStringAtual(date = new Date()) {
+  const p = getPeriodoAtual(date);
+  return `${p.ano}-${String(p.mes).padStart(2, '0')}`;
+}
+
+export function mudarMesString(mesStr, delta) {
+  const [ano, mes] = mesStr.split('-').map(Number);
+  const d = new Date(ano, mes - 1 + delta, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+export function getPeriodoDoMes(mesStr) {
+  const [ano, mes] = mesStr.split('-').map(Number);
+  return getPeriodoAtual(new Date(ano, mes - 1, 1));
+}
+
+// Intervalo [inicio, fim] (datas "AAAA-MM-DD") do mês — para filtros .gte/.lte no Supabase.
+export function getIntervaloDoMes(mesStr) {
+  const [ano, mes] = mesStr.split('-').map(Number);
+  const inicio = `${ano}-${String(mes).padStart(2, '0')}-01`;
+  const ultimoDia = new Date(ano, mes, 0).getDate();
+  const fim = `${ano}-${String(mes).padStart(2, '0')}-${String(ultimoDia).padStart(2, '0')}`;
+  return { inicio, fim };
+}
+
 export function parseDiaMesNascimento(str) {
   if (!str || typeof str !== 'string') return null;
   const s = str.trim();

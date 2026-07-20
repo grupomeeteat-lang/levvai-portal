@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from './supabase';
 import AppShell from './components/layout/AppShell';
 import VisaoGeral from './components/dashboard/VisaoGeral';
-import { getCicloLabel, getPeriodoAtual, parseDiaMesNascimento } from './utils/periodo';
+import { getCicloLabel, getPeriodoAtual, parseDiaMesNascimento, mesStringAtual, mudarMesString, getPeriodoDoMes, getIntervaloDoMes } from './utils/periodo';
 
 const GOLD = "#C8A96E";
 const DARK = "#1A1A1A";
@@ -1212,35 +1212,26 @@ const CompetitorsTab = () => (
 );
 
 // ASSOCIATES TAB
-const AssociatesTab = () => {
+const AssociatesTab = ({ shared }) => {
   // Estado — Associados
   const [associados, setAssociados] = useState([]);
   const [repasses, setRepasses] = useState([]);
   const [loadingAssociados, setLoadingAssociados] = useState(true);
 
   useEffect(() => {
-    const fetchAssociados = async () => {
-      setLoadingAssociados(true);
-      const { data: assocData, error: assocError } = await supabase
-        .from('associados')
-        .select('*')
-        .eq('ativo', true)
-        .order('nome');
-
-      if (!assocError && assocData) setAssociados(assocData);
-
-      const { data: repasseData, error: repasseError } = await supabase
-        .from('repasses_associados')
-        .select('*')
-        .order('mes', { ascending: false });
-
-      if (!repasseError && repasseData) setRepasses(repasseData);
-
-      setLoadingAssociados(false);
-    };
-
-    fetchAssociados();
+    supabase.from('associados').select('*').eq('ativo', true).order('nome')
+      .then(({ data, error }) => { if (!error && data) setAssociados(data); });
   }, []);
+
+  // Repasses obedecem o seletor de mês global (repasses_associados.mes, formato "AAAA-MM")
+  useEffect(() => {
+    setLoadingAssociados(true);
+    supabase.from('repasses_associados').select('*').eq('mes', shared.mesGlobal).order('criado_em', { ascending: false })
+      .then(({ data, error }) => {
+        if (!error && data) setRepasses(data);
+        setLoadingAssociados(false);
+      });
+  }, [shared.mesGlobal]);
 
   const salvarAssociado = async (associado) => {
     if (associado.id) {
@@ -1467,7 +1458,7 @@ const AssociatesTab = () => {
         </div>
       </Card>
 
-      <Card title="Simulador de Repasse — Registro de Atendimentos">
+      <Card title={`Simulador de Repasse — ${getPeriodoDoMes(shared.mesGlobal).mesExtenso} ${getPeriodoDoMes(shared.mesGlobal).ano}`}>
         <div style={{ fontSize: 11, color: "#999", marginBottom: 12 }}>
           Dados reais da tabela de repasses (Supabase). O split por linha usa o percentual (split_percentual) já salvo em cada repasse.
         </div>
@@ -1529,7 +1520,7 @@ const AssociatesTab = () => {
       </Card>
 
       {/* RESUMO POR ASSOCIADO */}
-      <Card title="Resumo Mensal por Associado">
+      <Card title={`Resumo Mensal por Associado — ${getPeriodoDoMes(shared.mesGlobal).mesExtenso} ${getPeriodoDoMes(shared.mesGlobal).ano}`}>
         <div style={{ display: "flex", background: DARK, borderRadius: "8px 8px 0 0", padding: "10px 0" }}>
           {["ASSOCIADO", "ATENDIMENTOS", "FAT. BRUTO", "REPASSE ASSOCIADO", "RECEITA LEVVAI", "SPLIT MÉDIO", "NF", "PAGO"].map((h, i) => (
             <div key={i} style={{ flex: i === 0 ? 1.5 : 1, textAlign: "center", fontSize: 9, fontWeight: 700, color: GOLD, letterSpacing: "0.05em" }}>{h}</div>
@@ -2549,6 +2540,9 @@ const StockTab = ({ shared }) => {
     estoqueMin: p.estoque_min ?? p.estoqueMin ?? 3,
   });
 
+  // TODO: conectar ao Supabase por mês para obedecer o seletor global
+  // (estoque/preço são contagem/valor ATUAIS do produto — sem dimensão de mês;
+  // já o histórico de movimentações abaixo é real e filtrável por data, se necessário no futuro)
   useEffect(() => {
     supabase.from('produtos').select('*').eq('ativo', true).order('cat')
       .then(({ data }) => {
@@ -5976,17 +5970,23 @@ const ExecutiveTab = ({ shared }) => {
   const [catalogoDesconto, setCatalogoDesconto] = useState([]);
   const [loadingDescontos, setLoadingDescontos] = useState(true);
 
+  // Descontos Concedidos obedece o seletor de mês global (tratamentos.data)
   useEffect(() => {
+    setLoadingDescontos(true);
+    const { inicio, fim } = getIntervaloDoMes(shared.mesGlobal);
     Promise.all([
-      supabase.from('tratamentos').select('procedimento,valor,desconto,desconto_tipo'),
+      supabase.from('tratamentos').select('procedimento,valor,desconto,desconto_tipo,data').gte('data', inicio).lte('data', fim),
       supabase.from('produtos').select('nome,custo_un').eq('ativo', true),
     ]).then(([tratRes, prodRes]) => {
       setTratamentosDesconto(Array.isArray(tratRes.data) ? tratRes.data : []);
       setCatalogoDesconto(Array.isArray(prodRes.data) ? prodRes.data : []);
       setLoadingDescontos(false);
     });
-  }, []);
+  }, [shared.mesGlobal]);
 
+  // TODO: conectar ao Supabase por mês para obedecer o seletor global
+  // (monthlyData é preenchido manualmente por Sylmara; TrendCharts, Mix de Procedimentos,
+  // OKRs e Alertas abaixo são mockados — ver diagnóstico da fase anterior)
   const [monthlyData, setMonthlyData] = useState([
     { mes: "Jan/26", fat: 22000, pac: 12, ticket: 1833, seg: 180, posts: 5, nps: null, ocupacao: null },
     { mes: "Fev/26", fat: 28000, pac: 15, ticket: 1867, seg: 210, posts: 8, nps: null, ocupacao: null },
@@ -6191,6 +6191,7 @@ const ExecutiveTab = ({ shared }) => {
       </Card>
 
       {/* PROCEDURE MIX */}
+      {/* TODO: conectar ao Supabase por mês para obedecer o seletor global (mockado) */}
       <Card title="Mix de Procedimentos — Quais protocolos mais faturam?">
         {[
           { proc: "Harmonização Facial", pct: 30, valor: "~R$10K", color: "#E91E63" },
@@ -6212,7 +6213,7 @@ const ExecutiveTab = ({ shared }) => {
       </Card>
 
       {/* DESCONTOS CONCEDIDOS */}
-      <Card title="Descontos Concedidos">
+      <Card title={`Descontos Concedidos — ${getPeriodoDoMes(shared.mesGlobal).mesExtenso} ${getPeriodoDoMes(shared.mesGlobal).ano}`}>
         {loadingDescontos ? (
           <div style={{ textAlign: "center", padding: 20, color: "#aaa" }}>Carregando...</div>
         ) : tratamentosDesconto.length === 0 ? (
@@ -6249,6 +6250,7 @@ const ExecutiveTab = ({ shared }) => {
 
       {/* OKRs */}
       {/* TREND LINES — VISÃO BOARD */}
+      {/* TODO: conectar ao Supabase por mês para obedecer o seletor global (mockado) */}
       <div className="grid-2" style={{ gap: 12, marginBottom: 16 }}>
         <TrendChart title="Evolução faturamento (R$ mil)" color="#4CAF50" target={60} unit="K"
           data={[{label:"Jan",value:25},{label:"Fev",value:30},{label:"Mar",value:35},{label:"Abr",value:40},{label:"Mai",value:50,projected:true},{label:"Jun",value:60,projected:true}]} />
@@ -6284,6 +6286,7 @@ const ExecutiveTab = ({ shared }) => {
       </Card>
 
       {/* ALERTAS */}
+      {/* TODO: conectar ao Supabase por mês para obedecer o seletor global (mockado) */}
       <Card title="Alertas Críticos">
         {[
           { level: "CRÍTICO", item: "Tirzepatida — resolver habilitação com Luciano", color: "#FFCDD2" },
@@ -6303,14 +6306,11 @@ const ExecutiveTab = ({ shared }) => {
 };
 
 // FLUXO DE CAIXA TAB
-const CashflowTab = () => {
+const CashflowTab = ({ shared }) => {
   // Estado — Fluxo de Caixa
   const [fluxoCaixa, setFluxoCaixa] = useState([]);
   const [loadingFluxo, setLoadingFluxo] = useState(true);
-  const [mesSelecionado, setMesSelecionado] = useState(() => {
-    const hoje = new Date();
-    return `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`;
-  });
+  const mesSelecionado = shared.mesGlobal; // navegação própria substituída pelo seletor de mês global do header
 
   useEffect(() => {
     fetchFluxoCaixa();
@@ -6318,10 +6318,8 @@ const CashflowTab = () => {
 
   const fetchFluxoCaixa = async () => {
     setLoadingFluxo(true);
+    const { inicio, fim } = getIntervaloDoMes(mesSelecionado);
     const [ano, mes] = mesSelecionado.split('-').map(Number);
-    const inicio = `${ano}-${String(mes).padStart(2, '0')}-01`;
-    const ultimoDia = new Date(ano, mes, 0).getDate();
-    const fim = `${ano}-${String(mes).padStart(2, '0')}-${ultimoDia}`;
 
     const { data, error } = await supabase
       .from('fluxo_caixa')
@@ -6501,8 +6499,8 @@ const CashflowTab = () => {
         <Metric label="Saldo" value={fmt(saldo)} color={saldo >= 0 ? "#2E7D32" : "#B71C1C"} sub={saldo >= 0 ? "positivo" : "NEGATIVO — atenção"} />
         <div style={{ display: "flex", alignItems: "center", gap: 8, background: "white", border: "1px solid #E8E4DE", borderRadius: 10, padding: "10px 14px" }}>
           <span style={{ fontSize: 11, color: "#888" }}>Mês:</span>
-          <input type="month" value={mesSelecionado} onChange={e => setMesSelecionado(e.target.value)}
-            style={{ border: "1px solid #ddd", borderRadius: 6, padding: "4px 8px", fontSize: 12, fontFamily: "inherit", outline: "none" }} />
+          <span style={{ fontSize: 12, fontWeight: 700, color: DARK }}>{getPeriodoDoMes(mesSelecionado).mesExtenso} {getPeriodoDoMes(mesSelecionado).ano}</span>
+          <span style={{ fontSize: 10, color: "#bbb" }}>(seletor global no topo)</span>
         </div>
       </div>
 
@@ -7058,6 +7056,9 @@ const MarketingTab = () => {
     setEditingExpiry(false);
   };
 
+  // TODO: conectar ao Supabase por mês para obedecer o seletor global
+  // (Instagram é estado atual — perfil/posts recentes/últimos 30 dias corridos via Meta API —
+  // não um recorte por mês de calendário; ver diagnóstico da fase anterior)
   // AUTO-FETCH from Instagram API
   useEffect(() => {
     const fetchIG = async () => {
@@ -7083,6 +7084,9 @@ const MarketingTab = () => {
     return () => clearInterval(interval);
   }, []);
 
+  // TODO: conectar ao Supabase por mês para obedecer o seletor global
+  // (tracker local em memória, não persiste no Supabase — diferente de editorial_calendario;
+  // CAC/LTV/ROI por canal mais abaixo também são mockados)
   const [posts, setPosts] = useState([
     { id: 1, date: "14/04", type: "Reel", pilar: "Transformação", desc: "Harmonização antes/depois", likes: 45, comments: 8, saves: 12, shares: 3, reach: 890, engagement: "7.5%" },
     { id: 2, date: "12/04", type: "Carrossel", pilar: "Ciência", desc: "Profhilo vs Skinbooster", likes: 32, comments: 5, saves: 18, shares: 6, reach: 650, engagement: "9.4%" },
@@ -8215,10 +8219,17 @@ const [active, setActive] = useState("visao-geral");
     { nome: "Fernanda L.", tel: "(11) 99555-5555", origem: "Instagram", interesse: "Harmonização", status: "fidelizado", data: "01/03", obs: "3º procedimento. Indicou 2 amigas.", agendamento: null },
   ]);
   const [sharedSlots, setSharedSlots] = useState({});
+  const [mesGlobal, setMesGlobal] = useState(() => mesStringAtual());
 
   // Support both old IDs ("home", "crm") and new IDs ("visao-geral", "crm-leads")
   const navigateTo = (tabId) => { setActive(OLD_TO_NEW_ID[tabId] || tabId); };
-  const shared = { leads: sharedLeads, setLeads: setSharedLeads, slots: sharedSlots, setSlots: setSharedSlots, navigateTo, currentUserEmail: currentUser?.email || '' };
+  const mudarMesGlobal = (delta) => setMesGlobal(prev => mudarMesString(prev, delta));
+  const irParaMesAtual = () => setMesGlobal(mesStringAtual());
+  const periodoGlobalSelecionado = getPeriodoDoMes(mesGlobal);
+  const mesGlobalLabel = `${periodoGlobalSelecionado.mesExtenso} ${periodoGlobalSelecionado.ano}`;
+  const cicloGlobalLabel = getCicloLabel(new Date(periodoGlobalSelecionado.ano, periodoGlobalSelecionado.mesIndex, 1));
+  const isMesAtualGlobal = mesGlobal === mesStringAtual();
+  const shared = { leads: sharedLeads, setLeads: setSharedLeads, slots: sharedSlots, setSlots: setSharedSlots, navigateTo, currentUserEmail: currentUser?.email || '', mesGlobal };
   const oldId = NEW_TO_OLD_ID[active] || active;
   const Content = tabContent[oldId];
 
@@ -8319,10 +8330,15 @@ const [active, setActive] = useState("visao-geral");
       badges={badges}
       sector={breadcrumb.sector}
       tab={breadcrumb.label}
-      cycleLabel={getCicloLabel()}
+      cycleLabel={cicloGlobalLabel}
+      mesGlobalLabel={mesGlobalLabel}
+      onMesAnterior={() => mudarMesGlobal(-1)}
+      onMesProximo={() => mudarMesGlobal(1)}
+      onMesHoje={irParaMesAtual}
+      isMesAtual={isMesAtualGlobal}
     >
       {active === 'visao-geral' ? (
-        <VisaoGeral />
+        <VisaoGeral mesGlobal={mesGlobal} />
       ) : Content ? (
         <Content shared={shared} />
       ) : (

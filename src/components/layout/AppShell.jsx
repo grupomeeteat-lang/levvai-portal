@@ -9,6 +9,7 @@ import MobileNav from './MobileNav';
  * Props:
  *  - activeTab, onTabChange, user, onLogout, badges (passam pro Sidebar)
  *  - sector, tab, cycleLabel (passam pro Topbar)
+ *  - mesGlobalLabel, onMesAnterior, onMesProximo, onMesHoje, isMesAtual (seletor de mês global, passam pro Topbar)
  *  - children (conteúdo da página ativa)
  */
 export default function AppShell({
@@ -20,6 +21,11 @@ export default function AppShell({
   sector,
   tab,
   cycleLabel,
+  mesGlobalLabel,
+  onMesAnterior,
+  onMesProximo,
+  onMesHoje,
+  isMesAtual,
   children,
 }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -38,6 +44,11 @@ export default function AppShell({
           sector={sector}
           tab={tab}
           cycleLabel={cycleLabel}
+          mesGlobalLabel={mesGlobalLabel}
+          onMesAnterior={onMesAnterior}
+          onMesProximo={onMesProximo}
+          onMesHoje={onMesHoje}
+          isMesAtual={isMesAtual}
           menuOpen={mobileMenuOpen}
           onToggleMenu={() => setMobileMenuOpen((o) => !o)}
         />

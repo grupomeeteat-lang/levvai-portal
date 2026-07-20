@@ -330,6 +330,65 @@ ul { list-style: none; }
   background: var(--success);
   box-shadow: 0 0 0 3px rgba(91, 140, 95, 0.2);
 }
+
+/* SELETOR DE MÊS GLOBAL */
+.month-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 6px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+.month-picker-btn {
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: var(--muted);
+  font-size: 13px;
+  flex-shrink: 0;
+  transition: all 0.15s;
+}
+.month-picker-btn:hover { background: var(--bg-hover); color: var(--ink); }
+.month-picker-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 8px;
+  white-space: nowrap;
+}
+.month-picker-text { display: flex; flex-direction: column; line-height: 1.25; }
+.month-picker-text strong {
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.month-picker-text span {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+.month-picker-hoje {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--gold-deep);
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: rgba(201, 168, 118, 0.12);
+  margin-left: 2px;
+  white-space: nowrap;
+  transition: all 0.15s;
+}
+.month-picker-hoje:hover { background: rgba(201, 168, 118, 0.22); }
 .topbar-icon-btn {
   width: 36px;
   height: 36px;

@@ -2,18 +2,27 @@ import React from 'react';
 import { getCicloLabel } from '../../utils/periodo';
 
 /**
- * Topbar — barra superior com breadcrumb, busca e ações
+ * Topbar — barra superior com breadcrumb, busca, seletor de mês global e ações
  *
  * Props:
  *  - sector: string (ex: "Estratégia")
  *  - tab: string (ex: "Visão Geral")
- *  - cycleLabel: string (ex: "Ciclo Q3 · Jul 26") — default calculado da data atual
+ *  - cycleLabel: string (ex: "Ciclo Q3 · Jul 26") — reflete o mês SELECIONADO, não o atual
+ *  - mesGlobalLabel: string (ex: "Julho 2026") — mês selecionado por extenso
+ *  - onMesAnterior, onMesProximo: () => void — navegação do seletor
+ *  - onMesHoje: () => void — volta pro mês atual
+ *  - isMesAtual: boolean — esconde o atalho "hoje" quando já estiver no mês atual
  *  - onSearch: (query) => void (opcional)
  */
 export default function Topbar({
   sector = 'Estratégia',
   tab = 'Visão Geral',
   cycleLabel = getCicloLabel(),
+  mesGlobalLabel,
+  onMesAnterior = () => {},
+  onMesProximo = () => {},
+  onMesHoje = () => {},
+  isMesAtual = true,
   onSearch = () => {},
   menuOpen = false,
   onToggleMenu = () => {},
@@ -50,9 +59,19 @@ export default function Topbar({
       </div>
 
       <div className="topbar-right">
-        <div className="topbar-pill hidden-mobile">
-          <span className="topbar-pill-dot"></span>
-          <span>{cycleLabel}</span>
+        <div className="month-picker hidden-mobile">
+          <button type="button" className="month-picker-btn" onClick={onMesAnterior} aria-label="Mês anterior">‹</button>
+          <div className="month-picker-label">
+            <span className="topbar-pill-dot"></span>
+            <div className="month-picker-text">
+              <strong>{mesGlobalLabel}</strong>
+              <span>{cycleLabel}</span>
+            </div>
+          </div>
+          <button type="button" className="month-picker-btn" onClick={onMesProximo} aria-label="Próximo mês">›</button>
+          {!isMesAtual && (
+            <button type="button" className="month-picker-hoje" onClick={onMesHoje}>hoje</button>
+          )}
         </div>
         <button className="topbar-icon-btn" aria-label="Notificações">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
