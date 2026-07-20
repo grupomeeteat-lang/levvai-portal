@@ -791,7 +791,9 @@ const FINANCE_EMPTY = { tipo:"Protocolo", cat:"Toxina", nome:"", protocolo:"", r
 const finLbl = { fontSize:9, fontWeight:700, color:"#999", marginBottom:2, letterSpacing:"0.05em" };
 const finInp = { width:"100%", padding:"6px 8px", border:"1px solid #ddd", borderRadius:6, fontSize:12, fontFamily:"inherit", outline:"none", boxSizing:"border-box" };
 
-const CatalogForm = ({ form, set }) => (
+const CatalogForm = ({ form, set }) => {
+  const [novaCat, setNovaCat] = useState(() => !!form.cat && !FINANCE_CATS.includes(form.cat));
+  return (
   <div>
     <div style={{ display:"flex", gap:10, marginBottom:10, flexWrap:"wrap" }}>
       <div style={{ flex:"0 0 110px" }}>
@@ -803,8 +805,18 @@ const CatalogForm = ({ form, set }) => (
       </div>
       <div style={{ flex:"0 0 140px" }}>
         <div style={finLbl}>CATEGORIA</div>
-        <input list="fin-cats" value={form.cat} onChange={e => set({...form, cat:e.target.value})} style={finInp} />
-        <datalist id="fin-cats">{FINANCE_CATS.map(c => <option key={c} value={c} />)}</datalist>
+        {novaCat ? (
+          <input value={form.cat} onChange={e => set({...form, cat:e.target.value})} placeholder="Nome da nova categoria" autoFocus style={finInp} />
+        ) : (
+          <select value={FINANCE_CATS.includes(form.cat) ? form.cat : ""} onChange={e => {
+            if (e.target.value === "__nova__") { setNovaCat(true); set({...form, cat:""}); }
+            else set({...form, cat:e.target.value});
+          }} style={finInp}>
+            <option value="" disabled>Selecione...</option>
+            {FINANCE_CATS.map(c => <option key={c} value={c}>{c}</option>)}
+            <option value="__nova__">+ Nova categoria...</option>
+          </select>
+        )}
       </div>
       <div style={{ flex:"1 1 180px" }}>
         <div style={finLbl}>NOME *</div>
@@ -848,7 +860,8 @@ const CatalogForm = ({ form, set }) => (
       <input value={form.obs} onChange={e => set({...form, obs:e.target.value})} placeholder="Fornecedor, armazenamento, validade..." style={finInp} />
     </div>
   </div>
-);
+  );
+};
 
 const FinanceTab = () => {
   const [filter, setFilter] = useState("TODOS");
@@ -1028,7 +1041,7 @@ const FinanceTab = () => {
                     textColor={p.tipo === "Protocolo" ? "#283593" : "#F57F17"} />
                 </div>
                 <div style={{ flex: 0.8, textAlign: "center" }}>
-                  <Badge text={p.cat} color={catColors[p.cat] || "#eee"} textColor="#555" />
+                  <Badge text={p.cat} color={catColors[p.cat] || "#F5F0E8"} textColor="#555" />
                 </div>
                 <div style={{ flex: 1.2, fontSize: 12, fontWeight: 700, padding: "0 4px" }}>{p.nome}</div>
                 <div style={{ flex: 1.2, fontSize: 11, color: "#777", padding: "0 4px" }}>{p.protocolo}</div>
