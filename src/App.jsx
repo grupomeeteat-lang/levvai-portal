@@ -3433,7 +3433,7 @@ const FichaPaciente = ({ paciente, onClose, onUpdate }) => {
   const [saving, setSaving] = useState(false);
   const [showForm, setShowForm] = useState(false);
 
-  const [newTrat, setNewTrat] = useState({ data: today(), horario: '09:00', procedimento: '', produto: '', regiao: '', sessao: 1, total_sessoes: 1, profissional: 'Lara', valor: '', desconto: 0, descontoTipo: '%', observacoes: '', status: 'pendente', forma_pagamento: 'pix', status_pagamento: 'pendente', data_pagamento: '' });
+  const [newTrat, setNewTrat] = useState({ data: today(), horario: '09:00', procedimento: '', produto: '', regiao: '', sessao: 1, total_sessoes: 1, profissional: 'Lara', valor: '', desconto: 0, desconto_tipo: 'percentual', observacoes: '', status: 'pendente', forma_pagamento: 'pix', status_pagamento: 'pendente', data_pagamento: '' });
   const [newPront, setNewPront] = useState({ data: today(), titulo: '', conteudo: '', profissional: 'Lara' });
   const [newObs, setNewObs] = useState({ data: today(), conteudo: '', autor: 'Sirlândia', tipo: 'geral' });
   const [newProp, setNewProp] = useState({ data: today(), titulo: '', itens: [], valor_total: '', desconto: 0, parcelas: 1, observacoes: '', status: 'rascunho' });
@@ -3512,15 +3512,14 @@ const FichaPaciente = ({ paciente, onClose, onUpdate }) => {
   };
 
   const salvarTratamentoComProntuario = async () => {
-    const { desconto, descontoTipo, ...tratPayload } = newTrat;
-    const { data: novoTratamento, error } = await supabase.from('tratamentos').insert({ ...tratPayload, paciente_id: paciente.id }).select().single();
+    const { data: novoTratamento, error } = await supabase.from('tratamentos').insert({ ...newTrat, paciente_id: paciente.id }).select().single();
     if (error) return;
     setTratamentos(prev => [novoTratamento, ...prev]);
     if (comProntuario && newProntuarioInline.titulo) {
       const { data: novoPront } = await supabase.from('prontuarios').insert({ paciente_id: paciente.id, data: newTrat.data, titulo: newProntuarioInline.titulo, conteudo: newProntuarioInline.conteudo, profissional: newTrat.profissional }).select().single();
       if (novoPront) setProntuarios(prev => [novoPront, ...prev]);
     }
-    setNewTrat({ data: today(), horario: '09:00', procedimento: '', produto: '', regiao: '', sessao: 1, total_sessoes: 1, profissional: 'Lara', valor: '', observacoes: '', status: 'pendente', forma_pagamento: 'pix', status_pagamento: 'pendente', data_pagamento: '' });
+    setNewTrat({ data: today(), horario: '09:00', procedimento: '', produto: '', regiao: '', sessao: 1, total_sessoes: 1, profissional: 'Lara', valor: '', desconto: 0, desconto_tipo: 'percentual', observacoes: '', status: 'pendente', forma_pagamento: 'pix', status_pagamento: 'pendente', data_pagamento: '' });
     setComProntuario(false);
     setNewProntuarioInline({ titulo: '', conteudo: '' });
     setShowForm(false);
@@ -3555,8 +3554,7 @@ const FichaPaciente = ({ paciente, onClose, onUpdate }) => {
   };
 
   const atualizarTratamento = async () => {
-    const { desconto, descontoTipo, ...tratUpdatePayload } = editTratForm;
-    const { data, error } = await supabase.from('tratamentos').update(tratUpdatePayload).eq('id', editingTrat).select().single();
+    const { data, error } = await supabase.from('tratamentos').update(editTratForm).eq('id', editingTrat).select().single();
     if (!error && data) {
       const fluxoUpdate = {};
       if (editTratForm.valor !== undefined) fluxoUpdate.valor = editTratForm.valor;
@@ -3589,7 +3587,7 @@ const FichaPaciente = ({ paciente, onClose, onUpdate }) => {
   const tratCatalogProduto = produtosDB.find(p => p.nome === newTrat.procedimento);
   const tratCustoUn = tratCatalogProduto ? Number(tratCatalogProduto.custo_un) || 0 : 0;
   const tratPrecoCatalogo = tratCatalogProduto ? Number(tratCatalogProduto.preco_sugerido) || 0 : 0;
-  const tratDescontoVal = newTrat.descontoTipo === '%' ? tratPrecoCatalogo * (Number(newTrat.desconto || 0) / 100) : Number(newTrat.desconto || 0);
+  const tratDescontoVal = newTrat.desconto_tipo === 'percentual' ? tratPrecoCatalogo * (Number(newTrat.desconto || 0) / 100) : Number(newTrat.desconto || 0);
   const tratPrecoFinal = Math.max(0, tratPrecoCatalogo - tratDescontoVal);
   const tratCmvPct = tratPrecoFinal > 0 ? (tratCustoUn / tratPrecoFinal * 100) : 0;
   const tratMargemPct = tratPrecoFinal > 0 ? ((tratPrecoFinal - tratCustoUn) / tratPrecoFinal * 100) : 0;
@@ -3735,7 +3733,7 @@ const FichaPaciente = ({ paciente, onClose, onUpdate }) => {
                       <div style={labelStyle}>PROCEDIMENTO</div>
                       <select value={newTrat.procedimento} onChange={e => {
                         const prod = produtosDB.find(p => p.nome === e.target.value);
-                        setNewTrat({ ...newTrat, procedimento: e.target.value, desconto: 0, descontoTipo: '%', valor: prod ? String(prod.preco_sugerido) : newTrat.valor });
+                        setNewTrat({ ...newTrat, procedimento: e.target.value, desconto: 0, desconto_tipo: 'percentual', valor: prod ? String(prod.preco_sugerido) : newTrat.valor });
                       }} style={inputStyle}>
                         <option value="">Selecione...</option>
                         {produtosDB.map(p => <option key={p.id} value={p.nome}>{p.nome}</option>)}
@@ -3791,16 +3789,16 @@ const FichaPaciente = ({ paciente, onClose, onUpdate }) => {
                           <div style={{ display: 'flex', gap: 4 }}>
                             <input type="number" value={newTrat.desconto} onChange={e => {
                               const desconto = e.target.value;
-                              const descVal = newTrat.descontoTipo === '%' ? tratPrecoCatalogo * (Number(desconto || 0) / 100) : Number(desconto || 0);
+                              const descVal = newTrat.desconto_tipo === 'percentual' ? tratPrecoCatalogo * (Number(desconto || 0) / 100) : Number(desconto || 0);
                               setNewTrat({ ...newTrat, desconto, valor: String(Math.max(0, Math.round(tratPrecoCatalogo - descVal))) });
                             }} style={{ ...inputStyle, flex: 1 }} />
-                            <select value={newTrat.descontoTipo} onChange={e => {
-                              const descontoTipo = e.target.value;
-                              const descVal = descontoTipo === '%' ? tratPrecoCatalogo * (Number(newTrat.desconto || 0) / 100) : Number(newTrat.desconto || 0);
-                              setNewTrat({ ...newTrat, descontoTipo, valor: String(Math.max(0, Math.round(tratPrecoCatalogo - descVal))) });
+                            <select value={newTrat.desconto_tipo} onChange={e => {
+                              const desconto_tipo = e.target.value;
+                              const descVal = desconto_tipo === 'percentual' ? tratPrecoCatalogo * (Number(newTrat.desconto || 0) / 100) : Number(newTrat.desconto || 0);
+                              setNewTrat({ ...newTrat, desconto_tipo, valor: String(Math.max(0, Math.round(tratPrecoCatalogo - descVal))) });
                             }} style={{ ...inputStyle, flex: '0 0 56px', padding: '7px 4px', textAlign: 'center' }}>
-                              <option value="%">%</option>
-                              <option value="R$">R$</option>
+                              <option value="percentual">%</option>
+                              <option value="valor">R$</option>
                             </select>
                           </div>
                         </div>
@@ -3854,9 +3852,9 @@ const FichaPaciente = ({ paciente, onClose, onUpdate }) => {
                       const efCatalogProduto = produtosDB.find(p => p.nome === ef.procedimento);
                       const efCustoUn = efCatalogProduto ? Number(efCatalogProduto.custo_un) || 0 : 0;
                       const efPrecoCatalogo = efCatalogProduto ? Number(efCatalogProduto.preco_sugerido) || 0 : 0;
-                      const efDescontoTipo = ef.descontoTipo || '%';
+                      const efDescontoTipo = ef.desconto_tipo || 'percentual';
                       const efDesconto = ef.desconto || 0;
-                      const efDescontoVal = efDescontoTipo === '%' ? efPrecoCatalogo * (Number(efDesconto) / 100) : Number(efDesconto);
+                      const efDescontoVal = efDescontoTipo === 'percentual' ? efPrecoCatalogo * (Number(efDesconto) / 100) : Number(efDesconto);
                       const efPrecoFinal = Math.max(0, efPrecoCatalogo - efDescontoVal);
                       const efCmvPct = efPrecoFinal > 0 ? (efCustoUn / efPrecoFinal * 100) : 0;
                       const efMargemPct = efPrecoFinal > 0 ? ((efPrecoFinal - efCustoUn) / efPrecoFinal * 100) : 0;
@@ -3869,7 +3867,7 @@ const FichaPaciente = ({ paciente, onClose, onUpdate }) => {
                               <div style={labelStyle}>PROCEDIMENTO</div>
                               <select value={ef.procedimento || ''} onChange={e => {
                                 const prod = produtosDB.find(p => p.nome === e.target.value);
-                                setEf({ procedimento: e.target.value, desconto: 0, descontoTipo: '%', valor: prod ? String(prod.preco_sugerido) : ef.valor });
+                                setEf({ procedimento: e.target.value, desconto: 0, desconto_tipo: 'percentual', valor: prod ? String(prod.preco_sugerido) : ef.valor });
                               }} style={inputStyle}>
                                 <option value="">Selecione...</option>
                                 {produtosDB.map(p => <option key={p.id} value={p.nome}>{p.nome}</option>)}
@@ -3929,16 +3927,16 @@ const FichaPaciente = ({ paciente, onClose, onUpdate }) => {
                                   <div style={{ display: 'flex', gap: 4 }}>
                                     <input type="number" value={efDesconto} onChange={e => {
                                       const desconto = e.target.value;
-                                      const descVal = efDescontoTipo === '%' ? efPrecoCatalogo * (Number(desconto || 0) / 100) : Number(desconto || 0);
+                                      const descVal = efDescontoTipo === 'percentual' ? efPrecoCatalogo * (Number(desconto || 0) / 100) : Number(desconto || 0);
                                       setEf({ desconto, valor: String(Math.max(0, Math.round(efPrecoCatalogo - descVal))) });
                                     }} style={{ ...inputStyle, flex: 1 }} />
                                     <select value={efDescontoTipo} onChange={e => {
-                                      const descontoTipo = e.target.value;
-                                      const descVal = descontoTipo === '%' ? efPrecoCatalogo * (Number(efDesconto) / 100) : Number(efDesconto);
-                                      setEf({ descontoTipo, valor: String(Math.max(0, Math.round(efPrecoCatalogo - descVal))) });
+                                      const desconto_tipo = e.target.value;
+                                      const descVal = desconto_tipo === 'percentual' ? efPrecoCatalogo * (Number(efDesconto) / 100) : Number(efDesconto);
+                                      setEf({ desconto_tipo, valor: String(Math.max(0, Math.round(efPrecoCatalogo - descVal))) });
                                     }} style={{ ...inputStyle, flex: '0 0 56px', padding: '7px 4px', textAlign: 'center' }}>
-                                      <option value="%">%</option>
-                                      <option value="R$">R$</option>
+                                      <option value="percentual">%</option>
+                                      <option value="valor">R$</option>
                                     </select>
                                   </div>
                                 </div>
@@ -5750,6 +5748,21 @@ const ExecutiveTab = ({ shared }) => {
   const converted = leads.filter(l => ["atendido","retorno","fidelizado"].includes(l.status)).length;
   const convRate = totalLeads > 0 ? Math.round(converted / totalLeads * 100) : 0;
 
+  const [tratamentosDesconto, setTratamentosDesconto] = useState([]);
+  const [catalogoDesconto, setCatalogoDesconto] = useState([]);
+  const [loadingDescontos, setLoadingDescontos] = useState(true);
+
+  useEffect(() => {
+    Promise.all([
+      supabase.from('tratamentos').select('procedimento,valor,desconto,desconto_tipo'),
+      supabase.from('produtos').select('nome,custo_un').eq('ativo', true),
+    ]).then(([tratRes, prodRes]) => {
+      setTratamentosDesconto(Array.isArray(tratRes.data) ? tratRes.data : []);
+      setCatalogoDesconto(Array.isArray(prodRes.data) ? prodRes.data : []);
+      setLoadingDescontos(false);
+    });
+  }, []);
+
   const [monthlyData, setMonthlyData] = useState([
     { mes: "Jan/26", fat: 22000, pac: 12, ticket: 1833, seg: 180, posts: 5, nps: null, ocupacao: null },
     { mes: "Fev/26", fat: 28000, pac: 15, ticket: 1867, seg: 210, posts: 8, nps: null, ocupacao: null },
@@ -5783,6 +5796,51 @@ const ExecutiveTab = ({ shared }) => {
   const fatTrend = trend(monthlyData, "fat");
   const pacTrend = trend(monthlyData, "pac");
   const segTrend = trend(monthlyData, "seg");
+
+  const fmtBRL = (v) => `R$ ${Math.round(v).toLocaleString('pt-BR')}`;
+  const custoPorProcedimento = {};
+  catalogoDesconto.forEach(p => { custoPorProcedimento[p.nome] = Number(p.custo_un) || 0; });
+
+  const discPct = (t) => {
+    const desc = Number(t.desconto) || 0;
+    if (desc <= 0) return 0;
+    if (t.desconto_tipo === 'valor') {
+      const original = Number(t.valor) + desc;
+      return original > 0 ? (desc / original * 100) : 0;
+    }
+    return desc;
+  };
+  const discReais = (t) => {
+    const desc = Number(t.desconto) || 0;
+    if (desc <= 0) return 0;
+    if (t.desconto_tipo === 'valor') return desc;
+    return desc < 100 ? (Number(t.valor) * desc / (100 - desc)) : 0;
+  };
+
+  const tratamentosComDesconto = tratamentosDesconto.filter(t => Number(t.desconto) > 0);
+  const tratamentosSemDesconto = tratamentosDesconto.filter(t => !(Number(t.desconto) > 0));
+  const descontoMedioPct = tratamentosComDesconto.length > 0
+    ? tratamentosComDesconto.reduce((a, t) => a + discPct(t), 0) / tratamentosComDesconto.length
+    : 0;
+  const totalDescontoReais = tratamentosComDesconto.reduce((a, t) => a + discReais(t), 0);
+
+  const rankingDescontos = Object.values(
+    tratamentosComDesconto.reduce((acc, t) => {
+      const key = t.procedimento || 'Outro';
+      if (!acc[key]) acc[key] = { procedimento: key, qtd: 0, totalDesconto: 0, somaMargem: 0, margemCount: 0 };
+      acc[key].qtd += 1;
+      acc[key].totalDesconto += discReais(t);
+      const valor = Number(t.valor) || 0;
+      const custo = custoPorProcedimento[key];
+      if (valor > 0 && custo !== undefined) {
+        acc[key].somaMargem += (valor - custo) / valor * 100;
+        acc[key].margemCount += 1;
+      }
+      return acc;
+    }, {})
+  ).map(r => ({ ...r, margemMedia: r.margemCount > 0 ? r.somaMargem / r.margemCount : null }))
+    .sort((a, b) => b.totalDesconto - a.totalDesconto)
+    .slice(0, 5);
 
   return (
     <div>
@@ -5927,6 +5985,42 @@ const ExecutiveTab = ({ shared }) => {
             <div style={{ width: 60, fontSize: 11, color: "#888", textAlign: "right" }}>{p.valor}</div>
           </div>
         ))}
+      </Card>
+
+      {/* DESCONTOS CONCEDIDOS */}
+      <Card title="Descontos Concedidos">
+        {loadingDescontos ? (
+          <div style={{ textAlign: "center", padding: 20, color: "#aaa" }}>Carregando...</div>
+        ) : tratamentosDesconto.length === 0 ? (
+          <div style={{ textAlign: "center", padding: 20, color: "#ccc", fontSize: 13 }}>Nenhum tratamento registrado ainda.</div>
+        ) : (
+          <div>
+            <div className="metric-row" style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 16 }}>
+              <Metric label="Desconto Médio" value={`${descontoMedioPct.toFixed(1)}%`} sub={`${tratamentosComDesconto.length} tratamento(s) com desconto`} color={descontoMedioPct >= 20 ? "#B71C1C" : "#2E7D32"} />
+              <Metric label="Total em Descontos" value={fmtBRL(totalDescontoReais)} sub="soma no período" color="#B71C1C" />
+              <Metric label="Com Desconto" value={tratamentosComDesconto.length} sub={`de ${tratamentosDesconto.length} tratamentos`} />
+              <Metric label="Sem Desconto" value={tratamentosSemDesconto.length} sub={`${tratamentosDesconto.length > 0 ? Math.round(tratamentosSemDesconto.length / tratamentosDesconto.length * 100) : 0}% do total`} color="#2E7D32" />
+            </div>
+
+            {rankingDescontos.length > 0 && (
+              <div>
+                <div style={{ fontSize: 10, fontWeight: 700, color: GOLD, marginBottom: 8, letterSpacing: "0.05em" }}>PROCEDIMENTOS COM MAIS DESCONTO</div>
+                {rankingDescontos.map((r, i) => (
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 0", borderBottom: "1px solid #f0ece6" }}>
+                    <div style={{ flex: 1, fontSize: 12, fontWeight: 600 }}>{r.procedimento}</div>
+                    <div style={{ fontSize: 11, color: "#888" }}>{r.qtd}x</div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: "#B71C1C", width: 90, textAlign: "right" }}>{fmtBRL(r.totalDesconto)}</div>
+                    {r.margemMedia !== null && (
+                      <Badge text={`Margem ${r.margemMedia.toFixed(0)}%`}
+                        color={r.margemMedia < 30 ? "#FFEBEE" : "#E8F5E9"}
+                        textColor={r.margemMedia < 30 ? "#B71C1C" : "#2E7D32"} />
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </Card>
 
       {/* OKRs */}
