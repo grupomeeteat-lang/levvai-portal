@@ -3443,6 +3443,8 @@ const FichaPaciente = ({ paciente, onClose, onUpdate }) => {
   const [convertForm, setConvertForm] = useState({ procedimento: '', valor: '', forma_pagamento: 'pix', status_pagamento: 'pendente', data_pagamento: '', observacoes: '' });
   const [editingTrat, setEditingTrat] = useState(null);
   const [editTratForm, setEditTratForm] = useState({});
+  const [tratsParaSalvar, setTratsParaSalvar] = useState([]);
+  const [salvandoLote, setSalvandoLote] = useState(false);
 
   const loadSub = async (resource, setter) => {
     const { data } = await supabase.from(resource).select('*').eq('paciente_id', paciente.id).order('data', { ascending: false });
@@ -3511,18 +3513,43 @@ const FichaPaciente = ({ paciente, onClose, onUpdate }) => {
     setter(prev => prev.filter(i => i.id !== id));
   };
 
-  const salvarTratamentoComProntuario = async () => {
-    const { data: novoTratamento, error } = await supabase.from('tratamentos').insert({ ...newTrat, paciente_id: paciente.id }).select().single();
-    if (error) return;
-    setTratamentos(prev => [novoTratamento, ...prev]);
-    if (comProntuario && newProntuarioInline.titulo) {
-      const { data: novoPront } = await supabase.from('prontuarios').insert({ paciente_id: paciente.id, data: newTrat.data, titulo: newProntuarioInline.titulo, conteudo: newProntuarioInline.conteudo, profissional: newTrat.profissional }).select().single();
-      if (novoPront) setProntuarios(prev => [novoPront, ...prev]);
+  const tratamentoLimpo = (data) => ({ data, horario: '09:00', procedimento: '', produto: '', regiao: '', sessao: 1, total_sessoes: 1, profissional: 'Lara', valor: '', desconto: 0, desconto_tipo: 'percentual', observacoes: '', status: 'pendente', forma_pagamento: 'pix', status_pagamento: 'pendente', data_pagamento: '' });
+
+  const adicionarTratamentoALista = () => {
+    if (!newTrat.procedimento || !newTrat.valor) return;
+    setTratsParaSalvar(prev => [...prev, { ...newTrat, _prontuario: comProntuario && newProntuarioInline.titulo ? { ...newProntuarioInline } : null }]);
+    setNewTrat(tratamentoLimpo(newTrat.data));
+    setComProntuario(false);
+    setNewProntuarioInline({ titulo: '', conteudo: '' });
+  };
+
+  const salvarTodosTratamentos = async () => {
+    let lista = tratsParaSalvar;
+    if (newTrat.procedimento && newTrat.valor) {
+      lista = [...lista, { ...newTrat, _prontuario: comProntuario && newProntuarioInline.titulo ? { ...newProntuarioInline } : null }];
     }
-    setNewTrat({ data: today(), horario: '09:00', procedimento: '', produto: '', regiao: '', sessao: 1, total_sessoes: 1, profissional: 'Lara', valor: '', desconto: 0, desconto_tipo: 'percentual', observacoes: '', status: 'pendente', forma_pagamento: 'pix', status_pagamento: 'pendente', data_pagamento: '' });
+    if (lista.length === 0) return;
+    setSalvandoLote(true);
+    const novosTratamentos = [];
+    const novosProntuarios = [];
+    for (const item of lista) {
+      const { _prontuario, ...tratPayload } = item;
+      const { data: novoTrat, error } = await supabase.from('tratamentos').insert({ ...tratPayload, paciente_id: paciente.id }).select().single();
+      if (error || !novoTrat) continue;
+      novosTratamentos.push(novoTrat);
+      if (_prontuario && _prontuario.titulo) {
+        const { data: novoPront } = await supabase.from('prontuarios').insert({ paciente_id: paciente.id, data: item.data, titulo: _prontuario.titulo, conteudo: _prontuario.conteudo, profissional: item.profissional }).select().single();
+        if (novoPront) novosProntuarios.push(novoPront);
+      }
+    }
+    if (novosTratamentos.length > 0) setTratamentos(prev => [...novosTratamentos, ...prev]);
+    if (novosProntuarios.length > 0) setProntuarios(prev => [...novosProntuarios, ...prev]);
+    setTratsParaSalvar([]);
+    setNewTrat(tratamentoLimpo(today()));
     setComProntuario(false);
     setNewProntuarioInline({ titulo: '', conteudo: '' });
     setShowForm(false);
+    setSalvandoLote(false);
   };
 
   const converterPropostaEmVenda = async () => {
@@ -3829,9 +3856,42 @@ const FichaPaciente = ({ paciente, onClose, onUpdate }) => {
                       <div><div style={labelStyle}>ANOTAÇÕES CLÍNICAS</div><textarea value={newProntuarioInline.conteudo} onChange={e => setNewProntuarioInline({ ...newProntuarioInline, conteudo: e.target.value })} rows={2} placeholder="Detalhes do procedimento, observações..." style={{ ...inputStyle, resize: 'vertical' }} /></div>
                     </div>
                   )}
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <button onClick={salvarTratamentoComProntuario} style={{ padding: '8px 20px', background: GOLD, color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>Salvar</button>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    <button onClick={adicionarTratamentoALista} style={{ padding: '8px 20px', background: 'white', color: GOLD, border: `1px solid ${GOLD}`, borderRadius: 8, fontWeight: 700, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>+ Adicionar à lista</button>
+                    <button onClick={salvarTodosTratamentos} disabled={salvandoLote} style={{ padding: '8px 20px', background: GOLD, color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', opacity: salvandoLote ? 0.7 : 1 }}>
+                      {salvandoLote ? 'Salvando...' : `Salvar todos (${tratsParaSalvar.length + (newTrat.procedimento && newTrat.valor ? 1 : 0)})`}
+                    </button>
                     <button onClick={() => setShowForm(false)} style={{ padding: '8px 14px', background: 'white', color: '#888', border: '1px solid #ddd', borderRadius: 8, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>Cancelar</button>
+                  </div>
+                </div>
+              )}
+
+              {tratsParaSalvar.length > 0 && (
+                <div style={{ background: '#FFF8F0', border: `1px solid ${GOLD}`, borderRadius: 10, padding: 14, marginBottom: 14 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: GOLD, marginBottom: 8, letterSpacing: '0.05em' }}>🛒 TRATAMENTOS NA LISTA ({tratsParaSalvar.length})</div>
+                  <div style={{ overflowX: 'auto' }}>
+                    <div style={{ minWidth: 480 }}>
+                      {tratsParaSalvar.map((t, idx) => (
+                        <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '1px solid #f0ece6' }}>
+                          <div style={{ flex: 2, fontSize: 12, fontWeight: 600 }}>{t.procedimento || '—'}</div>
+                          <div style={{ flex: 1, fontSize: 11, color: '#888' }}>{t.regiao || '—'}</div>
+                          <div style={{ flex: 1, fontSize: 11, color: '#888' }}>{t.profissional || '—'}</div>
+                          <div style={{ flex: 1, textAlign: 'right', fontSize: 12, fontWeight: 700, color: DARK }}>R${Number(t.valor || 0).toLocaleString('pt-BR')}</div>
+                          <div style={{ flex: '0 0 70px', textAlign: 'right', fontSize: 10, color: '#B71C1C' }}>{Number(t.desconto) > 0 ? `-${t.desconto}${t.desconto_tipo === 'percentual' ? '%' : ' R$'}` : ''}</div>
+                          <button onClick={() => setTratsParaSalvar(prev => prev.filter((_, i) => i !== idx))} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: '#ddd', fontFamily: 'inherit', flexShrink: 0 }}>✕ remover</button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, paddingTop: 10, marginTop: 4 }}>
+                    <span style={{ fontSize: 12, color: '#888' }}>
+                      {tratsParaSalvar.length} tratamento(s) · Total: <strong style={{ color: DARK }}>R${tratsParaSalvar.reduce((a, t) => a + (Number(t.valor) || 0), 0).toLocaleString('pt-BR')}</strong>
+                    </span>
+                    {!showForm && (
+                      <button onClick={salvarTodosTratamentos} disabled={salvandoLote} style={{ padding: '8px 20px', background: GOLD, color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', opacity: salvandoLote ? 0.7 : 1 }}>
+                        {salvandoLote ? 'Salvando...' : `Salvar todos (${tratsParaSalvar.length})`}
+                      </button>
+                    )}
                   </div>
                 </div>
               )}
