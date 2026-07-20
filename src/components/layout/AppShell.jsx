@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import Sidebar from './Sidebar';
 import Topbar from './Topbar';
+import MobileNav from './MobileNav';
 
 /**
  * AppShell — shell principal da aplicação
@@ -21,6 +22,8 @@ export default function AppShell({
   cycleLabel,
   children,
 }) {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
   return (
     <div className="app">
       <Sidebar
@@ -31,7 +34,22 @@ export default function AppShell({
         badges={badges}
       />
       <main className="main">
-        <Topbar sector={sector} tab={tab} cycleLabel={cycleLabel} />
+        <Topbar
+          sector={sector}
+          tab={tab}
+          cycleLabel={cycleLabel}
+          menuOpen={mobileMenuOpen}
+          onToggleMenu={() => setMobileMenuOpen((o) => !o)}
+        />
+        <MobileNav
+          open={mobileMenuOpen}
+          activeTab={activeTab}
+          onTabChange={onTabChange}
+          user={user}
+          onLogout={onLogout}
+          badges={badges}
+          onClose={() => setMobileMenuOpen(false)}
+        />
         <div className="content">{children}</div>
       </main>
     </div>

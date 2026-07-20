@@ -14,10 +14,20 @@ export default function Topbar({
   tab = 'Visão Geral',
   cycleLabel = 'Ciclo Q2 · Abr 26',
   onSearch = () => {},
+  menuOpen = false,
+  onToggleMenu = () => {},
 }) {
   return (
     <div className="topbar">
       <div className="topbar-left">
+        <button
+          type="button"
+          className="hamburger-btn"
+          onClick={onToggleMenu}
+          aria-label={menuOpen ? 'Fechar menu' : 'Abrir menu'}
+        >
+          {menuOpen ? '✕' : '☰'}
+        </button>
         <div className="topbar-breadcrumb">
           <span>{sector}</span>
           <span className="sep">/</span>

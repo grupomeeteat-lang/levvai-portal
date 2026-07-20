@@ -11,7 +11,7 @@ import React from 'react';
  *  - badges: { [tabId]: number } (opcional, ex: { "atas-acoes": 3, "crm-leads": 5 })
  */
 
-const SECTORS = [
+export const SECTORS = [
   {
     name: 'Estratégia',
     tabs: [
