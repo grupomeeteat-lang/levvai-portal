@@ -3512,7 +3512,8 @@ const FichaPaciente = ({ paciente, onClose, onUpdate }) => {
   };
 
   const salvarTratamentoComProntuario = async () => {
-    const { data: novoTratamento, error } = await supabase.from('tratamentos').insert({ ...newTrat, paciente_id: paciente.id }).select().single();
+    const { desconto, descontoTipo, ...tratPayload } = newTrat;
+    const { data: novoTratamento, error } = await supabase.from('tratamentos').insert({ ...tratPayload, paciente_id: paciente.id }).select().single();
     if (error) return;
     setTratamentos(prev => [novoTratamento, ...prev]);
     if (comProntuario && newProntuarioInline.titulo) {
@@ -3554,7 +3555,8 @@ const FichaPaciente = ({ paciente, onClose, onUpdate }) => {
   };
 
   const atualizarTratamento = async () => {
-    const { data, error } = await supabase.from('tratamentos').update(editTratForm).eq('id', editingTrat).select().single();
+    const { desconto, descontoTipo, ...tratUpdatePayload } = editTratForm;
+    const { data, error } = await supabase.from('tratamentos').update(tratUpdatePayload).eq('id', editingTrat).select().single();
     if (!error && data) {
       const fluxoUpdate = {};
       if (editTratForm.valor !== undefined) fluxoUpdate.valor = editTratForm.valor;
@@ -3849,6 +3851,15 @@ const FichaPaciente = ({ paciente, onClose, onUpdate }) => {
                     if (editingTrat === t.id) {
                       const ef = editTratForm;
                       const setEf = patch => setEditTratForm(prev => ({ ...prev, ...patch }));
+                      const efCatalogProduto = produtosDB.find(p => p.nome === ef.procedimento);
+                      const efCustoUn = efCatalogProduto ? Number(efCatalogProduto.custo_un) || 0 : 0;
+                      const efPrecoCatalogo = efCatalogProduto ? Number(efCatalogProduto.preco_sugerido) || 0 : 0;
+                      const efDescontoTipo = ef.descontoTipo || '%';
+                      const efDesconto = ef.desconto || 0;
+                      const efDescontoVal = efDescontoTipo === '%' ? efPrecoCatalogo * (Number(efDesconto) / 100) : Number(efDesconto);
+                      const efPrecoFinal = Math.max(0, efPrecoCatalogo - efDescontoVal);
+                      const efCmvPct = efPrecoFinal > 0 ? (efCustoUn / efPrecoFinal * 100) : 0;
+                      const efMargemPct = efPrecoFinal > 0 ? ((efPrecoFinal - efCustoUn) / efPrecoFinal * 100) : 0;
                       return (
                         <div key={i} style={{ background: '#FFF9F0', borderBottom: `2px solid ${GOLD}`, padding: 14 }}>
                           <div className="grid-3" style={{ gap: 8, marginBottom: 8 }}>
@@ -3856,7 +3867,10 @@ const FichaPaciente = ({ paciente, onClose, onUpdate }) => {
                             <div><div style={labelStyle}>HORÁRIO</div><input type="time" value={ef.horario || '09:00'} onChange={e => setEf({ horario: e.target.value })} style={inputStyle} /></div>
                             <div style={{ gridColumn: 'span 2' }}>
                               <div style={labelStyle}>PROCEDIMENTO</div>
-                              <select value={ef.procedimento || ''} onChange={e => setEf({ procedimento: e.target.value })} style={inputStyle}>
+                              <select value={ef.procedimento || ''} onChange={e => {
+                                const prod = produtosDB.find(p => p.nome === e.target.value);
+                                setEf({ procedimento: e.target.value, desconto: 0, descontoTipo: '%', valor: prod ? String(prod.preco_sugerido) : ef.valor });
+                              }} style={inputStyle}>
                                 <option value="">Selecione...</option>
                                 {produtosDB.map(p => <option key={p.id} value={p.nome}>{p.nome}</option>)}
                                 <option value="Outro">Outro</option>
@@ -3898,6 +3912,50 @@ const FichaPaciente = ({ paciente, onClose, onUpdate }) => {
                               </select>
                             </div>
                           </div>
+
+                          {efCatalogProduto && (
+                            <div style={{ background: 'white', border: `1px solid ${GOLD}`, borderRadius: 8, padding: 10, marginBottom: 8 }}>
+                              <div className="grid-4" style={{ gap: 8, marginBottom: 8 }}>
+                                <div>
+                                  <div style={labelStyle}>CUSTO (CATÁLOGO)</div>
+                                  <div style={{ padding: '7px 0', fontSize: 12, fontWeight: 700, color: '#B71C1C' }}>R$ {efCustoUn.toLocaleString('pt-BR')}</div>
+                                </div>
+                                <div>
+                                  <div style={labelStyle}>PREÇO CATÁLOGO</div>
+                                  <div style={{ padding: '7px 0', fontSize: 12, fontWeight: 700, color: DARK }}>R$ {efPrecoCatalogo.toLocaleString('pt-BR')}</div>
+                                </div>
+                                <div>
+                                  <div style={labelStyle}>DESCONTO</div>
+                                  <div style={{ display: 'flex', gap: 4 }}>
+                                    <input type="number" value={efDesconto} onChange={e => {
+                                      const desconto = e.target.value;
+                                      const descVal = efDescontoTipo === '%' ? efPrecoCatalogo * (Number(desconto || 0) / 100) : Number(desconto || 0);
+                                      setEf({ desconto, valor: String(Math.max(0, Math.round(efPrecoCatalogo - descVal))) });
+                                    }} style={{ ...inputStyle, flex: 1 }} />
+                                    <select value={efDescontoTipo} onChange={e => {
+                                      const descontoTipo = e.target.value;
+                                      const descVal = descontoTipo === '%' ? efPrecoCatalogo * (Number(efDesconto) / 100) : Number(efDesconto);
+                                      setEf({ descontoTipo, valor: String(Math.max(0, Math.round(efPrecoCatalogo - descVal))) });
+                                    }} style={{ ...inputStyle, flex: '0 0 56px', padding: '7px 4px', textAlign: 'center' }}>
+                                      <option value="%">%</option>
+                                      <option value="R$">R$</option>
+                                    </select>
+                                  </div>
+                                </div>
+                                <div>
+                                  <div style={labelStyle}>PREÇO FINAL</div>
+                                  <div style={{ padding: '7px 0', fontSize: 13, fontWeight: 800, color: GOLD }}>R$ {efPrecoFinal.toLocaleString('pt-BR')}</div>
+                                </div>
+                              </div>
+                              <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                                <span style={{ fontSize: 11, color: '#888' }}>CMV: <strong style={{ color: DARK }}>{efCmvPct.toFixed(0)}%</strong></span>
+                                <Badge text={`Margem ${efMargemPct.toFixed(0)}%`}
+                                  color={efMargemPct < 30 ? '#FFEBEE' : '#E8F5E9'}
+                                  textColor={efMargemPct < 30 ? '#B71C1C' : '#2E7D32'} />
+                              </div>
+                            </div>
+                          )}
+
                           <div style={{ marginBottom: 10 }}><div style={labelStyle}>OBSERVAÇÕES</div><textarea value={ef.observacoes || ''} onChange={e => setEf({ observacoes: e.target.value })} rows={2} style={{ ...inputStyle, resize: 'vertical' }} /></div>
                           <div style={{ display: 'flex', gap: 8 }}>
                             <button onClick={atualizarTratamento} style={{ padding: '8px 20px', background: GOLD, color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>Salvar alterações</button>
