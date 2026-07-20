@@ -3433,7 +3433,7 @@ const FichaPaciente = ({ paciente, onClose, onUpdate }) => {
   const [saving, setSaving] = useState(false);
   const [showForm, setShowForm] = useState(false);
 
-  const [newTrat, setNewTrat] = useState({ data: today(), horario: '09:00', procedimento: '', produto: '', regiao: '', sessao: 1, total_sessoes: 1, profissional: 'Lara', valor: '', observacoes: '', status: 'pendente', forma_pagamento: 'pix', status_pagamento: 'pendente', data_pagamento: '' });
+  const [newTrat, setNewTrat] = useState({ data: today(), horario: '09:00', procedimento: '', produto: '', regiao: '', sessao: 1, total_sessoes: 1, profissional: 'Lara', valor: '', desconto: 0, descontoTipo: '%', observacoes: '', status: 'pendente', forma_pagamento: 'pix', status_pagamento: 'pendente', data_pagamento: '' });
   const [newPront, setNewPront] = useState({ data: today(), titulo: '', conteudo: '', profissional: 'Lara' });
   const [newObs, setNewObs] = useState({ data: today(), conteudo: '', autor: 'Sirlândia', tipo: 'geral' });
   const [newProp, setNewProp] = useState({ data: today(), titulo: '', itens: [], valor_total: '', desconto: 0, parcelas: 1, observacoes: '', status: 'rascunho' });
@@ -3584,6 +3584,22 @@ const FichaPaciente = ({ paciente, onClose, onUpdate }) => {
   const inputStyle = { width: '100%', padding: '7px 10px', border: '1px solid #ddd', borderRadius: 6, fontSize: 12, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' };
   const labelStyle = { fontSize: 9, fontWeight: 700, color: '#999', marginBottom: 3, letterSpacing: '0.05em' };
 
+  const tratCatalogProduto = produtosDB.find(p => p.nome === newTrat.procedimento);
+  const tratCustoUn = tratCatalogProduto ? Number(tratCatalogProduto.custo_un) || 0 : 0;
+  const tratPrecoCatalogo = tratCatalogProduto ? Number(tratCatalogProduto.preco_sugerido) || 0 : 0;
+  const tratDescontoVal = newTrat.descontoTipo === '%' ? tratPrecoCatalogo * (Number(newTrat.desconto || 0) / 100) : Number(newTrat.desconto || 0);
+  const tratPrecoFinal = Math.max(0, tratPrecoCatalogo - tratDescontoVal);
+  const tratCmvPct = tratPrecoFinal > 0 ? (tratCustoUn / tratPrecoFinal * 100) : 0;
+  const tratMargemPct = tratPrecoFinal > 0 ? ((tratPrecoFinal - tratCustoUn) / tratPrecoFinal * 100) : 0;
+
+  const propTotalItens = (newProp.itens || []).reduce((a, i) => a + i.preco * i.qty, 0);
+  const propTotalCustoItens = (newProp.itens || []).reduce((a, i) => a + (Number(i.custo) || 0) * i.qty, 0);
+  const propBuildValorBase = Number(newProp.valor_total) || propTotalItens;
+  const propBuildDescontoVal = propBuildValorBase * (Number(newProp.desconto || 0) / 100);
+  const propBuildValorFinal = Math.max(0, propBuildValorBase - propBuildDescontoVal);
+  const propBuildCmvPct = propBuildValorFinal > 0 ? (propTotalCustoItens / propBuildValorFinal * 100) : 0;
+  const propBuildMargemPct = propBuildValorFinal > 0 ? ((propBuildValorFinal - propTotalCustoItens) / propBuildValorFinal * 100) : 0;
+
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '24px 16px', overflowY: 'auto' }}>
       <div style={{ background: 'white', borderRadius: 16, width: '100%', maxWidth: 860, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
@@ -3715,7 +3731,10 @@ const FichaPaciente = ({ paciente, onClose, onUpdate }) => {
                     <div><div style={labelStyle}>HORÁRIO</div><input type="time" value={newTrat.horario || '09:00'} onChange={e => setNewTrat({ ...newTrat, horario: e.target.value })} style={inputStyle} /></div>
                     <div style={{ gridColumn: 'span 2' }}>
                       <div style={labelStyle}>PROCEDIMENTO</div>
-                      <select value={newTrat.procedimento} onChange={e => setNewTrat({ ...newTrat, procedimento: e.target.value })} style={inputStyle}>
+                      <select value={newTrat.procedimento} onChange={e => {
+                        const prod = produtosDB.find(p => p.nome === e.target.value);
+                        setNewTrat({ ...newTrat, procedimento: e.target.value, desconto: 0, descontoTipo: '%', valor: prod ? String(prod.preco_sugerido) : newTrat.valor });
+                      }} style={inputStyle}>
                         <option value="">Selecione...</option>
                         {produtosDB.map(p => <option key={p.id} value={p.nome}>{p.nome}</option>)}
                         <option value="Outro">Outro</option>
@@ -3753,6 +3772,50 @@ const FichaPaciente = ({ paciente, onClose, onUpdate }) => {
                     </div>
                     <div><div style={labelStyle}>DATA PAGAMENTO</div><input type="date" value={newTrat.data_pagamento || ''} onChange={e => setNewTrat({ ...newTrat, data_pagamento: e.target.value })} style={inputStyle} /></div>
                   </div>
+
+                  {tratCatalogProduto && (
+                    <div style={{ background: 'white', border: `1px solid ${GOLD}`, borderRadius: 8, padding: 10, marginBottom: 8 }}>
+                      <div className="grid-4" style={{ gap: 8, marginBottom: 8 }}>
+                        <div>
+                          <div style={labelStyle}>CUSTO (CATÁLOGO)</div>
+                          <div style={{ padding: '7px 0', fontSize: 12, fontWeight: 700, color: '#B71C1C' }}>R$ {tratCustoUn.toLocaleString('pt-BR')}</div>
+                        </div>
+                        <div>
+                          <div style={labelStyle}>PREÇO CATÁLOGO</div>
+                          <div style={{ padding: '7px 0', fontSize: 12, fontWeight: 700, color: DARK }}>R$ {tratPrecoCatalogo.toLocaleString('pt-BR')}</div>
+                        </div>
+                        <div>
+                          <div style={labelStyle}>DESCONTO</div>
+                          <div style={{ display: 'flex', gap: 4 }}>
+                            <input type="number" value={newTrat.desconto} onChange={e => {
+                              const desconto = e.target.value;
+                              const descVal = newTrat.descontoTipo === '%' ? tratPrecoCatalogo * (Number(desconto || 0) / 100) : Number(desconto || 0);
+                              setNewTrat({ ...newTrat, desconto, valor: String(Math.max(0, Math.round(tratPrecoCatalogo - descVal))) });
+                            }} style={{ ...inputStyle, flex: 1 }} />
+                            <select value={newTrat.descontoTipo} onChange={e => {
+                              const descontoTipo = e.target.value;
+                              const descVal = descontoTipo === '%' ? tratPrecoCatalogo * (Number(newTrat.desconto || 0) / 100) : Number(newTrat.desconto || 0);
+                              setNewTrat({ ...newTrat, descontoTipo, valor: String(Math.max(0, Math.round(tratPrecoCatalogo - descVal))) });
+                            }} style={{ ...inputStyle, flex: '0 0 56px', padding: '7px 4px', textAlign: 'center' }}>
+                              <option value="%">%</option>
+                              <option value="R$">R$</option>
+                            </select>
+                          </div>
+                        </div>
+                        <div>
+                          <div style={labelStyle}>PREÇO FINAL</div>
+                          <div style={{ padding: '7px 0', fontSize: 13, fontWeight: 800, color: GOLD }}>R$ {tratPrecoFinal.toLocaleString('pt-BR')}</div>
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                        <span style={{ fontSize: 11, color: '#888' }}>CMV: <strong style={{ color: DARK }}>{tratCmvPct.toFixed(0)}%</strong></span>
+                        <Badge text={`Margem ${tratMargemPct.toFixed(0)}%`}
+                          color={tratMargemPct < 30 ? '#FFEBEE' : '#E8F5E9'}
+                          textColor={tratMargemPct < 30 ? '#B71C1C' : '#2E7D32'} />
+                      </div>
+                    </div>
+                  )}
+
                   <div style={{ marginBottom: 8 }}><div style={labelStyle}>OBSERVAÇÕES</div><textarea value={newTrat.observacoes} onChange={e => setNewTrat({ ...newTrat, observacoes: e.target.value })} rows={2} style={{ ...inputStyle, resize: 'vertical' }} /></div>
                   <div style={{ marginBottom: 8 }}>
                     <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, cursor: 'pointer', color: '#555' }}>
@@ -3961,6 +4024,7 @@ const FichaPaciente = ({ paciente, onClose, onUpdate }) => {
                       <div key={idx} style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 4 }}>
                         <div style={{ flex: 2, fontSize: 12, fontWeight: 600 }}>{item.nome}</div>
                         <div style={{ fontSize: 11, color: '#888' }}>x{item.qty}</div>
+                        <div style={{ fontSize: 10, color: '#B71C1C' }}>custo R${((Number(item.custo) || 0) * item.qty).toLocaleString('pt-BR')}</div>
                         <div style={{ fontSize: 12, fontWeight: 700, color: DARK }}>R${(item.preco * item.qty).toLocaleString('pt-BR')}</div>
                         <button onClick={() => setNewProp({ ...newProp, itens: newProp.itens.filter((_, i) => i !== idx) })} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: '#ddd', fontFamily: 'inherit' }}>✕</button>
                       </div>
@@ -4004,6 +4068,18 @@ const FichaPaciente = ({ paciente, onClose, onUpdate }) => {
                       </select>
                     </div>
                   </div>
+
+                  {propTotalCustoItens > 0 && (
+                    <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 8, padding: '8px 10px', background: '#FFF8F0', border: `1px solid ${GOLD}`, borderRadius: 6 }}>
+                      <span style={{ fontSize: 10, fontWeight: 700, color: GOLD, letterSpacing: '0.05em' }}>VISÃO INTERNA</span>
+                      <span style={{ fontSize: 11, color: '#888' }}>Custo total: <strong style={{ color: '#B71C1C' }}>R${propTotalCustoItens.toLocaleString('pt-BR')}</strong></span>
+                      <span style={{ fontSize: 11, color: '#888' }}>CMV: <strong style={{ color: DARK }}>{propBuildCmvPct.toFixed(0)}%</strong></span>
+                      <Badge text={`Margem ${propBuildMargemPct.toFixed(0)}%`}
+                        color={propBuildMargemPct < 30 ? '#FFEBEE' : '#E8F5E9'}
+                        textColor={propBuildMargemPct < 30 ? '#B71C1C' : '#2E7D32'} />
+                    </div>
+                  )}
+
                   <div style={{ marginBottom: 8 }}><div style={labelStyle}>OBSERVAÇÕES</div><textarea value={newProp.observacoes} onChange={e => setNewProp({ ...newProp, observacoes: e.target.value })} rows={2} style={{ ...inputStyle, resize: 'vertical' }} /></div>
                   <div style={{ display: 'flex', gap: 8 }}>
                     <button onClick={() => {
@@ -4024,6 +4100,9 @@ const FichaPaciente = ({ paciente, onClose, onUpdate }) => {
                   const stColors = { rascunho: { bg: '#F5F5F5', tc: '#999' }, enviada: { bg: '#E3F2FD', tc: '#1565C0' }, aprovada: { bg: '#E8F5E9', tc: '#2E7D32' }, recusada: { bg: '#FFEBEE', tc: '#B71C1C' } };
                   const sc = stColors[p.status] || stColors.rascunho;
                   const itens = p.itens || [];
+                  const propCusto = itens.reduce((a, it) => a + (Number(it.custo) || 0) * it.qty, 0);
+                  const propCmvPct = total > 0 ? (propCusto / total * 100) : 0;
+                  const propMargemPct = total > 0 ? ((total - propCusto) / total * 100) : 0;
 
                   const printProposta = () => {
                     const win = window.open('', '_blank');
@@ -4122,6 +4201,16 @@ const FichaPaciente = ({ paciente, onClose, onUpdate }) => {
                         <div style={{ color: GOLD, fontWeight: 700 }}>Total: R${total.toLocaleString('pt-BR')}</div>
                         {p.parcelas > 1 && <div style={{ color: '#888' }}>{p.parcelas}x de R${(total/p.parcelas).toLocaleString('pt-BR', {minimumFractionDigits:2,maximumFractionDigits:2})}</div>}
                       </div>
+                      {propCusto > 0 && (
+                        <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 6, padding: '6px 8px', background: LIGHT, borderRadius: 6 }}>
+                          <span style={{ fontSize: 10, color: '#888' }}>VISÃO INTERNA —</span>
+                          <span style={{ fontSize: 11, color: '#888' }}>Custo: <strong style={{ color: '#B71C1C' }}>R${propCusto.toLocaleString('pt-BR')}</strong></span>
+                          <span style={{ fontSize: 11, color: '#888' }}>CMV: <strong style={{ color: DARK }}>{propCmvPct.toFixed(0)}%</strong></span>
+                          <Badge text={`Margem ${propMargemPct.toFixed(0)}%`}
+                            color={propMargemPct < 30 ? '#FFEBEE' : '#E8F5E9'}
+                            textColor={propMargemPct < 30 ? '#B71C1C' : '#2E7D32'} />
+                        </div>
+                      )}
                       {p.observacoes && <div style={{ fontSize: 11, color: '#888', marginTop: 6, fontStyle: 'italic' }}>{p.observacoes}</div>}
                     </div>
                   );
