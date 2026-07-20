@@ -3437,6 +3437,7 @@ const FichaPaciente = ({ paciente, onClose, onUpdate }) => {
   const [newPront, setNewPront] = useState({ data: today(), titulo: '', conteudo: '', profissional: 'Lara' });
   const [newObs, setNewObs] = useState({ data: today(), conteudo: '', autor: 'Sirlândia', tipo: 'geral' });
   const [newProp, setNewProp] = useState({ data: today(), titulo: '', itens: [], valor_total: '', desconto: 0, parcelas: 1, observacoes: '', status: 'rascunho' });
+  const [propItemStaging, setPropItemStaging] = useState({ produtoId: '', qty: 1, desconto: 0, desconto_tipo: 'percentual' });
   const [comProntuario, setComProntuario] = useState(false);
   const [newProntuarioInline, setNewProntuarioInline] = useState({ titulo: '', conteudo: '' });
   const [propostaConverting, setPropostaConverting] = useState(null);
@@ -3621,11 +3622,36 @@ const FichaPaciente = ({ paciente, onClose, onUpdate }) => {
 
   const propTotalItens = (newProp.itens || []).reduce((a, i) => a + i.preco * i.qty, 0);
   const propTotalCustoItens = (newProp.itens || []).reduce((a, i) => a + (Number(i.custo) || 0) * i.qty, 0);
-  const propBuildValorBase = Number(newProp.valor_total) || propTotalItens;
-  const propBuildDescontoVal = propBuildValorBase * (Number(newProp.desconto || 0) / 100);
-  const propBuildValorFinal = Math.max(0, propBuildValorBase - propBuildDescontoVal);
-  const propBuildCmvPct = propBuildValorFinal > 0 ? (propTotalCustoItens / propBuildValorFinal * 100) : 0;
-  const propBuildMargemPct = propBuildValorFinal > 0 ? ((propBuildValorFinal - propTotalCustoItens) / propBuildValorFinal * 100) : 0;
+  const propBuildCmvPct = propTotalItens > 0 ? (propTotalCustoItens / propTotalItens * 100) : 0;
+  const propBuildMargemPct = propTotalItens > 0 ? ((propTotalItens - propTotalCustoItens) / propTotalItens * 100) : 0;
+
+  const propStagingProduto = produtosDB.find(p => p.id === propItemStaging.produtoId);
+  const propStagingCusto = propStagingProduto ? Number(propStagingProduto.custo_un) || 0 : 0;
+  const propStagingPrecoCatalogo = propStagingProduto ? Number(propStagingProduto.preco_sugerido) || 0 : 0;
+  const propStagingDescontoVal = propItemStaging.desconto_tipo === 'percentual'
+    ? propStagingPrecoCatalogo * (Number(propItemStaging.desconto || 0) / 100)
+    : Number(propItemStaging.desconto || 0);
+  const propStagingPrecoFinal = Math.max(0, propStagingPrecoCatalogo - propStagingDescontoVal);
+  const propStagingCmvPct = propStagingPrecoFinal > 0 ? (propStagingCusto / propStagingPrecoFinal * 100) : 0;
+  const propStagingMargemPct = propStagingPrecoFinal > 0 ? ((propStagingPrecoFinal - propStagingCusto) / propStagingPrecoFinal * 100) : 0;
+
+  const adicionarItemProposta = () => {
+    if (!propStagingProduto) return;
+    const novoItem = {
+      id: propStagingProduto.id, nome: propStagingProduto.nome,
+      preco: propStagingPrecoFinal, custo: propStagingCusto,
+      qty: Number(propItemStaging.qty) || 1,
+      desconto: Number(propItemStaging.desconto) || 0,
+      desconto_tipo: propItemStaging.desconto_tipo,
+    };
+    const itensAtuais = newProp.itens || [];
+    const existeIdx = itensAtuais.findIndex(it => it.id === novoItem.id && it.desconto === novoItem.desconto && it.desconto_tipo === novoItem.desconto_tipo);
+    const novosItens = existeIdx >= 0
+      ? itensAtuais.map((it, i) => i === existeIdx ? { ...it, qty: it.qty + novoItem.qty } : it)
+      : [...itensAtuais, novoItem];
+    setNewProp({ ...newProp, itens: novosItens });
+    setPropItemStaging({ produtoId: '', qty: 1, desconto: 0, desconto_tipo: 'percentual' });
+  };
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '24px 16px', overflowY: 'auto' }}>
@@ -4133,46 +4159,75 @@ const FichaPaciente = ({ paciente, onClose, onUpdate }) => {
                     <div style={{ gridColumn: 'span 2' }}><div style={labelStyle}>TÍTULO</div><input value={newProp.titulo} onChange={e => setNewProp({ ...newProp, titulo: e.target.value })} placeholder="Ex: Protocolo harmonização completo" style={inputStyle} /></div>
                   </div>
 
-                  {/* ITENS DO ORÇAMENTO */}
+                  {/* ITENS DO ORÇAMENTO — CARRINHO */}
                   <div style={{ marginBottom: 10 }}>
                     <div style={{ fontSize: 10, fontWeight: 700, color: GOLD, marginBottom: 6 }}>ITENS DO ORÇAMENTO</div>
+
                     {(newProp.itens || []).map((item, idx) => (
-                      <div key={idx} style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 4 }}>
+                      <div key={idx} style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 4, flexWrap: 'wrap' }}>
                         <div style={{ flex: 2, fontSize: 12, fontWeight: 600 }}>{item.nome}</div>
                         <div style={{ fontSize: 11, color: '#888' }}>x{item.qty}</div>
+                        {Number(item.desconto) > 0 && (
+                          <div style={{ fontSize: 10, color: '#B71C1C' }}>-{item.desconto}{item.desconto_tipo === 'percentual' ? '%' : ' R$'}</div>
+                        )}
                         <div style={{ fontSize: 10, color: '#B71C1C' }}>custo R${((Number(item.custo) || 0) * item.qty).toLocaleString('pt-BR')}</div>
                         <div style={{ fontSize: 12, fontWeight: 700, color: DARK }}>R${(item.preco * item.qty).toLocaleString('pt-BR')}</div>
-                        <button onClick={() => setNewProp({ ...newProp, itens: newProp.itens.filter((_, i) => i !== idx) })} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: '#ddd', fontFamily: 'inherit' }}>✕</button>
+                        <button onClick={() => setNewProp({ ...newProp, itens: newProp.itens.filter((_, i) => i !== idx) })} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: '#ddd', fontFamily: 'inherit' }}>✕ remover</button>
                       </div>
                     ))}
+
                     <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
-                      <select onChange={e => {
-                        const prod = produtosDB.find(p => p.id === e.target.value);
-                        if (!prod) return;
-                        const itens = newProp.itens || [];
-                        const exists = itens.findIndex(i => i.id === prod.id);
-                        if (exists >= 0) {
-                          setNewProp({ ...newProp, itens: itens.map((it, idx) => idx === exists ? { ...it, qty: it.qty + 1 } : it) });
-                        } else {
-                          setNewProp({ ...newProp, itens: [...itens, { id: prod.id, nome: prod.nome, preco: prod.preco_sugerido, custo: prod.custo_un, qty: 1 }] });
-                        }
-                        e.target.value = '';
-                      }} defaultValue="" style={{ flex: 1, ...inputStyle }}>
+                      <select value={propItemStaging.produtoId} onChange={e => setPropItemStaging({ produtoId: e.target.value, qty: 1, desconto: 0, desconto_tipo: 'percentual' })} style={{ flex: 1, ...inputStyle }}>
                         <option value="">+ Adicionar produto do catálogo...</option>
                         {produtosDB.map(p => <option key={p.id} value={p.id}>{p.nome} — R${Number(p.preco_sugerido).toLocaleString('pt-BR')}</option>)}
                       </select>
                     </div>
+
+                    {propStagingProduto && (
+                      <div style={{ background: 'white', border: `1px solid ${GOLD}`, borderRadius: 8, padding: 10, marginTop: 8 }}>
+                        <div className="grid-4" style={{ gap: 8, marginBottom: 8 }}>
+                          <div>
+                            <div style={labelStyle}>CUSTO (CATÁLOGO)</div>
+                            <div style={{ padding: '7px 0', fontSize: 12, fontWeight: 700, color: '#B71C1C' }}>R$ {propStagingCusto.toLocaleString('pt-BR')}</div>
+                          </div>
+                          <div>
+                            <div style={labelStyle}>PREÇO CATÁLOGO</div>
+                            <div style={{ padding: '7px 0', fontSize: 12, fontWeight: 700, color: DARK }}>R$ {propStagingPrecoCatalogo.toLocaleString('pt-BR')}</div>
+                          </div>
+                          <div>
+                            <div style={labelStyle}>QTD</div>
+                            <input type="number" min="1" value={propItemStaging.qty} onChange={e => setPropItemStaging({ ...propItemStaging, qty: e.target.value })} style={inputStyle} />
+                          </div>
+                          <div>
+                            <div style={labelStyle}>DESCONTO</div>
+                            <div style={{ display: 'flex', gap: 4 }}>
+                              <input type="number" value={propItemStaging.desconto} onChange={e => setPropItemStaging({ ...propItemStaging, desconto: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
+                              <select value={propItemStaging.desconto_tipo} onChange={e => setPropItemStaging({ ...propItemStaging, desconto_tipo: e.target.value })} style={{ ...inputStyle, flex: '0 0 56px', padding: '7px 4px', textAlign: 'center' }}>
+                                <option value="percentual">%</option>
+                                <option value="valor">R$</option>
+                              </select>
+                            </div>
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+                          <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+                            <span style={{ fontSize: 11, color: '#888' }}>Preço final: <strong style={{ color: GOLD }}>R${propStagingPrecoFinal.toLocaleString('pt-BR')}</strong></span>
+                            <span style={{ fontSize: 11, color: '#888' }}>CMV: <strong style={{ color: DARK }}>{propStagingCmvPct.toFixed(0)}%</strong></span>
+                            <Badge text={`Margem ${propStagingMargemPct.toFixed(0)}%`}
+                              color={propStagingMargemPct < 30 ? '#FFEBEE' : '#E8F5E9'}
+                              textColor={propStagingMargemPct < 30 ? '#B71C1C' : '#2E7D32'} />
+                          </div>
+                          <button onClick={adicionarItemProposta} style={{ padding: '6px 16px', background: GOLD, color: 'white', border: 'none', borderRadius: 6, fontWeight: 700, fontSize: 11, cursor: 'pointer', fontFamily: 'inherit' }}>+ Adicionar item</button>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
-                  <div className="grid-4" style={{ gap: 8, marginBottom: 8 }}>
+                  <div className="grid-3" style={{ gap: 8, marginBottom: 8 }}>
                     <div>
                       <div style={labelStyle}>VALOR TOTAL (R$)</div>
-                      <input type="number" value={newProp.valor_total}
-                        onChange={e => setNewProp({ ...newProp, valor_total: e.target.value })}
-                        placeholder={newProp.itens?.length ? String((newProp.itens || []).reduce((a, i) => a + i.preco * i.qty, 0)) : '0'}
-                        style={inputStyle} />
+                      <div style={{ padding: '7px 0', fontSize: 14, fontWeight: 800, color: DARK }}>R${propTotalItens.toLocaleString('pt-BR')}</div>
                     </div>
-                    <div><div style={labelStyle}>DESCONTO (%)</div><input type="number" value={newProp.desconto} onChange={e => setNewProp({ ...newProp, desconto: e.target.value })} style={inputStyle} /></div>
                     <div><div style={labelStyle}>PARCELAS</div>
                       <select value={newProp.parcelas} onChange={e => setNewProp({ ...newProp, parcelas: Number(e.target.value) })} style={inputStyle}>
                         {[1,2,3,4,5,6,8,10,12].map(n => <option key={n} value={n}>{n}x {n === 1 ? '(à vista)' : ''}</option>)}
@@ -4186,7 +4241,7 @@ const FichaPaciente = ({ paciente, onClose, onUpdate }) => {
                   </div>
 
                   {propTotalCustoItens > 0 && (
-                    <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 8, padding: '8px 10px', background: '#FFF8F0', border: `1px solid ${GOLD}`, borderRadius: 6 }}>
+                    <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginBottom: 8, padding: '8px 10px', background: '#FFF8F0', border: `1px solid ${GOLD}`, borderRadius: 6 }}>
                       <span style={{ fontSize: 10, fontWeight: 700, color: GOLD, letterSpacing: '0.05em' }}>VISÃO INTERNA</span>
                       <span style={{ fontSize: 11, color: '#888' }}>Custo total: <strong style={{ color: '#B71C1C' }}>R${propTotalCustoItens.toLocaleString('pt-BR')}</strong></span>
                       <span style={{ fontSize: 11, color: '#888' }}>CMV: <strong style={{ color: DARK }}>{propBuildCmvPct.toFixed(0)}%</strong></span>
@@ -4199,11 +4254,10 @@ const FichaPaciente = ({ paciente, onClose, onUpdate }) => {
                   <div style={{ marginBottom: 8 }}><div style={labelStyle}>OBSERVAÇÕES</div><textarea value={newProp.observacoes} onChange={e => setNewProp({ ...newProp, observacoes: e.target.value })} rows={2} style={{ ...inputStyle, resize: 'vertical' }} /></div>
                   <div style={{ display: 'flex', gap: 8 }}>
                     <button onClick={() => {
-                      const totalItens = (newProp.itens || []).reduce((a, i) => a + i.preco * i.qty, 0);
-                      const valorFinal = newProp.valor_total || totalItens;
-                      addItem('propostas', { ...newProp, valor_total: valorFinal }, setPropostas, () => setNewProp({ data: today(), titulo: '', itens: [], valor_total: '', desconto: 0, parcelas: 1, observacoes: '', status: 'rascunho' }));
+                      addItem('propostas', { ...newProp, valor_total: propTotalItens, desconto: 0 }, setPropostas, () => setNewProp({ data: today(), titulo: '', itens: [], valor_total: '', desconto: 0, parcelas: 1, observacoes: '', status: 'rascunho' }));
+                      setPropItemStaging({ produtoId: '', qty: 1, desconto: 0, desconto_tipo: 'percentual' });
                     }} style={{ padding: '8px 20px', background: GOLD, color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>Salvar</button>
-                    <button onClick={() => setShowForm(false)} style={{ padding: '8px 14px', background: 'white', color: '#888', border: '1px solid #ddd', borderRadius: 8, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>Cancelar</button>
+                    <button onClick={() => { setShowForm(false); setPropItemStaging({ produtoId: '', qty: 1, desconto: 0, desconto_tipo: 'percentual' }); }} style={{ padding: '8px 14px', background: 'white', color: '#888', border: '1px solid #ddd', borderRadius: 8, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>Cancelar</button>
                   </div>
                 </div>
               )}
