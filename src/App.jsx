@@ -450,6 +450,16 @@ const HomeTab = ({ shared }) => {
   const convRate = totalLeads > 0 ? Math.round(converted / totalLeads * 100) : 0;
   const fidelizados = leads.filter(l => l.status === "fidelizado").length;
 
+  const [pacientesAniversario, setPacientesAniversario] = useState([]);
+  const [loadingAniversariantes, setLoadingAniversariantes] = useState(true);
+
+  useEffect(() => {
+    supabase.from('pacientes').select('nome,telefone,data_nascimento,status').then(({ data }) => {
+      setPacientesAniversario(Array.isArray(data) ? data : []);
+      setLoadingAniversariantes(false);
+    });
+  }, []);
+
   const funnelStages = [
     { label: "Novos", count: leads.filter(l => l.status === "novo").length, color: "#1565C0" },
     { label: "Contato", count: leads.filter(l => l.status === "contato").length, color: "#283593" },
@@ -466,6 +476,33 @@ const HomeTab = ({ shared }) => {
     { month: "Mai", target: 45, current: 0, color: "#E0F2F1" },
     { month: "Jun", target: 60, current: 0, color: "#E8F5E9" },
   ];
+
+  const parseDiaMesNascimento = (str) => {
+    if (!str || typeof str !== "string") return null;
+    const s = str.trim();
+    if (!s) return null;
+    let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if (m) {
+      const mes = Number(m[2]), dia = Number(m[3]);
+      if (mes >= 1 && mes <= 12 && dia >= 1 && dia <= 31) return { dia, mes };
+    }
+    m = s.match(/^(\d{1,2})\/(\d{1,2})(?:\/\d{2,4})?$/);
+    if (m) {
+      const dia = Number(m[1]), mes = Number(m[2]);
+      if (mes >= 1 && mes <= 12 && dia >= 1 && dia <= 31) return { dia, mes };
+    }
+    return null;
+  };
+
+  const nomesMeses = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+  const hoje = new Date();
+  const mesAtual = hoje.getMonth() + 1;
+  const diaHoje = hoje.getDate();
+
+  const aniversariantes = pacientesAniversario
+    .map(p => ({ ...p, _nasc: parseDiaMesNascimento(p.data_nascimento) }))
+    .filter(p => p._nasc && p._nasc.mes === mesAtual)
+    .sort((a, b) => a._nasc.dia - b._nasc.dia);
 
   return (
     <div>
@@ -638,6 +675,42 @@ const HomeTab = ({ shared }) => {
           ))}
         </Card>
       </div>
+
+      {/* ANIVERSARIANTES DO MÊS */}
+      <Card title={`🎂 Aniversariantes de ${nomesMeses[mesAtual - 1]}`}>
+        {loadingAniversariantes ? (
+          <div style={{ textAlign: "center", padding: 20, color: "#aaa" }}>Carregando...</div>
+        ) : aniversariantes.length === 0 ? (
+          <div style={{ textAlign: "center", padding: 20, color: "#ccc", fontSize: 13 }}>Nenhum aniversariante este mês.</div>
+        ) : (
+          <div>
+            {aniversariantes.map((p, i) => {
+              const isHoje = p._nasc.dia === diaHoje;
+              const telDigits = (p.telefone || "").replace(/\D/g, "");
+              const waLink = telDigits ? `https://wa.me/55${telDigits}` : null;
+              return (
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: i < aniversariantes.length - 1 ? "1px solid #f0ece6" : "none", flexWrap: "wrap" }}>
+                  <div style={{ width: 44, flexShrink: 0, textAlign: "center", fontSize: 13, fontWeight: 800, color: isHoje ? GOLD : DARK }}>
+                    {String(p._nasc.dia).padStart(2, "0")}/{String(mesAtual).padStart(2, "0")}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 120 }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: DARK }}>{p.nome}</div>
+                    <div style={{ fontSize: 11, color: "#999" }}>{p.telefone || "—"}</div>
+                  </div>
+                  {p.status && <Badge text={p.status} color={LIGHT} textColor={GOLD} />}
+                  {isHoje && <Badge text="🎂 Hoje!" color={GOLD} textColor="white" />}
+                  {waLink && (
+                    <a href={waLink} target="_blank" rel="noopener noreferrer" title="Chamar no WhatsApp"
+                      style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 28, height: 28, borderRadius: 6, background: "#E8F5E9", textDecoration: "none", fontSize: 14, flexShrink: 0 }}>
+                      💬
+                    </a>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </Card>
 
       {/* EVOLUÇÃO SEMANAL */}
       <Card title="Evolução Semanal — Acompanhamento Q2/2026" accent>
