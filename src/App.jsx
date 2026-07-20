@@ -6684,6 +6684,8 @@ const EditorialTab = () => {
   // Estado — Editorial
   const [editorial, setEditorial] = useState([]);
   const [loadingEditorial, setLoadingEditorial] = useState(true);
+  const [editing, setEditing] = useState(null);
+  const [editForm, setEditForm] = useState({ data: "", pilar: "transf", formato: "Reel", descricao: "" });
 
   useEffect(() => {
     const fetchEditorial = async () => {
@@ -6742,11 +6744,26 @@ const EditorialTab = () => {
     return d.getFullYear() === ano && d.getMonth() + 1 === mes;
   });
 
+  // Posts indexados pela DATA REAL (Supabase), não por "weekOffset-dia" fictício
   const posts = editorial.reduce((acc, p) => { if (p.data) acc[p.data] = [...(acc[p.data] || []), p]; return acc; }, {});
-  const [editing, setEditing] = useState(null);
-  const [editForm, setEditForm] = useState({ pilar: "transf", format: "Reel", desc: "" });
 
-  const savePost = async (key) => {
+  const getWeekDates = (offset) => {
+    const today = new Date();
+    const monday = new Date(today);
+    monday.setDate(today.getDate() - today.getDay() + 1 + offset * 7);
+    return Array.from({ length: 5 }, (_, i) => {
+      const d = new Date(monday);
+      d.setDate(monday.getDate() + i);
+      return d;
+    });
+  };
+  const toISODate = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const formatDateBR = (d) => `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
+  const weekDates = getWeekDates(weekOffset);
+  const weekLabel = `${formatDateBR(weekDates[0])} — ${formatDateBR(weekDates[4])}`;
+
+  const savePost = async () => {
+    if (!editForm.data) return;
     await salvarPost(editForm);
     setEditing(null);
   };
@@ -6766,50 +6783,53 @@ const EditorialTab = () => {
         ))}
       </div>
 
-      <Card title={`Semana ${weekOffset + 1}`}>
+      <Card title={`Semana de ${weekLabel}`}>
         <div style={{ display: "flex", gap: 4, marginBottom: 12 }}>
-          <button onClick={() => setWeekOffset(Math.max(0, weekOffset - 1))} style={{ padding: "6px 12px", borderRadius: 6, border: "1px solid #ddd", background: "white", cursor: "pointer", fontFamily: "inherit", fontSize: 14, color: GOLD }}>‹</button>
-          <div style={{ flex: 1, textAlign: "center", fontSize: 13, fontWeight: 700, color: DARK, lineHeight: "32px" }}>Semana {weekOffset + 1}</div>
+          <button onClick={() => setWeekOffset(weekOffset - 1)} style={{ padding: "6px 12px", borderRadius: 6, border: "1px solid #ddd", background: "white", cursor: "pointer", fontFamily: "inherit", fontSize: 14, color: GOLD }}>‹</button>
+          <div style={{ flex: 1, textAlign: "center", fontSize: 13, fontWeight: 700, color: DARK, lineHeight: "32px" }}>{weekLabel}{weekOffset === 0 && " — semana atual"}</div>
           <button onClick={() => setWeekOffset(weekOffset + 1)} style={{ padding: "6px 12px", borderRadius: 6, border: "1px solid #ddd", background: "white", cursor: "pointer", fontFamily: "inherit", fontSize: 14, color: GOLD }}>›</button>
         </div>
 
         <div className="grid-5" style={{ gap: 6 }}>
-          {weekDays.map((day, di) => {
-            const key = `${weekOffset}-${di}`;
-            const post = posts[key];
+          {weekDates.map((date, di) => {
+            const dateKey = toISODate(date);
+            const post = posts[dateKey];
             const pilar = post ? pilares.find(p => p.id === post.pilar) : null;
-            const isEditing = editing === key;
+            const isEditing = editing === dateKey;
 
             return (
               <div key={di} style={{ background: "white", border: "1px solid #E8E4DE", borderRadius: 8, overflow: "hidden", minHeight: 140 }}>
                 <div style={{ background: DARK, padding: "6px 8px", textAlign: "center" }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: GOLD }}>{day}</div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: GOLD }}>{weekDays[di]}</div>
+                  <div style={{ fontSize: 9, color: "rgba(255,255,255,0.5)" }}>{formatDateBR(date)}</div>
                 </div>
                 {isEditing ? (
                   <div style={{ padding: "8px" }}>
+                    <input type="date" value={editForm.data || dateKey} onChange={e => setEditForm({...editForm, data: e.target.value})}
+                      style={{ width: "100%", padding: "4px", fontSize: 10, marginBottom: 4, borderRadius: 4, border: "1px solid #ddd", fontFamily: "inherit", boxSizing: "border-box" }} />
                     <select value={editForm.pilar} onChange={e => setEditForm({...editForm, pilar: e.target.value})}
                       style={{ width: "100%", padding: "4px", fontSize: 10, marginBottom: 4, borderRadius: 4, border: "1px solid #ddd", fontFamily: "inherit", boxSizing: "border-box" }}>
                       {pilares.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                     </select>
-                    <select value={editForm.format} onChange={e => setEditForm({...editForm, format: e.target.value})}
+                    <select value={editForm.formato} onChange={e => setEditForm({...editForm, formato: e.target.value})}
                       style={{ width: "100%", padding: "4px", fontSize: 10, marginBottom: 4, borderRadius: 4, border: "1px solid #ddd", fontFamily: "inherit", boxSizing: "border-box" }}>
                       {["Reel", "Carrossel", "Foto", "Stories", "Live"].map(f => <option key={f} value={f}>{f}</option>)}
                     </select>
-                    <input value={editForm.desc} onChange={e => setEditForm({...editForm, desc: e.target.value})} placeholder="Descrição..."
+                    <input value={editForm.descricao} onChange={e => setEditForm({...editForm, descricao: e.target.value})} placeholder="Descrição..."
                       style={{ width: "100%", padding: "4px", fontSize: 10, borderRadius: 4, border: "1px solid #ddd", fontFamily: "inherit", marginBottom: 4, boxSizing: "border-box" }} />
-                    <button onClick={() => savePost(key)} style={{ width: "100%", padding: "4px", fontSize: 10, background: GOLD, color: "white", border: "none", borderRadius: 4, cursor: "pointer", fontFamily: "inherit" }}>Salvar</button>
+                    <button onClick={savePost} style={{ width: "100%", padding: "4px", fontSize: 10, background: GOLD, color: "white", border: "none", borderRadius: 4, cursor: "pointer", fontFamily: "inherit" }}>Salvar</button>
                   </div>
                 ) : post ? (
-                  <div onClick={() => { setEditing(key); setEditForm(post); }} style={{ padding: "8px", cursor: "pointer" }}>
+                  <div onClick={() => { setEditing(dateKey); setEditForm(post); }} style={{ padding: "8px", cursor: "pointer" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>
                       <div style={{ width: 8, height: 8, borderRadius: "50%", background: pilar?.color || "#ccc" }} />
                       <span style={{ fontSize: 9, fontWeight: 700, color: pilar?.color || "#888" }}>{pilar?.name}</span>
                     </div>
-                    <Badge text={post.format} color={LIGHT} textColor="#888" />
-                    <div style={{ fontSize: 10, color: "#666", marginTop: 4, lineHeight: 1.4 }}>{post.desc}</div>
+                    <Badge text={post.formato} color={LIGHT} textColor="#888" />
+                    <div style={{ fontSize: 10, color: "#666", marginTop: 4, lineHeight: 1.4 }}>{post.descricao}</div>
                   </div>
                 ) : (
-                  <div onClick={() => { setEditing(key); setEditForm({ pilar: "transf", format: "Reel", desc: "" }); }}
+                  <div onClick={() => { setEditing(dateKey); setEditForm({ data: dateKey, pilar: "transf", formato: "Reel", descricao: "" }); }}
                     style={{ padding: "20px 8px", textAlign: "center", cursor: "pointer", color: "#ddd", fontSize: 20 }}>+</div>
                 )}
               </div>
