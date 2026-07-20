@@ -1127,6 +1127,28 @@ ul { list-style: none; }
   .content { padding: 0 !important; }
 }
 
+/* ===== GRIDS RESPONSIVOS =====
+   Substituem gridTemplateColumns inline de largura fixa. Breakpoints:
+   celular <=640px, tablet 641-1024px, desktop >1024px. */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); }
+.grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); }
+.grid-5 { display: grid; grid-template-columns: repeat(5, 1fr); }
+
+@media (max-width: 1024px) {
+  .grid-3, .grid-4, .grid-5 { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 640px) {
+  .grid-2, .grid-3, .grid-4, .grid-5 { grid-template-columns: 1fr; }
+  .content { padding: 24px 16px 48px; }
+}
+
+/* Linhas de Metric (KPIs) — garante 2 por linha no celular mesmo com
+   flex-basis/min-width fixos definidos inline no componente Metric. */
+@media (max-width: 640px) {
+  .metric-row > * { flex: 1 1 calc(50% - 5px) !important; min-width: 0 !important; }
+}
+
 /* Fade-in */
 .fade-in {
   opacity: 0;

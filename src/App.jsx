@@ -77,7 +77,7 @@ const Card = ({ title, children, accent = false, className = "" }) => (
       color: accent ? GOLD : GOLD,
       marginBottom: 14,
     }}>{title}</div>}
-    <div style={{ color: accent ? "#E8E4DE" : "#333", fontSize: 14, lineHeight: 1.7 }}>
+    <div style={{ color: accent ? "#E8E4DE" : "#333", fontSize: 14, lineHeight: 1.7, overflowX: "auto" }}>
       {children}
     </div>
   </div>
@@ -296,7 +296,7 @@ const WeeklyTracker = () => {
   return (
     <div>
       {/* SPARKLINE CHARTS */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
+      <div className="grid-2" style={{ gap: 12, marginBottom: 16 }}>
         {metrics.map(metric => {
           const maxVal = Math.max(targets[metric], ...weeks.map(w => w[metric]));
           const data = weeks.map(w => w[metric]);
@@ -488,7 +488,7 @@ const HomeTab = ({ shared }) => {
       </div>
 
       {/* CHARTS ROW */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
+      <div className="grid-2" style={{ gap: 12, marginBottom: 16 }}>
 
         {/* FUNIL VISUAL */}
         <Card title="Funil de conversão">
@@ -545,7 +545,7 @@ const HomeTab = ({ shared }) => {
 
       {/* PROGRESS BARS */}
       <Card title="Progresso Q2 — Abril 2026">
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 16 }}>
+        <div className="grid-4" style={{ gap: 16 }}>
           <MiniBar value={286} max={1000} label="286" sub="Seguidores → 1.000" color="#E91E63" />
           <MiniBar value={20} max={70} label="20" sub="Posts → 70" color="#2196F3" />
           <MiniBar value={20} max={30} label="~20" sub="Pacientes → 30" color="#4CAF50" />
@@ -556,7 +556,7 @@ const HomeTab = ({ shared }) => {
       {/* QUICK VIEW */}
 
       {/* TREND LINES */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
+      <div className="grid-2" style={{ gap: 12, marginBottom: 16 }}>
         <TrendChart
           title="Faturamento mensal (R$ mil)"
           color="#4CAF50"
@@ -613,7 +613,7 @@ const HomeTab = ({ shared }) => {
       </div>
 
       {/* PORTFOLIO & OKRs */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+      <div className="grid-2" style={{ gap: 12 }}>
         <Card title="Portfólio (14 produtos)">
           {["Harmonização facial", "Toxina botulínica", "Bioestimuladores (Radiesse)", "Levvai Lips (labial)", "Preenchimento corporal", "Levvai Glow (Profhilo)", "Protocolo capilar", "Levvai Lift (Fios PDO)", "Exossomos", "PRP (plasma)", "Levvai Slim (Tirzepatida)"].map((p, i) =>
             <div key={i} style={{ padding: "3px 0", fontSize: 12, display: "flex", gap: 6 }}><span style={{ color: GOLD }}>›</span> {p}</div>
@@ -745,7 +745,7 @@ const TeamTab = () => (
         <Badge text="ASSOCIADOS (futuro): Nutrólogo + Dermatologista" color={LIGHT} textColor={GOLD} />
       </div>
     </Card>
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+    <div className="grid-2" style={{ gap: 12 }}>
       <PersonCard name="Ike (Henrique)" role="CEO — ~6-8h/semana" color={GOLD}
         responsibilities={["Liderar Levvai Weekly (terça)", "Planejamento estratégico e OKRs", "Captação de profissionais associados", "Supervisão de compliance e jurídico", "Interface com Luciano Gebara", "Board mensal com Rich", "Construir brand assets (site, naming)"]}
         kpis={["Faturamento", "Margem bruta", "OKRs 0.7+", "Compliance 100%"]} />
@@ -936,7 +936,7 @@ const FinanceTab = () => {
   return (
     <div>
       {/* RESUMO */}
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 16 }}>
+      <div className="metric-row" style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 16 }}>
         <Metric label="Valor Total Estoque" value={fmt(totalEstoque)} sub={`Protocolos: ${fmt(totalProtocolos)} | Produtos: ${fmt(totalProdutos)}`} />
         <Metric label="Itens Cadastrados" value={products.length} sub={`${products.filter(p=>p.tipo==="Protocolo").length} protocolos + ${products.filter(p=>p.tipo==="Produto").length} produtos`} />
         <Metric label="Margem Bruta Média" value={`${Math.round(margemMedia*100)}%`} color="#2E7D32" />
@@ -1123,7 +1123,7 @@ const CompetitorsTab = () => (
       ))}
     </Card>
     <Card title="SWOT — Instituto Levvai">
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+      <div className="grid-2" style={{ gap: 10 }}>
         {[
           { title: "FORÇAS", color: "#2E7D32", bg: "#E8F5E9", items: ["Portfólio mais amplo (facial+corporal+emagrecimento)", "Tirzepatida — nenhum concorrente tem", "Exossomos — tendência premium rara", "Marca institucional escalável", "Dupla habilitação odonto + médica", "Produtos premium (Allergan, Galderma, Merz)"] },
           { title: "FRAQUEZAS", color: "#C62828", bg: "#FFEBEE", items: ["Presença digital quase zero (20 posts/286 seg)", "Sem site próprio", "Sem conceitos proprietários formalizados", "Sem prova social em volume", "Marca pessoal da Lara não construída", "Estoque desequilibrado (R$48K em Tirzepatida)"] },
@@ -1300,7 +1300,7 @@ const AssociatesTab = () => {
               </select>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 8 }}>
+            <div className="grid-4" style={{ gap: 8 }}>
               {[
                 { label: "ESPECIALIDADE", field: "especialidade", placeholder: "Nutrologia, Dermatologia..." },
                 { label: "CRM / CRO", field: "crm", placeholder: "CRM-SP 000000" },
@@ -1341,7 +1341,7 @@ const AssociatesTab = () => {
         ) : (
           <div style={{ border: `1px solid ${GOLD}`, borderRadius: 10, padding: "16px 18px", background: LIGHT }}>
             <div style={{ fontSize: 12, fontWeight: 700, color: GOLD, marginBottom: 10 }}>NOVO ASSOCIADO</div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 10 }}>
+            <div className="grid-3" style={{ gap: 8, marginBottom: 10 }}>
               <div>
                 <div style={{ fontSize: 9, fontWeight: 700, color: "#999", marginBottom: 2 }}>NOME</div>
                 <input value={newAssoc.nome} onChange={e => setNewAssoc({...newAssoc, nome: e.target.value})}
@@ -1498,7 +1498,7 @@ const AssociatesTab = () => {
       </Card>
 
       {/* VAGAS */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+      <div className="grid-2" style={{ gap: 12 }}>
         <Card title="Vaga 1: Nutrólogo (PRIORIDADE)">
           <div style={{ fontSize: 12, color: "#E65100", fontWeight: 600, marginBottom: 8 }}>Resolve: prescrição de Tirzepatida + protocolo Levvai Slim</div>
           {["CRM-SP ativo + RQE Nutrologia", "Experiência com Tirzepatida/Semaglutida", "Abordagem baseada em evidência", "Disponibilidade mín. 2 dias/semana", "Aceitar participar de conteúdo IG"].map((r, i) =>
@@ -1906,7 +1906,7 @@ const UsuariosTab = ({ shared }) => {
               }}>+ Adicionar usuário</button>
             ) : (
               <div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+                <div className="grid-2" style={{ gap: 10, marginBottom: 10 }}>
                   <div>
                     <div style={{ fontSize: 9, fontWeight: 700, color: '#999', marginBottom: 3 }}>NOME</div>
                     <input value={newNome} onChange={e => setNewNome(e.target.value)} placeholder="Nome completo"
@@ -2191,7 +2191,7 @@ const DocsTab = () => {
 
       {/* STATS */}
       <Card title="Números desta Plataforma">
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 10 }}>
+        <div className="grid-4" style={{ gap: 10 }}>
           {[
             { label: "Abas no Portal", value: "29" },
             { label: "Setores", value: "9" },
@@ -2558,7 +2558,7 @@ const StockTab = () => {
   return (
     <div>
       {/* RESUMO */}
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 16 }}>
+      <div className="metric-row" style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 16 }}>
         <Metric label="Valor Total Estoque" value={fmt(totalEstoque)} sub={`${stock.length} itens cadastrados`} />
         <Metric label="Críticos (REPOR)" value={repor + zerados} color="#B71C1C" sub={zerados > 0 ? `${zerados} zerados` : "acionar fornecedor"} />
         <Metric label="Em Alerta" value={alerta} color="#F57F17" sub="monitorar reposição" />
@@ -2956,7 +2956,7 @@ const AgendaTab = ({ shared }) => {
     <div>
       {/* MAPA DE ESPAÇOS */}
       <Card title="Mapa da Clínica — 4 Espaços" accent>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <div className="grid-2" style={{ gap: 10 }}>
           {rooms.map((r, i) => (
             <div key={i} style={{ background: r.color, borderRadius: 10, padding: "14px 16px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
@@ -3084,7 +3084,7 @@ const AgendaTab = ({ shared }) => {
       </Card>
 
       <Card title="Simulador de Capacidade Máxima">
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 16 }}>
+        <div className="grid-3" style={{ gap: 10, marginBottom: 16 }}>
           {[
             { label: "CENÁRIO ATUAL\n(só Lara)", daily: "Sala Lara: ~6-8 procedimentos\nConsultório: ~4-6 consultas\nTotal: ~10-14 atendimentos/dia", monthly: "220-308 atend/mês\n(22 dias úteis)", revenue: "R$44K-62K/mês\n(ticket R$2K)" , color: "#FFF3E0" },
             { label: "COM NUTRÓLOGO\n(Lara + 1 associado)", daily: "Sala Lara + Associados: ~12-16 proc\nConsultório: ~10-14 consultas\nSoroterapia: ~6-8\nTotal: ~28-38 atend/dia", monthly: "616-836 atend/mês", revenue: "R$90K-130K/mês", color: "#E8F5E9" },
@@ -3293,7 +3293,7 @@ const AgendaTab = ({ shared }) => {
 
       {/* REGRAS DE ALOCAÇÃO */}
       <Card title="Regras de Alocação de Salas">
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <div className="grid-2" style={{ gap: 10 }}>
           {rooms.map((r, i) => (
             <div key={i} style={{ background: r.color, borderRadius: 8, padding: "12px 14px" }}>
               <div style={{ fontWeight: 800, fontSize: 12, color: DARK, marginBottom: 6 }}>{r.name}</div>
@@ -3611,7 +3611,7 @@ const FichaPaciente = ({ paciente, onClose, onUpdate }) => {
             <div>
               {!editing ? (
                 <div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 16 }}>
+                  <div className="grid-3" style={{ gap: 12, marginBottom: 16 }}>
                     {[
                       ['E-MAIL', paciente.email || '—'],
                       ['TELEFONE', paciente.telefone || '—'],
@@ -3642,7 +3642,7 @@ const FichaPaciente = ({ paciente, onClose, onUpdate }) => {
                 </div>
               ) : (
                 <div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
+                  <div className="grid-2" style={{ gap: 10, marginBottom: 12 }}>
                     {[
                       ['NOME', 'nome', 'text'],
                       ['E-MAIL', 'email', 'email'],
@@ -3697,7 +3697,7 @@ const FichaPaciente = ({ paciente, onClose, onUpdate }) => {
                 </button>
               ) : (
                 <div style={{ background: LIGHT, borderRadius: 10, padding: 14, marginBottom: 14 }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 8 }}>
+                  <div className="grid-3" style={{ gap: 8, marginBottom: 8 }}>
                     <div><div style={labelStyle}>DATA</div><input type="date" value={newTrat.data} onChange={e => setNewTrat({ ...newTrat, data: e.target.value })} style={inputStyle} /></div>
                     <div><div style={labelStyle}>HORÁRIO</div><input type="time" value={newTrat.horario || '09:00'} onChange={e => setNewTrat({ ...newTrat, horario: e.target.value })} style={inputStyle} /></div>
                     <div style={{ gridColumn: 'span 2' }}>
@@ -3762,7 +3762,8 @@ const FichaPaciente = ({ paciente, onClose, onUpdate }) => {
 
               {loading ? <div style={{ textAlign: 'center', padding: 20, color: '#999' }}>Carregando...</div> : (
                 tratamentos.length === 0 ? <div style={{ textAlign: 'center', padding: 20, color: '#ccc', fontSize: 13 }}>Nenhum tratamento registrado.</div> :
-                <div>
+                <div style={{ overflowX: 'auto' }}>
+                <div style={{ minWidth: 700 }}>
                   <div style={{ display: 'flex', background: DARK, borderRadius: '8px 8px 0 0', padding: '8px 0' }}>
                     {['DATA', 'TRATAMENTO', 'VALOR', 'PAGAMENTO', 'FORMA', 'STATUS PAG.', 'STATUS TRAT.', ''].map((h, i) => (
                       <div key={i} style={{ flex: i === 1 ? 2 : i === 7 ? 0.7 : 1, fontSize: 9, fontWeight: 700, color: GOLD, textAlign: 'center', padding: '0 4px' }}>{h}</div>
@@ -3774,7 +3775,7 @@ const FichaPaciente = ({ paciente, onClose, onUpdate }) => {
                       const setEf = patch => setEditTratForm(prev => ({ ...prev, ...patch }));
                       return (
                         <div key={i} style={{ background: '#FFF9F0', borderBottom: `2px solid ${GOLD}`, padding: 14 }}>
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 8 }}>
+                          <div className="grid-3" style={{ gap: 8, marginBottom: 8 }}>
                             <div><div style={labelStyle}>DATA</div><input type="date" value={ef.data || ''} onChange={e => setEf({ data: e.target.value })} style={inputStyle} /></div>
                             <div><div style={labelStyle}>HORÁRIO</div><input type="time" value={ef.horario || '09:00'} onChange={e => setEf({ horario: e.target.value })} style={inputStyle} /></div>
                             <div style={{ gridColumn: 'span 2' }}>
@@ -3882,6 +3883,7 @@ const FichaPaciente = ({ paciente, onClose, onUpdate }) => {
                     ))}
                   </div>
                 </div>
+                </div>
               )}
             </div>
           )}
@@ -3895,7 +3897,7 @@ const FichaPaciente = ({ paciente, onClose, onUpdate }) => {
                 </button>
               ) : (
                 <div style={{ background: LIGHT, borderRadius: 10, padding: 14, marginBottom: 14 }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 8 }}>
+                  <div className="grid-3" style={{ gap: 8, marginBottom: 8 }}>
                     <div><div style={labelStyle}>DATA</div><input type="date" value={newPront.data} onChange={e => setNewPront({ ...newPront, data: e.target.value })} style={inputStyle} /></div>
                     <div style={{ gridColumn: 'span 2' }}><div style={labelStyle}>TÍTULO</div><input value={newPront.titulo} onChange={e => setNewPront({ ...newPront, titulo: e.target.value })} placeholder="Ex: Avaliação inicial harmonização" style={inputStyle} /></div>
                     <div><div style={labelStyle}>PROFISSIONAL</div><input value={newPront.profissional} onChange={e => setNewPront({ ...newPront, profissional: e.target.value })} style={inputStyle} /></div>
@@ -3934,7 +3936,7 @@ const FichaPaciente = ({ paciente, onClose, onUpdate }) => {
                 </button>
               ) : (
                 <div style={{ background: LIGHT, borderRadius: 10, padding: 14, marginBottom: 14 }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 8 }}>
+                  <div className="grid-3" style={{ gap: 8, marginBottom: 8 }}>
                     <div><div style={labelStyle}>DATA</div><input type="date" value={newProp.data} onChange={e => setNewProp({ ...newProp, data: e.target.value })} style={inputStyle} /></div>
                     <div style={{ gridColumn: 'span 2' }}><div style={labelStyle}>TÍTULO</div><input value={newProp.titulo} onChange={e => setNewProp({ ...newProp, titulo: e.target.value })} placeholder="Ex: Protocolo harmonização completo" style={inputStyle} /></div>
                   </div>
@@ -3969,7 +3971,7 @@ const FichaPaciente = ({ paciente, onClose, onUpdate }) => {
                     </div>
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 8, marginBottom: 8 }}>
+                  <div className="grid-4" style={{ gap: 8, marginBottom: 8 }}>
                     <div>
                       <div style={labelStyle}>VALOR TOTAL (R$)</div>
                       <input type="number" value={newProp.valor_total}
@@ -4124,7 +4126,7 @@ const FichaPaciente = ({ paciente, onClose, onUpdate }) => {
                 </button>
               ) : (
                 <div style={{ background: LIGHT, borderRadius: 10, padding: 14, marginBottom: 14 }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 8 }}>
+                  <div className="grid-3" style={{ gap: 8, marginBottom: 8 }}>
                     <div><div style={labelStyle}>DATA</div><input type="date" value={newObs.data} onChange={e => setNewObs({ ...newObs, data: e.target.value })} style={inputStyle} /></div>
                     <div><div style={labelStyle}>AUTOR</div><input value={newObs.autor} onChange={e => setNewObs({ ...newObs, autor: e.target.value })} style={inputStyle} /></div>
                     <div><div style={labelStyle}>TIPO</div>
@@ -4170,7 +4172,7 @@ const FichaPaciente = ({ paciente, onClose, onUpdate }) => {
           <div style={{ background: 'white', borderRadius: 14, padding: 24, width: '100%', maxWidth: 480, boxShadow: '0 20px 60px rgba(0,0,0,0.4)' }}>
             <div style={{ fontSize: 16, fontWeight: 800, color: DARK, marginBottom: 4 }}>Converter Proposta em Venda</div>
             <div style={{ fontSize: 12, color: '#888', marginBottom: 16 }}>Confirme os dados do tratamento que será gerado.</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+            <div className="grid-2" style={{ gap: 10, marginBottom: 10 }}>
               <div style={{ gridColumn: '1 / -1' }}>
                 <div style={{ fontSize: 9, fontWeight: 700, color: '#999', marginBottom: 3 }}>PROCEDIMENTO</div>
                 <input value={convertForm.procedimento} onChange={e => setConvertForm({ ...convertForm, procedimento: e.target.value })} style={{ width: '100%', padding: '7px 10px', border: '1px solid #ddd', borderRadius: 6, fontSize: 12, fontFamily: 'inherit', boxSizing: 'border-box' }} />
@@ -4293,7 +4295,7 @@ const CRMTab = ({ shared }) => {
       {/* FORM NOVO */}
       {showNew && (
         <Card title="Cadastrar Novo Paciente / Lead">
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 10 }}>
+          <div className="grid-3" style={{ gap: 8, marginBottom: 10 }}>
             <div style={{ gridColumn: 'span 2' }}><div style={labelStyle}>NOME COMPLETO *</div><input value={newPac.nome} onChange={e => setNewPac({ ...newPac, nome: e.target.value })} placeholder="Nome completo" style={inputStyle} /></div>
             <div><div style={labelStyle}>STATUS</div>
               <select value={newPac.status} onChange={e => setNewPac({ ...newPac, status: e.target.value })} style={inputStyle}>
@@ -4476,7 +4478,7 @@ const _CRMPipelineTab = ({ shared }) => {
       {/* CADASTRO DE NOVO CLIENTE */}
       {(showNewLead || viewMode === "cadastro") && (
         <Card title="Cadastro de Novo Cliente / Lead">
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 10 }}>
+          <div className="grid-3" style={{ gap: 8, marginBottom: 10 }}>
             {[
               { label: "NOME COMPLETO", field: "nome", placeholder: "Maria da Silva", type: "text", span: 2 },
               { label: "TELEFONE (WHATSAPP)", field: "tel", placeholder: "(11) 99999-0000", type: "text", span: 1 },
@@ -4492,7 +4494,7 @@ const _CRMPipelineTab = ({ shared }) => {
               </div>
             ))}
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 10 }}>
+          <div className="grid-3" style={{ gap: 8, marginBottom: 10 }}>
             <div>
               <div style={{ fontSize: 9, fontWeight: 700, color: GOLD, letterSpacing: "0.05em", marginBottom: 3 }}>ORIGEM</div>
               <select value={newLead.origem} onChange={e => setNewLead({...newLead, origem: e.target.value})}
@@ -4591,7 +4593,7 @@ const _CRMPipelineTab = ({ shared }) => {
 
                     {isExpanded && (
                       <div style={{ padding: "0 14px 14px", borderTop: "1px solid #f0ece6" }}>
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 8, padding: "12px 0" }}>
+                        <div className="grid-4" style={{ gap: 8, padding: "12px 0" }}>
                           {[
                             { label: "Telefone", value: l.tel || "—" },
                             { label: "E-mail", value: l.email || "—" },
@@ -4648,7 +4650,7 @@ const _CRMPipelineTab = ({ shared }) => {
           </Card>
 
           {/* MÉTRICAS DA BASE */}
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 16 }}>
+          <div className="metric-row" style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 16 }}>
             <Metric label="Total na Base" value={leads.filter(l => ["atendido","retorno","fidelizado"].includes(l.status)).length} sub="clientes atendidos" />
             <Metric label="Fidelizados (VIP)" value={countByStage("fidelizado")} color={GOLD} sub="programa de indicação" />
             <Metric label="Retorno Pendente" value={countByStage("retorno")} color="#6A1B9A" sub="agendar próxima sessão" />
@@ -4831,7 +4833,7 @@ const _CRMPipelineTab = ({ shared }) => {
       {/* RÉGUA DE CRM */}
       {/* ORIGENS DE LEAD */}
       <Card title="Fontes de Captação — De onde vêm os leads?">
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <div className="grid-2" style={{ gap: 10 }}>
           {[
             { source: "Instagram", type: "ORGÂNICO", desc: "DMs, comentários, Stories. Gi monitora e encaminha pra Sirlândia.", kpi: "Meta: 5 leads/semana", color: "#FCE4EC" },
             { source: "Google (SEO + Maps)", type: "ORGÂNICO", desc: "Busca 'clínica estética Vila Olímpia'. Google Business Profile.", kpi: "Meta: 3 leads/semana", color: "#E3F2FD" },
@@ -5526,7 +5528,7 @@ const AtasTab = () => {
 
   return (
     <div>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 16 }}>
+      <div className="metric-row" style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 16 }}>
         <Metric label="Total de Ações" value={allActions.length} />
         <Metric label="Pendentes" value={pendentes.length} color="#E65100" />
         <Metric label="Atrasadas" value={atrasadas.length} color="#B71C1C" />
@@ -5672,7 +5674,7 @@ const ExecutiveTab = ({ shared }) => {
       </Card>
 
       {/* DUAL CHARTS */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
+      <div className="grid-2" style={{ gap: 12, marginBottom: 12 }}>
         {/* PACIENTES */}
         <Card title="Pacientes por mês">
           <div style={{ display: "flex", alignItems: "flex-end", gap: 4, height: 100 }}>
@@ -5769,7 +5771,7 @@ const ExecutiveTab = ({ shared }) => {
 
       {/* OKRs */}
       {/* TREND LINES — VISÃO BOARD */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
+      <div className="grid-2" style={{ gap: 12, marginBottom: 16 }}>
         <TrendChart title="Evolução faturamento (R$ mil)" color="#4CAF50" target={60} unit="K"
           data={[{label:"Jan",value:25},{label:"Fev",value:30},{label:"Mar",value:35},{label:"Abr",value:40},{label:"Mai",value:50,projected:true},{label:"Jun",value:60,projected:true}]} />
         <TrendChart title="Evolução seguidores IG" color="#E91E63" target={1000}
@@ -6015,7 +6017,7 @@ const CashflowTab = () => {
   return (
     <div>
       {/* KPIs */}
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 16 }}>
+      <div className="metric-row" style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 16 }}>
         <Metric label="Entradas" value={fmt(totalEntradas)} color="#2E7D32" sub="receitas do período" />
         <Metric label="Saídas" value={fmt(totalSaidas)} color="#B71C1C" sub="custos e despesas" />
         <Metric label="Saldo" value={fmt(saldo)} color={saldo >= 0 ? "#2E7D32" : "#B71C1C"} sub={saldo >= 0 ? "positivo" : "NEGATIVO — atenção"} />
@@ -6038,6 +6040,8 @@ const CashflowTab = () => {
         </div>
 
         <div style={{ background: "white", border: "1px solid #E8E4DE", borderRadius: 10, overflow: "hidden" }}>
+          <div style={{ overflowX: "auto" }}>
+          <div style={{ minWidth: 620 }}>
           {/* Header */}
           <div style={{ display: "grid", gridTemplateColumns: "90px 1fr 1fr 110px 90px 110px", gap: 0, background: "#F5F0E8", padding: "7px 14px" }}>
             {["DATA", "PACIENTE", "PROCEDIMENTO", "FORMA PGTO", "VALOR", "STATUS"].map((h, i) => (
@@ -6067,6 +6071,8 @@ const CashflowTab = () => {
               </select>
             </div>
           ))}
+          </div>
+          </div>
         </div>
       </div>
 
@@ -6082,6 +6088,8 @@ const CashflowTab = () => {
         </div>
 
         <div style={{ background: "white", border: "1px solid #E8E4DE", borderRadius: 10, overflow: "hidden", marginBottom: 10 }}>
+          <div style={{ overflowX: "auto" }}>
+          <div style={{ minWidth: 620 }}>
           {/* Header */}
           <div style={{ display: "grid", gridTemplateColumns: "100px 1fr 1fr 100px 90px 110px", gap: 0, background: "#FFF5F5", padding: "7px 14px" }}>
             {["VENCIMENTO", "FORNECEDOR", "DESCRIÇÃO", "CATEGORIA", "VALOR", "STATUS"].map((h, i) => (
@@ -6112,6 +6120,8 @@ const CashflowTab = () => {
               </select>
             </div>
           ))}
+          </div>
+          </div>
         </div>
 
         {/* Formulário nova despesa */}
@@ -6345,7 +6355,7 @@ const EditorialTab = () => {
           <button onClick={() => setWeekOffset(weekOffset + 1)} style={{ padding: "6px 12px", borderRadius: 6, border: "1px solid #ddd", background: "white", cursor: "pointer", fontFamily: "inherit", fontSize: 14, color: GOLD }}>›</button>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 6 }}>
+        <div className="grid-5" style={{ gap: 6 }}>
           {weekDays.map((day, di) => {
             const key = `${weekOffset}-${di}`;
             const post = posts[key];
@@ -6478,7 +6488,7 @@ const NpsTab = () => {
 
   return (
     <div>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 16 }}>
+      <div className="metric-row" style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 16 }}>
         <Metric label="NPS Score" value={nps} color={nps >= 75 ? "#2E7D32" : nps >= 50 ? GOLD : "#B71C1C"} sub={nps >= 75 ? "Excelente" : nps >= 50 ? "Bom" : "Precisa melhorar"} />
         <Metric label="Nota Média" value={avgNota} sub="de 0 a 10" />
         <Metric label="Promotores (9-10)" value={promoters} color="#2E7D32" sub={`${total > 0 ? Math.round(promoters/total*100) : 0}%`} />
@@ -6670,7 +6680,7 @@ const MarketingTab = () => {
 
       {/* INSTAGRAM QUICK ACTIONS */}
       <Card title="Instagram — Ações Rápidas">
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginBottom: 12 }}>
+        <div className="grid-4" style={{ gap: 8, marginBottom: 12 }}>
           {[
             { label: "Ver Perfil", url: "https://www.instagram.com/institutolevvai/", icon: "👤", color: "#E8EAF6", desc: "@institutolevvai" },
             { label: "Criar Post", url: "https://business.facebook.com/latest/posts/create", icon: "📝", color: "#E8F5E9", desc: "Meta Business Suite" },
@@ -6735,7 +6745,7 @@ const MarketingTab = () => {
 
           {/* CONTENT PERFORMANCE */}
           <Card title="Performance de Conteúdo — Tracker">
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 12 }}>
+            <div className="metric-row" style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 12 }}>
               <Metric label="Posts Rastreados" value={posts.length} />
               <Metric label="Alcance Total" value={totalReach.toLocaleString("pt-BR")} />
               <Metric label="Eng. Médio" value={`${avgEng}%`} color={parseFloat(avgEng) >= 5 ? "#2E7D32" : "#E65100"} />
@@ -6798,7 +6808,7 @@ const MarketingTab = () => {
       {/* MÉTRICAS INSTAGRAM */}
       {igTab === "metrics" && (
         <>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 16 }}>
+          <div className="metric-row" style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 16 }}>
             <Metric label="Seguidores" value={igData ? igData.profile.followers.toLocaleString("pt-BR") : "286"} sub="Meta Q2: 1.000" color={igData && igData.profile.followers >= 1000 ? "#2E7D32" : undefined} />
             <Metric label="Posts" value={igData ? igData.profile.mediaCount : "20"} sub="Meta Q2: 70" />
             <Metric label="Eng. Médio" value={`${avgEng}%`} sub="Meta: 5%+" color={parseFloat(avgEng) >= 5 ? "#2E7D32" : "#E65100"} />
@@ -6806,7 +6816,7 @@ const MarketingTab = () => {
           </div>
 
           {/* INSTAGRAM TRENDS */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
+          <div className="grid-2" style={{ gap: 12, marginBottom: 16 }}>
             <TrendChart title="Evolução seguidores" color="#E91E63" target={1000}
               data={[{label:"Jan",value:80},{label:"Fev",value:130},{label:"Mar",value:200},{label:"Abr",value:286},{label:"Mai",value:500,projected:true},{label:"Jun",value:1000,projected:true}]} />
             <TrendChart title="Posts acumulados" color="#2196F3" target={70}
@@ -6888,7 +6898,7 @@ const MarketingTab = () => {
       {/* ROI POR CANAL */}
       {igTab === "channels" && (
         <>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 16 }}>
+          <div className="metric-row" style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 16 }}>
             <Metric label="CAC (Custo Aquisição)" value="R$ —" sub="Meta: R$80-150" />
             <Metric label="LTV (Valor Vitalício)" value="R$ —" sub="Ticket × retornos" />
             <Metric label="LTV / CAC" value="— x" sub="Meta: >3x" />
@@ -6931,7 +6941,7 @@ const IcpTab = () => (
     <Card title="ICP — Ideal Customer Profile" accent>
       <p style={{ color: "#aaa", fontSize: 13, margin: 0 }}>Quem é a paciente ideal do Instituto Levvai. Toda decisão de conteúdo, captação e posicionamento parte daqui.</p>
     </Card>
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+    <div className="grid-2" style={{ gap: 12 }}>
       <Card title="Perfil Demográfico">
         {[
           { label: "Gênero", value: "Mulher (90%+ da base)" },
@@ -7064,7 +7074,7 @@ const FornecedoresTab = () => {
             <span style={{ fontSize: 14, fontWeight: 800, color: DARK }}>{s.nome}</span>
             {s.tel === "—" && <Badge text="INCOMPLETO" color="#FFCDD2" textColor="#B71C1C" />}
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 6, fontSize: 12 }}>
+          <div className="grid-4" style={{ gap: 6, fontSize: 12 }}>
             {[["Produtos", s.produtos], ["Contato", s.contato], ["Telefone", s.tel], ["E-mail", s.email], ["Prazo entrega", s.prazo], ["Pagamento", s.pagamento]].map(([l, v], j) => (
               <div key={j}><span style={{ fontSize: 9, fontWeight: 700, color: GOLD }}>{l}</span><div style={{ color: "#555" }}>{v}</div></div>
             ))}
@@ -7076,7 +7086,7 @@ const FornecedoresTab = () => {
         <button onClick={() => setShowNew(true)} style={{ width: "100%", padding: "10px", background: "white", border: `2px dashed ${GOLD}`, borderRadius: 10, cursor: "pointer", fontSize: 13, fontWeight: 600, color: GOLD, fontFamily: "inherit" }}>+ Cadastrar fornecedor</button>
       ) : (
         <Card title="Novo Fornecedor">
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+          <div className="grid-3" style={{ gap: 8 }}>
             {[["NOME", "nome", "Allergan, Galderma..."], ["PRODUTOS", "produtos", "Botox, Radiesse..."], ["CONTATO", "contato", "Nome do representante"], ["TELEFONE", "tel", "(11) 99999"], ["E-MAIL", "email", "rep@email.com"], ["PRAZO ENTREGA", "prazo", "7-15 dias"], ["PAGAMENTO", "pagamento", "Boleto 30d, PIX"], ["OBS", "obs", "Notas"]].map(([l, f, p], i) => (
               <div key={i}><div style={{ fontSize: 9, fontWeight: 700, color: "#999", marginBottom: 2 }}>{l}</div>
                 <input value={newSup[f]} onChange={e => setNewSup({...newSup, [f]: e.target.value})} placeholder={p} style={{ width: "100%", padding: "7px 8px", border: "1px solid #ddd", borderRadius: 6, fontSize: 12, fontFamily: "inherit", boxSizing: "border-box" }} /></div>
@@ -7157,7 +7167,7 @@ const ContratosTab = () => {
       <Card title="Repositório de Contratos e Vencimentos" accent>
         <p style={{ color: "#aaa", fontSize: 13, margin: 0 }}>Todos os contratos da clínica. Sylmara monitora vencimentos. CEO revisa na revisão trimestral. Luciano Gebara consulta sob demanda.</p>
       </Card>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 16 }}>
+      <div className="metric-row" style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 16 }}>
         <Metric label="Contratos Ativos" value={contracts.filter(c => c.status === "ATIVO").length} color="#2E7D32" />
         <Metric label="Pendentes" value={contracts.filter(c => c.status === "PENDENTE").length} color="#F57F17" />
         <Metric label="Verificar" value={contracts.filter(c => c.status === "VERIFICAR").length} color="#B71C1C" sub="ação necessária" />
@@ -7175,7 +7185,7 @@ const ContratosTab = () => {
               </div>
               <Badge text={c.resp} color={LIGHT} textColor={GOLD} />
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 6, fontSize: 12 }}>
+            <div className="grid-4" style={{ gap: 6, fontSize: 12 }}>
               {[["Parte", c.parte], ["Início", c.inicio], ["Vencimento", c.vencimento], ["Valor", c.valor]].map(([l, v], j) => (
                 <div key={j}><span style={{ fontSize: 9, fontWeight: 700, color: GOLD }}>{l}</span><div style={{ color: "#555" }}>{v}</div></div>
               ))}
