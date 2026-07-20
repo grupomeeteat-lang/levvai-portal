@@ -1292,27 +1292,29 @@ const AssociatesTab = () => {
   const entries = repasses;
   const associates = associados;
 
-  const getSplit = (e) => {
-    const assoc = associates.find(a => a.nome === e.associado);
-    const pct = assoc?.split_percentual ?? 60;
+  // Cada repasse já guarda seu próprio split_percentual (definido na hora do cadastro,
+  // usando a "Tabela de Splits — Regras de Divisão" como referência). Default 60% se não informado.
+  const getSplit = (splitPercentual) => {
+    const pct = splitPercentual != null && splitPercentual !== "" ? Number(splitPercentual) : 60;
     return { assoc: pct / 100, levvai: 1 - pct / 100 };
   };
 
   const totals = entries.reduce((acc, e) => {
-    const s = getSplit(e);
-    acc.bruto += e.valor;
-    acc.assoc += e.valor * s.assoc;
-    acc.levvai += e.valor * s.levvai;
+    const s = getSplit(e.split_percentual);
+    acc.bruto += e.bruto || 0;
+    acc.assoc += (e.bruto || 0) * s.assoc;
+    acc.levvai += (e.bruto || 0) * s.levvai;
     return acc;
   }, { bruto: 0, assoc: 0, levvai: 0 });
 
   const byAssoc = entries.reduce((acc, e) => {
-    const s = getSplit(e);
-    if (!acc[e.associado]) acc[e.associado] = { count: 0, bruto: 0, assoc: 0, levvai: 0 };
-    acc[e.associado].count++;
-    acc[e.associado].bruto += e.valor;
-    acc[e.associado].assoc += e.valor * s.assoc;
-    acc[e.associado].levvai += e.valor * s.levvai;
+    const s = getSplit(e.split_percentual);
+    const nome = e.associado_nome;
+    if (!acc[nome]) acc[nome] = { count: 0, bruto: 0, assoc: 0, levvai: 0 };
+    acc[nome].count++;
+    acc[nome].bruto += e.bruto || 0;
+    acc[nome].assoc += (e.bruto || 0) * s.assoc;
+    acc[nome].levvai += (e.bruto || 0) * s.levvai;
     return acc;
   }, {});
 
@@ -1467,22 +1469,20 @@ const AssociatesTab = () => {
 
       <Card title="Simulador de Repasse — Registro de Atendimentos">
         <div style={{ fontSize: 11, color: "#999", marginBottom: 12 }}>
-          Exemplo com dados fictícios. Na planilha real (aba Repasse Associados), Sylmara preenche os dados azuis e as fórmulas calculam automaticamente.
+          Dados reais da tabela de repasses (Supabase). O split por linha usa o percentual (split_percentual) já salvo em cada repasse.
         </div>
 
         {/* TABLE HEADER */}
         <div style={{ display: "flex", background: DARK, borderRadius: "8px 8px 0 0", padding: "10px 0" }}>
           {[
             { label: "ASSOCIADO", flex: 1.5 },
-            { label: "PACIENTE", flex: 1.2 },
-            { label: "ORIGEM", flex: 0.8 },
-            { label: "PROCEDIMENTO", flex: 1.5 },
-            { label: "VALOR", flex: 0.7 },
-            { label: "INSUMO LV?", flex: 0.6 },
-            { label: "% ASSOC", flex: 0.5 },
-            { label: "% LEVVAI", flex: 0.5 },
-            { label: "REPASSE", flex: 0.8 },
-            { label: "LEVVAI", flex: 0.8 },
+            { label: "MÊS", flex: 0.8 },
+            { label: "BRUTO", flex: 0.8 },
+            { label: "% ASSOC", flex: 0.6 },
+            { label: "% LEVVAI", flex: 0.6 },
+            { label: "REPASSE", flex: 0.9 },
+            { label: "LEVVAI", flex: 0.9 },
+            { label: "STATUS", flex: 0.7 },
           ].map((h, i) => (
             <div key={i} style={{ flex: h.flex, textAlign: "center", fontSize: 9, fontWeight: 700, color: GOLD, letterSpacing: "0.05em", padding: "0 4px" }}>
               {h.label}
@@ -1492,32 +1492,26 @@ const AssociatesTab = () => {
 
         {/* TABLE ROWS */}
         {entries.map((e, i) => {
-          const s = getSplit(e.origem, e.insumo);
+          const s = getSplit(e.split_percentual);
           return (
             <div key={i} style={{
               display: "flex", padding: "8px 0", alignItems: "center",
               borderBottom: "1px solid #f0ece6",
               background: i % 2 === 0 ? "white" : "#FAFAF8",
             }}>
-              <div style={{ flex: 1.5, fontSize: 12, fontWeight: 600, padding: "0 4px" }}>{e.associado}</div>
-              <div style={{ flex: 1.2, fontSize: 12, padding: "0 4px" }}>{e.paciente}</div>
-              <div style={{ flex: 0.8, textAlign: "center" }}>
-                <Badge text={e.origem}
-                  color={e.origem === "LEVVAI" ? "#E3F2FD" : e.origem === "PROPRIO" ? "#F3E5F5" : "#FFF3E0"}
-                  textColor={e.origem === "LEVVAI" ? "#1565C0" : e.origem === "PROPRIO" ? "#6A1B9A" : "#E65100"} />
+              <div style={{ flex: 1.5, fontSize: 12, fontWeight: 600, padding: "0 4px" }}>{e.associado_nome}</div>
+              <div style={{ flex: 0.8, textAlign: "center", fontSize: 12, color: "#888" }}>{e.mes}</div>
+              <div style={{ flex: 0.8, textAlign: "center", fontSize: 12, fontWeight: 600 }}>{fmt(e.bruto)}</div>
+              <div style={{ flex: 0.6, textAlign: "center", fontSize: 12, fontWeight: 700, color: "#6A1B9A" }}>{Math.round(s.assoc * 100)}%</div>
+              <div style={{ flex: 0.6, textAlign: "center", fontSize: 12, fontWeight: 700, color: "#2E7D32" }}>{Math.round(s.levvai * 100)}%</div>
+              <div style={{ flex: 0.9, textAlign: "center", fontSize: 12, fontWeight: 700, color: "#6A1B9A", background: "#F3E5F5", borderRadius: 4, padding: "2px 6px", margin: "0 2px" }}>
+                {fmt(Math.round((e.bruto || 0) * s.assoc))}
               </div>
-              <div style={{ flex: 1.5, fontSize: 12, padding: "0 4px" }}>{e.procedimento}</div>
-              <div style={{ flex: 0.7, textAlign: "center", fontSize: 12, fontWeight: 600 }}>{fmt(e.valor)}</div>
-              <div style={{ flex: 0.6, textAlign: "center" }}>
-                <Badge text={e.insumo ? "SIM" : "NÃO"} color={e.insumo ? "#FFF9C4" : "#F5F5F5"} textColor={e.insumo ? "#F57F17" : "#999"} />
+              <div style={{ flex: 0.9, textAlign: "center", fontSize: 12, fontWeight: 700, color: "#2E7D32", background: "#E8F5E9", borderRadius: 4, padding: "2px 6px", margin: "0 2px" }}>
+                {fmt(Math.round((e.bruto || 0) * s.levvai))}
               </div>
-              <div style={{ flex: 0.5, textAlign: "center", fontSize: 12, fontWeight: 700, color: "#6A1B9A" }}>{Math.round(s.assoc * 100)}%</div>
-              <div style={{ flex: 0.5, textAlign: "center", fontSize: 12, fontWeight: 700, color: "#2E7D32" }}>{Math.round(s.levvai * 100)}%</div>
-              <div style={{ flex: 0.8, textAlign: "center", fontSize: 12, fontWeight: 700, color: "#6A1B9A", background: "#F3E5F5", borderRadius: 4, padding: "2px 6px", margin: "0 2px" }}>
-                {fmt(Math.round(e.valor * s.assoc))}
-              </div>
-              <div style={{ flex: 0.8, textAlign: "center", fontSize: 12, fontWeight: 700, color: "#2E7D32", background: "#E8F5E9", borderRadius: 4, padding: "2px 6px", margin: "0 2px" }}>
-                {fmt(Math.round(e.valor * s.levvai))}
+              <div style={{ flex: 0.7, textAlign: "center" }}>
+                <Badge text={e.pago ? "PAGO" : "PENDENTE"} color={e.pago ? "#E8F5E9" : "#FFF9C4"} textColor={e.pago ? "#2E7D32" : "#F57F17"} />
               </div>
             </div>
           );
@@ -1525,12 +1519,12 @@ const AssociatesTab = () => {
 
         {/* TOTAL ROW */}
         <div style={{ display: "flex", padding: "12px 0", background: LIGHT, borderRadius: "0 0 8px 8px", marginTop: 1 }}>
-          <div style={{ flex: 5, fontSize: 13, fontWeight: 800, paddingLeft: 8, color: DARK }}>TOTAL MÊS</div>
-          <div style={{ flex: 0.7, textAlign: "center", fontSize: 13, fontWeight: 800 }}>{fmt(totals.bruto)}</div>
-          <div style={{ flex: 1.1 }} />
-          <div style={{ flex: 0.5 }} />
-          <div style={{ flex: 0.8, textAlign: "center", fontSize: 13, fontWeight: 800, color: "#6A1B9A" }}>{fmt(Math.round(totals.assoc))}</div>
-          <div style={{ flex: 0.8, textAlign: "center", fontSize: 13, fontWeight: 800, color: "#2E7D32" }}>{fmt(Math.round(totals.levvai))}</div>
+          <div style={{ flex: 2.3, fontSize: 13, fontWeight: 800, paddingLeft: 8, color: DARK }}>TOTAL MÊS</div>
+          <div style={{ flex: 0.8, textAlign: "center", fontSize: 13, fontWeight: 800 }}>{fmt(totals.bruto)}</div>
+          <div style={{ flex: 1.2 }} />
+          <div style={{ flex: 0.9, textAlign: "center", fontSize: 13, fontWeight: 800, color: "#6A1B9A" }}>{fmt(Math.round(totals.assoc))}</div>
+          <div style={{ flex: 0.9, textAlign: "center", fontSize: 13, fontWeight: 800, color: "#2E7D32" }}>{fmt(Math.round(totals.levvai))}</div>
+          <div style={{ flex: 0.7 }} />
         </div>
       </Card>
 
