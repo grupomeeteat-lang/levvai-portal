@@ -2528,7 +2528,7 @@ const BudgetTab = () => {
 };
 
 // STOCK TAB
-const StockTab = () => {
+const StockTab = ({ shared }) => {
   const [stock, setStock] = useState([]);
   const [stockLoading, setStockLoading] = useState(true);
   const [selectedProduct, setSelectedProduct] = useState(null);
@@ -2538,13 +2538,15 @@ const StockTab = () => {
   const [filterStatus, setFilterStatus] = useState("TODOS");
   const [newProd, setNewProd] = useState({ tipo: "Protocolo", cat: "", nome: "", custoUn: 0, precoSugerido: 0, estoqueMin: 3 });
   const [showNewForm, setShowNewForm] = useState(false);
+  const [movimentosPorProduto, setMovimentosPorProduto] = useState({});
+  const [historicoProduto, setHistoricoProduto] = useState(null);
+  const [loadingHistorico, setLoadingHistorico] = useState(false);
 
   const mapProduto = (p) => ({
     ...p,
     custoUn: p.custo_un ?? p.custoUn ?? 0,
     precoSugerido: p.preco_sugerido ?? p.precoSugerido ?? 0,
     estoqueMin: p.estoque_min ?? p.estoqueMin ?? 3,
-    movimentos: [],
   });
 
   useEffect(() => {
@@ -2553,7 +2555,21 @@ const StockTab = () => {
         setStock(Array.isArray(data) ? data.map(mapProduto) : []);
         setStockLoading(false);
       });
+
+    // Última movimentação real por produto (sobrevive a reload)
+    supabase.from('movimentacoes_estoque').select('*').order('created_at', { ascending: false }).limit(500)
+      .then(({ data }) => {
+        if (!Array.isArray(data)) return;
+        const ultimos = {};
+        data.forEach(m => { if (!ultimos[m.produto_id]) ultimos[m.produto_id] = m; });
+        setMovimentosPorProduto(ultimos);
+      });
   }, []);
+
+  const fmtDataCurta = (iso) => {
+    const d = new Date(iso);
+    return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
+  };
 
   const getStatus = (p) => {
     if (p.estoque <= 0) return { text: "ZERADO", color: "#D32F2F", bg: "#FFCDD2" };
@@ -2564,25 +2580,33 @@ const StockTab = () => {
 
   const registrarMovimento = async () => {
     if (!selectedProduct || moveQty <= 0) return;
-    const now = new Date();
-    const dateStr = `${now.getDate().toString().padStart(2,"0")}/${(now.getMonth()+1).toString().padStart(2,"0")}`;
     const prod = stock.find(p => p.nome === selectedProduct);
     if (!prod) return;
-    const newEstoque = moveType === "ENTRADA" ? prod.estoque + moveQty : Math.max(0, prod.estoque - moveQty);
+    const tipo = moveType === "ENTRADA" ? "ENTRADA" : "SAIDA";
+    const newEstoque = tipo === "ENTRADA" ? prod.estoque + moveQty : Math.max(0, prod.estoque - moveQty);
     await supabase.from('produtos').update({ estoque: newEstoque }).eq('id', prod.id);
-    setStock(stock.map(p => {
-      if (p.nome === selectedProduct) {
-        return {
-          ...p,
-          estoque: newEstoque,
-          movimentos: [{ date: dateStr, type: moveType, qty: moveQty, obs: moveObs, saldo: newEstoque }, ...p.movimentos].slice(0, 20),
-        };
-      }
-      return p;
-    }));
+    const { data: novoMovimento } = await supabase.from('movimentacoes_estoque').insert({
+      produto_id: prod.id,
+      tipo,
+      quantidade: moveQty,
+      saldo_apos: newEstoque,
+      obs: moveObs || null,
+      responsavel: shared?.currentUserEmail || null,
+    }).select().single();
+    setStock(stock.map(p => p.nome === selectedProduct ? { ...p, estoque: newEstoque } : p));
+    if (novoMovimento) setMovimentosPorProduto(prev => ({ ...prev, [prod.id]: novoMovimento }));
     setMoveQty(1);
     setMoveObs("");
     setSelectedProduct(null);
+  };
+
+  const abrirHistorico = async (produto) => {
+    setHistoricoProduto({ produto, movimentos: [] });
+    setLoadingHistorico(true);
+    const { data } = await supabase.from('movimentacoes_estoque').select('*')
+      .eq('produto_id', produto.id).order('created_at', { ascending: false }).limit(20);
+    setHistoricoProduto({ produto, movimentos: Array.isArray(data) ? data : [] });
+    setLoadingHistorico(false);
   };
 
   const addNewProduct = async () => {
@@ -2690,7 +2714,7 @@ const StockTab = () => {
           {[
             { l: "TIPO", f: 0.5 }, { l: "CATEGORIA", f: 0.8 }, { l: "PRODUTO", f: 1.5 },
             { l: "CUSTO UN.", f: 0.7 }, { l: "ESTOQUE", f: 0.6 }, { l: "MÍNIMO", f: 0.5 },
-            { l: "STATUS", f: 0.6 }, { l: "VALOR ESTOQUE", f: 0.8 }, { l: "ÚLT. MOVIMENTO", f: 1 },
+            { l: "STATUS", f: 0.6 }, { l: "VALOR ESTOQUE", f: 0.8 }, { l: "ÚLT. MOVIMENTO", f: 1.2 },
           ].map((h, i) => (
             <div key={i} style={{ flex: h.f, textAlign: "center", fontSize: 9, fontWeight: 700, color: GOLD, letterSpacing: "0.05em", padding: "0 2px" }}>{h.l}</div>
           ))}
@@ -2698,7 +2722,7 @@ const StockTab = () => {
 
         {filtered.map((p, i) => {
           const st = getStatus(p);
-          const lastMove = p.movimentos && p.movimentos.length > 0 ? p.movimentos[0] : null;
+          const lastMove = movimentosPorProduto[p.id] || null;
           return (
             <div key={i} style={{
               display: "flex", padding: "8px 0", alignItems: "center",
@@ -2722,15 +2746,17 @@ const StockTab = () => {
                 <Badge text={st.text} color={st.bg} textColor={st.color} />
               </div>
               <div style={{ flex: 0.8, textAlign: "center", fontSize: 12, fontWeight: 600 }}>{fmt(p.custoUn * p.estoque)}</div>
-              <div style={{ flex: 1, textAlign: "center", fontSize: 10, color: "#999" }}>
+              <div style={{ flex: 1.2, textAlign: "center", fontSize: 10, color: "#999" }}>
                 {lastMove ? (
                   <span>
-                    <span style={{ color: lastMove.type === "ENTRADA" ? "#2E7D32" : "#B71C1C", fontWeight: 700 }}>
-                      {lastMove.type === "ENTRADA" ? "+" : "-"}{lastMove.qty}
+                    <span style={{ color: lastMove.tipo === "ENTRADA" ? "#2E7D32" : "#B71C1C", fontWeight: 700 }}>
+                      {lastMove.tipo === "ENTRADA" ? "+" : "-"}{lastMove.quantidade}
                     </span>
-                    {" "}{lastMove.date} {lastMove.obs && `(${lastMove.obs})`}
+                    {" "}{fmtDataCurta(lastMove.created_at)} {lastMove.obs && `(${lastMove.obs})`}
                   </span>
                 ) : "—"}
+                {" "}
+                <button onClick={() => abrirHistorico(p)} title="Ver histórico completo" style={{ background: "none", border: "none", cursor: "pointer", fontSize: 11, color: GOLD, fontFamily: "inherit", padding: 0, verticalAlign: "middle" }}>📜</button>
               </div>
             </div>
           );
@@ -2837,6 +2863,40 @@ const StockTab = () => {
           </div>
         ))}
       </Card>
+
+      {/* HISTÓRICO DE MOVIMENTAÇÃO — modal */}
+      {historicoProduto && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}
+          onClick={() => setHistoricoProduto(null)}>
+          <div onClick={e => e.stopPropagation()} style={{ background: "white", borderRadius: 14, padding: 20, width: "100%", maxWidth: 520, maxHeight: "80vh", overflowY: "auto", boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+              <div style={{ fontSize: 15, fontWeight: 800, color: DARK }}>Histórico — {historicoProduto.produto.nome}</div>
+              <button onClick={() => setHistoricoProduto(null)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 16, color: "#999", fontFamily: "inherit" }}>✕</button>
+            </div>
+            <div style={{ fontSize: 11, color: "#999", marginBottom: 14 }}>Últimas {historicoProduto.movimentos.length} movimentações (Supabase)</div>
+
+            {loadingHistorico ? (
+              <div style={{ textAlign: "center", padding: 20, color: "#999" }}>Carregando...</div>
+            ) : historicoProduto.movimentos.length === 0 ? (
+              <div style={{ textAlign: "center", padding: 20, color: "#ccc", fontSize: 13 }}>Nenhuma movimentação registrada.</div>
+            ) : (
+              historicoProduto.movimentos.map((m, i) => (
+                <div key={m.id || i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: "1px solid #f0ece6" }}>
+                  <div style={{ flex: "0 0 60px", fontSize: 11, color: "#888" }}>{fmtDataCurta(m.created_at)}</div>
+                  <Badge text={m.tipo === "ENTRADA" ? "ENTRADA" : "SAÍDA"}
+                    color={m.tipo === "ENTRADA" ? "#E8F5E9" : "#FFEBEE"}
+                    textColor={m.tipo === "ENTRADA" ? "#2E7D32" : "#B71C1C"} />
+                  <div style={{ flex: "0 0 50px", textAlign: "center", fontSize: 13, fontWeight: 700, color: m.tipo === "ENTRADA" ? "#2E7D32" : "#B71C1C" }}>
+                    {m.tipo === "ENTRADA" ? "+" : "-"}{m.quantidade}
+                  </div>
+                  <div style={{ flex: "0 0 60px", textAlign: "center", fontSize: 11, color: "#999" }}>saldo {m.saldo_apos}</div>
+                  <div style={{ flex: 1, fontSize: 11, color: "#666" }}>{m.obs || "—"}</div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
