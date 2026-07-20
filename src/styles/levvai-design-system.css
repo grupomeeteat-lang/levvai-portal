@@ -389,6 +389,16 @@ ul { list-style: none; }
   transition: all 0.15s;
 }
 .month-picker-hoje:hover { background: rgba(201, 168, 118, 0.22); }
+
+/* AUTOCOMPLETE (ex: paciente na Agenda) */
+.autocomplete-item {
+  padding: 8px 10px;
+  cursor: pointer;
+  border-bottom: 1px solid #f5f0e8;
+  font-size: 12px;
+}
+.autocomplete-item:last-child { border-bottom: none; }
+.autocomplete-item:hover { background: var(--bg-hover); }
 .topbar-icon-btn {
   width: 36px;
   height: 36px;

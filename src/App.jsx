@@ -3006,6 +3006,9 @@ const AgendaTab = ({ shared }) => {
   const [selectedProf, setSelectedProf] = useState("Lara");
   const [selectedProc, setSelectedProc] = useState("");
   const [selectedPac, setSelectedPac] = useState("");
+  const [selectedPacienteId, setSelectedPacienteId] = useState(null);
+  const [showSugestoesPac, setShowSugestoesPac] = useState(false);
+  const [pacientesDB, setPacientesDB] = useState([]);
 
   const loadSlots = async () => {
     const from = new Date(); from.setMonth(from.getMonth() - 2);
@@ -3026,6 +3029,17 @@ const AgendaTab = ({ shared }) => {
 
   useEffect(() => { loadSlots(); }, []);
 
+  // Pacientes cadastrados carregados uma única vez — autocomplete filtra localmente, sem fetch a cada tecla
+  useEffect(() => {
+    supabase.from('pacientes').select('id,nome,telefone').order('nome')
+      .then(({ data }) => setPacientesDB(Array.isArray(data) ? data : []));
+  }, []);
+
+  const sugestoesPacientes = selectedPac.trim().length >= 2
+    ? pacientesDB.filter(p => p.nome.toLowerCase().includes(selectedPac.trim().toLowerCase())).slice(0, 8)
+    : [];
+  const pacienteNaoEncontrado = selectedPac.trim().length >= 2 && !selectedPacienteId && sugestoesPacientes.length === 0;
+
   const slotKey = (day, room, hour) => {
     const d = weekDates[day];
     const ds = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -3041,13 +3055,13 @@ const AgendaTab = ({ shared }) => {
     const { data, error } = await supabase.from('agendamentos').insert({
       data: dateStr, horario: hours[selectedHour], sala: selectedRoom,
       profissional: selectedProf, procedimento: selectedProc || 'Consulta',
-      paciente: selectedPac || 'Paciente', from_crm: false,
+      paciente: selectedPac || 'Paciente', paciente_id: selectedPacienteId || null, from_crm: false,
     }).select().single();
     if (!error && data) {
       setSlots(prev => ({ ...prev, [key]: { prof: selectedProf, proc: selectedProc || 'Consulta', pac: selectedPac || 'Paciente', fromCRM: false } }));
       setSlotDbIds(prev => ({ ...prev, [key]: data.id }));
     }
-    setSelectedRoom(null); setSelectedHour(null); setSelectedProc(''); setSelectedPac('');
+    setSelectedRoom(null); setSelectedHour(null); setSelectedProc(''); setSelectedPac(''); setSelectedPacienteId(null); setShowSugestoesPac(false);
     setBookingLoading(false);
   };
 
@@ -3363,10 +3377,31 @@ const AgendaTab = ({ shared }) => {
                   )}
                 </select>
               </div>
-              <div style={{ flex: "1 1 160px" }}>
+              <div style={{ flex: "1 1 160px", position: "relative" }}>
                 <div style={{ fontSize: 10, fontWeight: 600, color: "#999", marginBottom: 3 }}>PACIENTE</div>
-                <input value={selectedPac} onChange={e => setSelectedPac(e.target.value)} placeholder="Nome"
-                  style={{ width: "100%", padding: "7px 8px", border: "1px solid #ddd", borderRadius: 6, fontSize: 12, fontFamily: "inherit", outline: "none", boxSizing: "border-box" }} />
+                <input
+                  value={selectedPac}
+                  onChange={e => { setSelectedPac(e.target.value); setSelectedPacienteId(null); setShowSugestoesPac(true); }}
+                  onFocus={() => setShowSugestoesPac(true)}
+                  onBlur={() => setTimeout(() => setShowSugestoesPac(false), 150)}
+                  placeholder="Nome"
+                  autoComplete="off"
+                  style={{ width: "100%", padding: "7px 8px", border: `1px solid ${selectedPacienteId ? GOLD : "#ddd"}`, borderRadius: 6, fontSize: 12, fontFamily: "inherit", outline: "none", boxSizing: "border-box" }} />
+                {showSugestoesPac && sugestoesPacientes.length > 0 && (
+                  <div style={{ position: "absolute", top: "100%", left: 0, right: 0, zIndex: 20, background: "white", border: "1px solid #E8E4DE", borderRadius: 8, marginTop: 4, boxShadow: "0 4px 16px rgba(0,0,0,0.1)", maxHeight: 180, overflowY: "auto" }}>
+                    {sugestoesPacientes.map(p => (
+                      <div key={p.id} className="autocomplete-item" onMouseDown={() => { setSelectedPac(p.nome); setSelectedPacienteId(p.id); setShowSugestoesPac(false); }}>
+                        <div style={{ fontWeight: 700, color: DARK }}>{p.nome}</div>
+                        {p.telefone && <div style={{ fontSize: 10, color: "#999" }}>{p.telefone}</div>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {selectedPacienteId ? (
+                  <div style={{ fontSize: 9, color: "#2E7D32", marginTop: 3, fontWeight: 600 }}>✓ vinculado ao cadastro</div>
+                ) : pacienteNaoEncontrado ? (
+                  <div style={{ fontSize: 9, color: "#E65100", marginTop: 3 }}>paciente não cadastrado — será agendado como avulso</div>
+                ) : null}
               </div>
               <div style={{ flex: "1 1 160px" }}>
                 <div style={{ fontSize: 10, fontWeight: 600, color: "#999", marginBottom: 3 }}>PROCEDIMENTO</div>
@@ -3385,7 +3420,7 @@ const AgendaTab = ({ shared }) => {
                 padding: "8px 20px", background: bookingLoading ? '#ddd' : GOLD, color: "white", border: "none",
                 borderRadius: 6, fontWeight: 700, fontSize: 12, cursor: bookingLoading ? 'default' : "pointer", fontFamily: "inherit",
               }}>{bookingLoading ? 'Salvando...' : 'Agendar'}</button>
-              <button onClick={() => { setSelectedRoom(null); setSelectedHour(null); }} style={{
+              <button onClick={() => { setSelectedRoom(null); setSelectedHour(null); setSelectedPac(''); setSelectedPacienteId(null); setShowSugestoesPac(false); }} style={{
                 padding: "8px 14px", background: "white", color: "#888", border: "1px solid #ddd",
                 borderRadius: 6, fontSize: 12, cursor: "pointer", fontFamily: "inherit",
               }}>Cancelar</button>
