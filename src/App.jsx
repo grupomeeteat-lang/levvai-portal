@@ -22,9 +22,6 @@ const tabGroups = [
   ]},
   { sector: "COMERCIAL", color: "#2196F3", tabs: [
     { id: "crm", label: "CRM & Leads" },
-    { id: "comunicacao", label: "Comunicação" },
-    { id: "journey", label: "Jornada Paciente" },
-    { id: "nps", label: "NPS & Satisfação" },
   ]},
   { sector: "MARKETING", color: "#E91E63", tabs: [
     { id: "brand", label: "Marca" },
@@ -2100,9 +2097,6 @@ const DocsTab = () => {
     ]},
     { sector: "COMERCIAL", color: "#2196F3", items: [
       { tab: "CRM & Leads", content: "Pipeline 7 estágios, base de clientes com busca e ficha completa (CPF, nascimento, e-mail), cadastro, agendamento integrado com Agenda" },
-      { tab: "Comunicação", content: "3 canais (WhatsApp, e-mail, telefone), 12 templates, automações por status, régua de tempo por cliente, histórico de disparos" },
-      { tab: "Jornada Paciente", content: "10 etapas: Descoberta → Contato → Agendamento → Recepção → Consulta → Procedimento → Pós → Retorno → Fidelização → Embaixadora" },
-      { tab: "NPS & Satisfação", content: "Score NPS calculado, registro de feedbacks com nota 0-10, promotores/neutros/detratores, regras de coleta" },
     ]},
     { sector: "MARKETING", color: "#E91E63", items: [
       { tab: "Marca", content: "3 opções de manifesto com tagline, tom de voz, pilares, comparativo. Recomendação: Opção A (Quiet Confidence)" },
@@ -2141,7 +2135,7 @@ const DocsTab = () => {
       <Card title="Central de Documentos — Instituto Levvai" accent>
         <p style={{ color: "#aaa", fontSize: 13, margin: 0 }}>
           Todos os documentos, arquivos e conteúdos gerados para o Instituto Levvai.
-          Portal com 24 abas em 7 setores + 10 arquivos para download + planilha financeira.
+          Portal com 21 abas em 7 setores + 10 arquivos para download + planilha financeira.
         </p>
       </Card>
 
@@ -2159,7 +2153,7 @@ const DocsTab = () => {
       </Card>
 
       {/* MAPA DO PORTAL */}
-      <Card title="Mapa do Portal — 24 Abas em 7 Setores">
+      <Card title="Mapa do Portal — 21 Abas em 7 Setores">
         {portalContent.map((s, si) => (
           <div key={si} style={{ marginBottom: 14 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
@@ -2192,7 +2186,7 @@ const DocsTab = () => {
       <Card title="Números desta Plataforma">
         <div className="grid-4" style={{ gap: 10 }}>
           {[
-            { label: "Abas no Portal", value: "24" },
+            { label: "Abas no Portal", value: "21" },
             { label: "Setores", value: "7" },
             { label: "Linhas de código", value: "4.500+" },
             { label: "Arquivos gerados", value: "10" },
@@ -4979,14 +4973,6 @@ const _CRMPipelineTab = ({ shared }) => {
                           </div>
                         )}
                         <div style={{ display: "flex", gap: 6 }}>
-                          <button onClick={() => shared.navigateTo("comunicacao")} style={{
-                            padding: "6px 14px", background: "#E8F5E9", color: "#2E7D32", border: "none",
-                            borderRadius: 6, fontWeight: 600, fontSize: 11, cursor: "pointer", fontFamily: "inherit",
-                          }}>Enviar WhatsApp</button>
-                          <button onClick={() => shared.navigateTo("comunicacao")} style={{
-                            padding: "6px 14px", background: "#E3F2FD", color: "#1565C0", border: "none",
-                            borderRadius: 6, fontWeight: 600, fontSize: 11, cursor: "pointer", fontFamily: "inherit",
-                          }}>Enviar E-mail</button>
                           <button onClick={() => shared.navigateTo("agenda")} style={{
                             padding: "6px 14px", background: "#FFF3E0", color: "#E65100", border: "none",
                             borderRadius: 6, fontWeight: 600, fontSize: 11, cursor: "pointer", fontFamily: "inherit",
@@ -5114,7 +5100,7 @@ const _CRMPipelineTab = ({ shared }) => {
               </button>
             </div>
             <div style={{ fontSize: 10, color: "#999" }}>
-              Ao confirmar, o horário será reservado na aba Agenda e o paciente receberá confirmação via aba Comunicação.
+              Ao confirmar, o horário será reservado na aba Agenda.
             </div>
           </div>
         )}
@@ -5170,9 +5156,6 @@ const _CRMPipelineTab = ({ shared }) => {
                     }}>
                     {pipelineStages.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
                   </select>
-                  <button onClick={() => shared.navigateTo("comunicacao")} style={{
-                    background: "none", border: "none", cursor: "pointer", fontSize: 9, color: "#2E7D32", fontWeight: 600, fontFamily: "inherit",
-                  }}>💬 Enviar msg</button>
                 </div>
               </div>
             </div>
@@ -5214,408 +5197,6 @@ const _CRMPipelineTab = ({ shared }) => {
 
         </>
       )}
-
-      {/* LINK TO COMUNICAÇÃO TAB */}
-      <div style={{ background: LIGHT, borderRadius: 10, padding: "16px 20px", marginTop: 12, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div>
-          <div style={{ fontSize: 13, fontWeight: 700, color: DARK }}>Templates, régua de follow-up e disparos</div>
-          <div style={{ fontSize: 11, color: "#888" }}>Toda comunicação com paciente está centralizada na aba Comunicação.</div>
-        </div>
-        <button onClick={() => shared.navigateTo("comunicacao")} style={{
-          padding: "8px 20px", background: GOLD, color: "white", border: "none",
-          borderRadius: 8, fontWeight: 700, fontSize: 12, cursor: "pointer", fontFamily: "inherit",
-        }}>Ir para Comunicação →</button>
-      </div>
-    </div>
-  );
-};
-
-// COMUNICAÇÃO TAB
-const ComunicacaoTab = ({ shared }) => {
-  const leads = shared.leads;
-  const [selectedLead, setSelectedLead] = useState(null);
-  const [channel, setChannel] = useState("whatsapp");
-  const [selectedTemplate, setSelectedTemplate] = useState(null);
-  const [messageText, setMessageText] = useState("");
-  const [callLog, setCallLog] = useState([]);
-  const [sentMessages, setSentMessages] = useState([]);
-
-  const pipelineStages = [
-    { id: "novo", label: "NOVO LEAD", color: "#E3F2FD", tc: "#1565C0" },
-    { id: "contato", label: "1º CONTATO", color: "#E8EAF6", tc: "#283593" },
-    { id: "agendado", label: "AGENDADO", color: "#FFF3E0", tc: "#E65100" },
-    { id: "atendido", label: "ATENDIDO", color: "#E8F5E9", tc: "#2E7D32" },
-    { id: "retorno", label: "RETORNO", color: "#F3E5F5", tc: "#6A1B9A" },
-    { id: "fidelizado", label: "FIDELIZADO", color: "#C8A96E", tc: "white" },
-    { id: "perdido", label: "PERDIDO", color: "#FFEBEE", tc: "#B71C1C" },
-  ];
-
-  const templates = [
-    { id: "welcome", stage: "Boas-vindas", trigger: "NOVO LEAD", channel: "whatsapp", msg: "Oi [nome]! Tudo bem? Sou a Sirlândia, do Instituto Levvai. Vi que você se interessou por [procedimento]. Posso te ajudar com informações? A Dra. Lara tem horários disponíveis esta semana para uma avaliação gratuita 😊" },
-    { id: "followup24", stage: "Follow-up 24h", trigger: "SEM RESPOSTA", channel: "whatsapp", msg: "Oi [nome], tudo bem? Só passando pra ver se conseguiu dar uma olhada nas informações que enviei. Se tiver qualquer dúvida, estou por aqui! A agenda da Dra. Lara está abrindo pra próxima semana." },
-    { id: "confirm48", stage: "Confirmação 48h", trigger: "AGENDADO", channel: "whatsapp", auto: true, msg: "Oi [nome]! Confirmando sua consulta no Instituto Levvai: 📅 [data] às [hora]. Nosso endereço: Rua do Rocio, 288, cj 93 — Vila Olímpia. Qualquer coisa me avisa! Te esperamos 💛" },
-    { id: "confirm24", stage: "Lembrete 24h", trigger: "AGENDADO", channel: "whatsapp", auto: true, msg: "Oi [nome]! Só lembrando que amanhã você tem consulta no Instituto Levvai às [hora]. Estamos te esperando! 💛" },
-    { id: "confirm2h", stage: "Lembrete 2h", trigger: "AGENDADO", channel: "whatsapp", auto: true, msg: "Oi [nome]! Estamos te esperando hoje às [hora] no Instituto Levvai. Até já! 😊" },
-    { id: "pos24", stage: "Pós-atendimento 24h", trigger: "ATENDIDO", channel: "whatsapp", auto: true, msg: "Oi [nome]! Como você está se sentindo depois do procedimento? Lembre-se das orientações que a Dra. Lara passou. Se tiver qualquer dúvida ou desconforto, me avisa que encaminho pra ela. Cuide-se! 💛" },
-    { id: "review7", stage: "Pedido de review", trigger: "7 DIAS PÓS", channel: "whatsapp", msg: "Oi [nome]! Tudo bem? Sua opinião é super importante pra gente. Poderia deixar uma avaliação no nosso Google? Leva 1 minutinho: [link]. Muito obrigada! 🙏" },
-    { id: "return30", stage: "Retorno 30 dias", trigger: "30 DIAS PÓS", channel: "whatsapp", msg: "Oi [nome]! Já faz 30 dias do seu [procedimento]. Como está se sentindo com o resultado? A Dra. Lara recomenda uma avaliação de acompanhamento. Quer que eu veja um horário pra você?" },
-    { id: "reactivate", stage: "Reativação", trigger: "60 DIAS SEM CONTATO", channel: "whatsapp", msg: "Oi [nome]! Faz um tempo que não nos falamos. Temos uma novidade no Instituto Levvai que acho que vai te interessar: [novidade]. Quer saber mais?" },
-    { id: "levvaiday", stage: "Convite Levvai Day", trigger: "EVENTO MENSAL", channel: "whatsapp", msg: "Oi [nome]! Você está convidada para o [tema] Day no Instituto Levvai! 📅 [data], das 9h às 16h. Condições especiais + avaliação express gratuita. Posso reservar seu horário?" },
-    { id: "email_confirm", stage: "Confirmação formal", trigger: "AGENDADO", channel: "email", msg: "Assunto: Confirmação — Instituto Levvai\n\nOlá [nome],\n\nConfirmamos seu agendamento:\n📅 Data: [data]\n⏰ Horário: [hora]\n👩‍⚕️ Profissional: [profissional]\n📍 Rua do Rocio, 288, cj 93 — Vila Olímpia, SP\n\nOrientações:\n• Chegar 10 minutos antes\n• Trazer documento com foto\n• Pele limpa, sem maquiagem (se procedimento facial)\n\nQualquer dúvida: (11) XXXXX-XXXX\n\nAtenciosamente,\nEquipe Instituto Levvai" },
-    { id: "email_pos", stage: "Pós-atendimento formal", trigger: "ATENDIDO", channel: "email", msg: "Assunto: Cuidados pós-procedimento — Instituto Levvai\n\nOlá [nome],\n\nFoi um prazer te atender hoje!\n\nSeus cuidados pós-procedimento:\n[orientações personalizadas]\n\nPróximo passo: retorno em [X dias].\nA Sirlândia vai entrar em contato para agendar.\n\nSe tiver qualquer dúvida ou desconforto, nos avise.\n\nCom carinho,\nDra. Lara e equipe Instituto Levvai" },
-  ];
-
-  const fillTemplate = (template, lead) => {
-    if (!lead) return template.msg;
-    return template.msg
-      .replace(/\[nome\]/g, lead.nome)
-      .replace(/\[procedimento\]/g, lead.interesse || "procedimento")
-      .replace(/\[data\]/g, lead.agendamento ? "conforme agendado" : "[data]")
-      .replace(/\[hora\]/g, lead.agendamento ? "conforme agendado" : "[hora]");
-  };
-
-  const selectTemplate = (t) => {
-    setSelectedTemplate(t);
-    setChannel(t.channel);
-    setMessageText(fillTemplate(t, selectedLead ? leads.find((l,i) => i === selectedLead) : null));
-  };
-
-  const sendMessage = () => {
-    if (!messageText || selectedLead === null) return;
-    const lead = leads[selectedLead];
-    const now = new Date();
-    const ts = `${now.getDate().toString().padStart(2,"0")}/${(now.getMonth()+1).toString().padStart(2,"0")} ${now.getHours().toString().padStart(2,"0")}:${now.getMinutes().toString().padStart(2,"0")}`;
-    setSentMessages([{ to: lead.nome, channel, msg: messageText.substring(0, 80) + "...", time: ts, template: selectedTemplate?.stage || "Manual" }, ...sentMessages]);
-    setMessageText("");
-    setSelectedTemplate(null);
-  };
-
-  const logCall = () => {
-    if (selectedLead === null) return;
-    const lead = leads[selectedLead];
-    const now = new Date();
-    const ts = `${now.getDate().toString().padStart(2,"0")}/${(now.getMonth()+1).toString().padStart(2,"0")} ${now.getHours().toString().padStart(2,"0")}:${now.getMinutes().toString().padStart(2,"0")}`;
-    setCallLog([{ to: lead.nome, time: ts, status: "Registrada" }, ...callLog]);
-  };
-
-  const autoTriggers = templates.filter(t => t.auto);
-  const scheduledLeads = leads.filter(l => l.status === "agendado" && l.agendamento);
-
-  return (
-    <div>
-      <Card title="Central de Comunicação — Instituto Levvai" accent>
-        <p style={{ color: "#aaa", fontSize: 13, margin: 0 }}>
-          WhatsApp, e-mail e telefone. Selecione o paciente, escolha o template ou escreva manualmente, e dispare.
-          Mensagens automáticas são enviadas quando o lead muda de status no CRM.
-        </p>
-      </Card>
-
-      {/* AUTOMAÇÕES ATIVAS */}
-      <Card title="Automações — Disparos automáticos por status">
-        <div style={{ fontSize: 11, color: "#999", marginBottom: 10 }}>
-          Quando o status do lead muda no CRM, esses disparos são acionados automaticamente. Sirlândia recebe alerta pra personalizar e enviar.
-        </div>
-        {autoTriggers.map((t, i) => (
-          <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: "1px solid #f0ece6" }}>
-            <Badge text={t.trigger} color="#FFF3E0" textColor="#E65100" />
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 12, fontWeight: 600 }}>{t.stage}</div>
-              <div style={{ fontSize: 10, color: "#999" }}>{t.msg.substring(0, 70)}...</div>
-            </div>
-            <Badge text={t.channel === "whatsapp" ? "WhatsApp" : "E-mail"} color={t.channel === "whatsapp" ? "#E8F5E9" : "#E3F2FD"} textColor={t.channel === "whatsapp" ? "#2E7D32" : "#1565C0"} />
-            <Badge text="AUTO" color="#C8A96E" textColor="white" />
-          </div>
-        ))}
-        {scheduledLeads.length > 0 && (
-          <div style={{ background: "#FFF3E0", borderRadius: 8, padding: "10px 14px", marginTop: 10 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: "#E65100", marginBottom: 4 }}>
-              {scheduledLeads.length} paciente(s) agendado(s) — confirmações pendentes:
-            </div>
-            {scheduledLeads.map((l, i) => (
-              <div key={i} style={{ fontSize: 12, color: "#555", padding: "2px 0" }}>
-                › {l.nome} — {l.interesse} — ações: confirmação 48h, lembrete 24h, lembrete 2h
-              </div>
-            ))}
-          </div>
-        )}
-      </Card>
-
-      {/* COMPOSITOR DE MENSAGEM */}
-      <Card title="Enviar Mensagem">
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 12 }}>
-          {/* Select patient */}
-          <div style={{ flex: "1 1 200px" }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: "#999", marginBottom: 3 }}>PACIENTE</div>
-            <select value={selectedLead ?? ""} onChange={e => { setSelectedLead(e.target.value === "" ? null : Number(e.target.value)); setMessageText(""); setSelectedTemplate(null); }}
-              style={{ width: "100%", padding: "8px 10px", border: "1px solid #ddd", borderRadius: 8, fontSize: 12, fontFamily: "inherit", background: "white", boxSizing: "border-box" }}>
-              <option value="">Selecione o paciente...</option>
-              {leads.map((l, i) => <option key={i} value={i}>{l.nome} — {l.interesse} ({l.status})</option>)}
-            </select>
-          </div>
-          {/* Channel selector */}
-          <div style={{ flex: "0 0 200px" }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: "#999", marginBottom: 3 }}>CANAL</div>
-            <div style={{ display: "flex", gap: 4 }}>
-              {[
-                { id: "whatsapp", label: "WhatsApp", color: "#2E7D32", bg: "#E8F5E9" },
-                { id: "email", label: "E-mail", color: "#1565C0", bg: "#E3F2FD" },
-                { id: "phone", label: "Telefone", color: "#E65100", bg: "#FFF3E0" },
-              ].map(c => (
-                <button key={c.id} onClick={() => setChannel(c.id)} style={{
-                  flex: 1, padding: "7px 4px", borderRadius: 6, fontSize: 10, fontWeight: 700,
-                  cursor: "pointer", fontFamily: "inherit", border: "1px solid",
-                  background: channel === c.id ? c.bg : "white",
-                  color: channel === c.id ? c.color : "#999",
-                  borderColor: channel === c.id ? c.color : "#ddd",
-                }}>{c.label}</button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Phone log */}
-        {channel === "phone" && selectedLead !== null && (
-          <div style={{ background: "#FFF3E0", borderRadius: 8, padding: "14px 16px", marginBottom: 12 }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: "#E65100", marginBottom: 6 }}>
-              Ligar para: {leads[selectedLead]?.nome} — {leads[selectedLead]?.tel}
-            </div>
-            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              <a href={`tel:${leads[selectedLead]?.tel?.replace(/\D/g,"")}`} style={{
-                padding: "8px 20px", background: "#E65100", color: "white", borderRadius: 8,
-                fontWeight: 700, fontSize: 12, textDecoration: "none", fontFamily: "inherit",
-              }}>Ligar agora</a>
-              <button onClick={logCall} style={{
-                padding: "8px 16px", background: "white", color: "#E65100", border: "1px solid #E65100",
-                borderRadius: 8, fontWeight: 700, fontSize: 12, cursor: "pointer", fontFamily: "inherit",
-              }}>Registrar ligação</button>
-            </div>
-          </div>
-        )}
-
-        {/* Template selector */}
-        {channel !== "phone" && (
-          <>
-            <div style={{ fontSize: 10, fontWeight: 700, color: "#999", marginBottom: 6 }}>TEMPLATES {channel === "whatsapp" ? "WHATSAPP" : "E-MAIL"}</div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 12 }}>
-              {templates.filter(t => t.channel === channel).map((t, i) => (
-                <button key={i} onClick={() => selectTemplate(t)} style={{
-                  padding: "6px 12px", borderRadius: 6, fontSize: 10, fontWeight: 600,
-                  cursor: "pointer", fontFamily: "inherit",
-                  background: selectedTemplate?.id === t.id ? GOLD : "white",
-                  color: selectedTemplate?.id === t.id ? "white" : "#666",
-                  border: `1px solid ${selectedTemplate?.id === t.id ? GOLD : "#ddd"}`,
-                }}>{t.stage}</button>
-              ))}
-              <button onClick={() => { setSelectedTemplate(null); setMessageText(""); }} style={{
-                padding: "6px 12px", borderRadius: 6, fontSize: 10, fontWeight: 600,
-                cursor: "pointer", fontFamily: "inherit",
-                background: !selectedTemplate ? DARK : "white",
-                color: !selectedTemplate ? GOLD : "#888",
-                border: `1px solid ${!selectedTemplate ? DARK : "#ddd"}`,
-              }}>Mensagem livre</button>
-            </div>
-
-            {/* Message editor */}
-            <textarea value={messageText} onChange={e => setMessageText(e.target.value)}
-              placeholder={selectedLead !== null ? `Escreva a mensagem para ${leads[selectedLead]?.nome}...` : "Selecione um paciente primeiro..."}
-              rows={channel === "email" ? 10 : 4}
-              style={{ width: "100%", padding: "10px 12px", border: "1px solid #ddd", borderRadius: 8, fontSize: 13, fontFamily: "inherit", outline: "none", resize: "vertical", lineHeight: 1.6, boxSizing: "border-box" }} />
-
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
-              <div style={{ fontSize: 10, color: "#bbb" }}>
-                {messageText.length > 0 && `${messageText.length} caracteres`}
-                {selectedTemplate?.auto && <span style={{ color: "#E65100", fontWeight: 700 }}> — este template é disparado automaticamente</span>}
-              </div>
-              <button onClick={sendMessage} disabled={!messageText || selectedLead === null} style={{
-                padding: "10px 28px", background: messageText && selectedLead !== null ? (channel === "whatsapp" ? "#2E7D32" : "#1565C0") : "#ddd",
-                color: "white", border: "none", borderRadius: 8, fontWeight: 700, fontSize: 13,
-                cursor: messageText && selectedLead !== null ? "pointer" : "default", fontFamily: "inherit",
-              }}>{channel === "whatsapp" ? "Enviar WhatsApp" : "Enviar E-mail"}</button>
-            </div>
-          </>
-        )}
-      </Card>
-
-      {/* HISTÓRICO */}
-      {/* RÉGUA DE TEMPO POR CLIENTE */}
-      <Card title="Régua de Tempo — Último contato por cliente">
-        <div style={{ fontSize: 11, color: "#999", marginBottom: 12 }}>
-          Visão rápida de quando foi o último contato com cada paciente. Vermelho = atrasado no follow-up. Verde = em dia.
-        </div>
-
-        {leads.map((l, idx) => {
-          const stage = pipelineStages.find(s => s.id === l.status);
-          const lastMsg = sentMessages.find(m => m.to === l.nome);
-          const lastCall = callLog.find(c => c.to === l.nome);
-          const lastContact = lastMsg || lastCall;
-
-          // Simulate days since contact based on lead data
-          const daysSinceStr = l.data;
-          const dayParts = daysSinceStr?.split("/");
-          const leadDate = dayParts ? new Date(2026, parseInt(dayParts[1])-1, parseInt(dayParts[0])) : new Date();
-          const now = new Date();
-          const daysSince = Math.floor((now - leadDate) / (1000 * 60 * 60 * 24));
-
-          const isOverdue = (l.status === "novo" && daysSince > 0) ||
-                           (l.status === "contato" && daysSince > 2) ||
-                           (l.status === "atendido" && daysSince > 7) ||
-                           (l.status === "retorno" && daysSince > 30);
-
-          const nextAction = l.status === "novo" ? "Responder em 30min" :
-                            l.status === "contato" ? "Agendar avaliação" :
-                            l.status === "agendado" ? "Enviar confirmação" :
-                            l.status === "atendido" ? (daysSince < 2 ? "Pós 24h" : daysSince < 8 ? "Pedir review Google" : "Lembrete retorno 30d") :
-                            l.status === "retorno" ? "Agendar próxima sessão" :
-                            l.status === "fidelizado" ? "Convite Levvai Day / Aniversário" :
-                            l.status === "perdido" ? (daysSince < 31 ? "Última tentativa" : daysSince < 61 ? "Reativação" : "Base fria") : "";
-
-          return (
-            <div key={idx} style={{
-              display: "flex", gap: 10, padding: "10px 12px", marginBottom: 4,
-              background: isOverdue ? "#FFF5F5" : "white",
-              border: `1px solid ${isOverdue ? "#FFCDD2" : "#f0ece6"}`,
-              borderRadius: 8, alignItems: "center",
-              borderLeft: `4px solid ${isOverdue ? "#EF5350" : stage?.tc || "#ccc"}`,
-            }}>
-              {/* Avatar */}
-              <div style={{
-                width: 32, height: 32, borderRadius: "50%", flexShrink: 0,
-                background: stage?.color || "#eee", display: "flex", alignItems: "center", justifyContent: "center",
-                fontSize: 13, fontWeight: 800, color: stage?.tc || "#333",
-              }}>{l.nome[0]}</div>
-
-              {/* Client info */}
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <span style={{ fontSize: 13, fontWeight: 700 }}>{l.nome}</span>
-                  <Badge text={stage?.label} color={stage?.color} textColor={stage?.tc} />
-                </div>
-                <div style={{ fontSize: 11, color: "#888", marginTop: 1 }}>{l.interesse}</div>
-              </div>
-
-              {/* Last contact */}
-              <div style={{ textAlign: "center", minWidth: 90 }}>
-                <div style={{ fontSize: 9, fontWeight: 700, color: "#999", letterSpacing: "0.05em" }}>ÚLTIMO CONTATO</div>
-                {lastContact ? (
-                  <>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: DARK }}>{lastContact.time}</div>
-                    <div style={{ fontSize: 9, color: "#999" }}>
-                      {lastContact.type === "call" ? "📞 Ligação" : lastContact.channel === "whatsapp" ? "💬 WhatsApp" : "📧 E-mail"}
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: "#bbb" }}>{l.data || "—"}</div>
-                    <div style={{ fontSize: 9, color: "#bbb" }}>Cadastro</div>
-                  </>
-                )}
-              </div>
-
-              {/* Last message preview */}
-              <div style={{ flex: 1.2, minWidth: 0 }}>
-                <div style={{ fontSize: 9, fontWeight: 700, color: "#999", letterSpacing: "0.05em" }}>ÚLTIMA MSG</div>
-                <div style={{ fontSize: 11, color: "#666", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                  {lastMsg ? `${lastMsg.template}: ${lastMsg.msg}` : l.obs || "Nenhuma mensagem enviada"}
-                </div>
-              </div>
-
-              {/* Days indicator */}
-              <div style={{ textAlign: "center", minWidth: 50 }}>
-                <div style={{
-                  fontSize: 18, fontWeight: 900, fontFamily: "'DM Serif Display', Georgia, serif",
-                  color: isOverdue ? "#EF5350" : daysSince <= 1 ? "#2E7D32" : daysSince <= 7 ? GOLD : "#FF9800",
-                }}>{daysSince}</div>
-                <div style={{ fontSize: 8, color: "#999" }}>dias</div>
-              </div>
-
-              {/* Next action */}
-              <div style={{ minWidth: 110, textAlign: "right" }}>
-                <div style={{ fontSize: 9, fontWeight: 700, color: isOverdue ? "#EF5350" : GOLD, letterSpacing: "0.03em" }}>
-                  {isOverdue ? "⚠ ATRASADO" : "PRÓXIMA AÇÃO"}
-                </div>
-                <div style={{ fontSize: 10, color: "#666", marginTop: 1 }}>{nextAction}</div>
-              </div>
-            </div>
-          );
-        })}
-
-        {/* LEGENDA */}
-        <div style={{ display: "flex", gap: 12, marginTop: 12, paddingTop: 10, borderTop: "1px solid #f0ece6" }}>
-          {[
-            { color: "#2E7D32", label: "Em dia (0-1 dias)" },
-            { color: GOLD, label: "Atenção (2-7 dias)" },
-            { color: "#FF9800", label: "Monitorar (8-30 dias)" },
-            { color: "#EF5350", label: "Atrasado (acima do prazo)" },
-          ].map((l, i) => (
-            <div key={i} style={{ display: "flex", alignItems: "center", gap: 4 }}>
-              <div style={{ width: 10, height: 10, borderRadius: "50%", background: l.color }} />
-              <span style={{ fontSize: 10, color: "#888" }}>{l.label}</span>
-            </div>
-          ))}
-        </div>
-      </Card>
-
-      {/* HISTÓRICO DE DISPAROS */}
-      <Card title="Histórico de Disparos">
-        {sentMessages.length === 0 && callLog.length === 0 ? (
-          <div style={{ textAlign: "center", padding: "20px", color: "#ccc", fontSize: 13 }}>Nenhuma comunicação registrada ainda. Selecione um paciente e envie uma mensagem acima.</div>
-        ) : (
-          <>
-            {[...sentMessages.map(m => ({ ...m, type: "msg" })), ...callLog.map(c => ({ ...c, type: "call" }))].map((item, i) => (
-              <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: "1px solid #f0ece6" }}>
-                <Badge text={item.type === "call" ? "📞" : item.channel === "whatsapp" ? "💬" : "📧"}
-                  color={item.type === "call" ? "#FFF3E0" : item.channel === "whatsapp" ? "#E8F5E9" : "#E3F2FD"} textColor="#333" />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 12, fontWeight: 600 }}>{item.to}</div>
-                  <div style={{ fontSize: 10, color: "#999", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                    {item.type === "call" ? "Ligação registrada" : `${item.template}: ${item.msg}`}
-                  </div>
-                </div>
-                <span style={{ fontSize: 10, color: "#bbb", flexShrink: 0 }}>{item.time}</span>
-              </div>
-            ))}
-          </>
-        )}
-      </Card>
-
-      {/* RÉGUA DE FOLLOW-UP */}
-      <Card title="Régua de Relacionamento — Timing de cada etapa">
-        {[
-          { stage: "NOVO LEAD", color: "#E3F2FD", timing: "Em até 30 minutos", actions: ["Responder WhatsApp/DM com boas-vindas", "Identificar interesse e registrar no CRM", "Oferecer avaliação gratuita"] },
-          { stage: "1º CONTATO", color: "#E8EAF6", timing: "Até 24h após", actions: ["Se não respondeu: 2ª mensagem", "Se respondeu: agendar avaliação", "Se não agendou em 48h: follow-up semanal"] },
-          { stage: "AGENDADO", color: "#FFF3E0", timing: "48h + 24h + 2h antes", actions: ["Confirmação automática 48h antes", "Lembrete 24h antes", "Última confirmação 2h antes", "Se cancelou: reagendar na hora"] },
-          { stage: "ATENDIDO", color: "#E8F5E9", timing: "24h + 7 dias + 30 dias", actions: ["Pós-atendimento 24h (como se sentiu?)", "Pedir review Google em 7 dias", "Pedir depoimento em 7 dias", "Lembrete retorno em 30 dias"] },
-          { stage: "FIDELIZADO", color: "#F5F0E8", timing: "Mensal + datas especiais", actions: ["Lista VIP — acesso antecipado", "Mensagem no aniversário", "Programa de indicação", "Convite Levvai Day"] },
-          { stage: "PERDIDO", color: "#FFEBEE", timing: "30 + 60 + 90 dias", actions: ["30 dias: última tentativa", "60 dias: reativação com novidade", "90 dias: mover para base fria"] },
-        ].map((s, i) => (
-          <div key={i} style={{ display: "flex", gap: 10, padding: "8px 0", borderBottom: "1px solid #f0ece6", alignItems: "flex-start" }}>
-            <Badge text={s.stage} color={s.color} textColor="#333" />
-            <div style={{ fontSize: 10, color: "#999", minWidth: 90 }}>{s.timing}</div>
-            <div style={{ flex: 1, fontSize: 11, color: "#555" }}>{s.actions.join(" → ")}</div>
-          </div>
-        ))}
-      </Card>
-
-      {/* REGRAS */}
-      <Card title="Regras de Comunicação">
-        {[
-          "Lead novo = resposta em 30 MINUTOS. Sem exceção.",
-          "Primeiro contato sempre por texto, nunca áudio.",
-          "Gi encaminha DMs pra Sirlândia. Gi não responde sobre preço.",
-          "Nunca discutir preço por WhatsApp. Levar pra avaliação gratuita.",
-          "Follow-up é obrigatório. 80% convertem entre o 2º e 5º contato.",
-          "Personalizar TODA mensagem com nome e procedimento. Zero genérico.",
-          "E-mail: usar pra confirmações formais e pós-atendimento com orientações.",
-          "Telefone: usar pra no-shows (ligar no mesmo dia) e reativação.",
-          "CEO valida novos templates na weekly antes de entrarem em uso.",
-          "Registrar toda comunicação no histórico. Sem registro = não aconteceu.",
-        ].map((r, i) => (
-          <div key={i} style={{ fontSize: 12, color: "#555", padding: "5px 0", display: "flex", gap: 6, borderBottom: "1px solid #f5f0e8" }}>
-            <span style={{ color: GOLD, fontWeight: 800, fontSize: 12, minWidth: 22 }}>{(i+1).toString().padStart(2,"0")}</span>
-            {r}
-          </div>
-        ))}
-      </Card>
     </div>
   );
 };
@@ -5740,7 +5321,6 @@ const ExecutiveTab = ({ shared }) => {
         <Metric label="Ticket Médio" value={`R$${monthlyData.filter(m=>m.ticket).slice(-1)[0]?.ticket || "—"}`} sub="Meta: R$2.000" />
         <Metric label="Conversão" value={`${convRate}%`} color={convRate >= 50 ? "#2E7D32" : "#E65100"} sub={`${converted}/${totalLeads} leads`} />
         <Metric label="Seguidores" value={monthlyData.filter(m=>m.seg).slice(-1)[0]?.seg || "—"} sub={<span style={{ color: segTrend.color }}>{segTrend.dir} {segTrend.pct}</span>} />
-        <Metric label="NPS" value="—" sub="Meta: 85+" />
       </div>
 
       {/* FATURAMENTO CHART */}
@@ -6344,47 +5924,6 @@ const CashflowTab = ({ shared }) => {
   );
 };
 
-// JORNADA DO PACIENTE TAB
-const JourneyTab = () => (
-  <div>
-    <Card title="Jornada do Paciente — Instituto Levvai" accent>
-      <p style={{ color: "#aaa", fontSize: 13, margin: 0 }}>Do primeiro contato até se tornar embaixadora da marca. Cada etapa tem responsável, ação e ferramenta.</p>
-    </Card>
-    {[
-      { step: "01", title: "DESCOBERTA", desc: "Paciente descobre o Levvai", where: "Instagram, Google, indicação, Levvai Day", who: "Gi + Sirlândia", actions: ["Post/Reel desperta interesse", "Google 'clínica estética Vila Olímpia'", "Amiga indica", "Levvai Day — avaliação express"], emotion: "Curiosidade", color: "#E3F2FD" },
-      { step: "02", title: "PRIMEIRO CONTATO", desc: "Paciente manda mensagem", where: "DM Instagram, WhatsApp, formulário site", who: "Sirlândia (< 30min)", actions: ["Responder com template boas-vindas", "Identificar interesse", "Oferecer avaliação gratuita", "Registrar no CRM com origem"], emotion: "Expectativa", color: "#E8EAF6" },
-      { step: "03", title: "AGENDAMENTO", desc: "Consulta de avaliação marcada", where: "WhatsApp → CRM → Agenda", who: "Sirlândia", actions: ["Agendar no CRM (vira slot na Agenda)", "Enviar confirmação automática", "Lembrete 48h + 24h + 2h", "Enviar localização e orientações"], emotion: "Comprometimento", color: "#FFF3E0" },
-      { step: "04", title: "RECEPÇÃO", desc: "Paciente chega na clínica", where: "Recepção — Rua do Rocio 288, cj 93", who: "Sirlândia", actions: ["Receber com nome ('Oi Maria, que bom ter você aqui!')", "Oferecer água/café", "Coletar TCLE + Uso de Imagem + LGPD + Anamnese", "Fotografar antes", "Encaminhar pra Sala da Lara ou Consultório"], emotion: "Acolhimento", color: "#F3E5F5" },
-      { step: "05", title: "CONSULTA / AVALIAÇÃO", desc: "Lara avalia e propõe plano", where: "Consultório ou Sala da Lara", who: "Lara", actions: ["Anamnese detalhada", "Avaliação facial/corporal", "Apresentar plano de tratamento", "Montar orçamento (aba Orçamento)", "Explicar protocolos proprietários", "Alinhar expectativas"], emotion: "Confiança", color: "#E8F5E9" },
-      { step: "06", title: "PROCEDIMENTO", desc: "Paciente realiza o procedimento", where: "Sala da Lara ou Sala Associados", who: "Lara / Associado", actions: ["Confirmar TCLE assinado", "Executar procedimento", "Fotografar depois", "Orientações pós-procedimento (verbal + impresso)", "Registrar no prontuário"], emotion: "Transformação", color: "#C8E6C9" },
-      { step: "07", title: "PÓS-ATENDIMENTO", desc: "Follow-up nas primeiras 24h-7 dias", where: "WhatsApp + CRM", who: "Sirlândia", actions: ["24h: 'Como você está?' (automático)", "7 dias: Pedir review Google", "7 dias: Pedir depoimento/vídeo", "Registrar resultado no CRM"], emotion: "Cuidado", color: "#E0F2F1" },
-      { step: "08", title: "RETORNO", desc: "Paciente volta pra próxima sessão", where: "WhatsApp → Agenda", who: "Sirlândia + Lara", actions: ["Lembrete 30 dias (automático)", "Agendar próxima sessão", "Oferecer cross-sell", "Perguntar: 'Conhece alguém que gostaria?'"], emotion: "Fidelização", color: "#FFF9C4" },
-      { step: "09", title: "FIDELIZAÇÃO", desc: "Paciente vira cliente recorrente", where: "CRM — status Fidelizado", who: "Sirlândia + Gi", actions: ["Entrar na lista VIP", "Convite Levvai Day", "Mensagem aniversário", "Programa de indicação", "Protocolo de manutenção com condição"], emotion: "Pertencimento", color: LIGHT },
-      { step: "10", title: "EMBAIXADORA", desc: "Paciente indica e gera conteúdo", where: "Instagram + boca a boca", who: "Gi + Lara", actions: ["Depoimento em vídeo", "Marcar @institutolevvai", "Indicar amigas (programa referral)", "Participar de conteúdo como case"], emotion: "Orgulho", color: "#C8A96E" },
-    ].map((s, i) => (
-      <div key={i} style={{ display: "flex", gap: 12, marginBottom: 8 }}>
-        <div style={{ width: 50, textAlign: "center", flexShrink: 0 }}>
-          <div style={{ width: 40, height: 40, borderRadius: "50%", background: s.color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 900, color: DARK, margin: "0 auto" }}>{s.step}</div>
-          {i < 9 && <div style={{ width: 2, height: 20, background: "#E8E4DE", margin: "4px auto" }} />}
-        </div>
-        <Card title={s.title} >
-          <div style={{ fontSize: 12, color: "#888", marginBottom: 6 }}>{s.desc}</div>
-          <div style={{ display: "flex", gap: 6, marginBottom: 8, flexWrap: "wrap" }}>
-            <Badge text={`📍 ${s.where}`} color={s.color} textColor="#555" />
-            <Badge text={`👤 ${s.who}`} color={LIGHT} textColor={GOLD} />
-            <Badge text={`💭 ${s.emotion}`} color="white" textColor="#888" />
-          </div>
-          {s.actions.map((a, j) => (
-            <div key={j} style={{ fontSize: 11, color: "#555", padding: "2px 0", display: "flex", gap: 4 }}>
-              <span style={{ color: GOLD }}>›</span> {a}
-            </div>
-          ))}
-        </Card>
-      </div>
-    ))}
-  </div>
-);
-
 // CALENDÁRIO EDITORIAL TAB
 const EditorialTab = () => {
   const pilares = [
@@ -6571,126 +6110,6 @@ const EditorialTab = () => {
             <Badge text={d.format} color="#E3F2FD" textColor="#1565C0" />
             <span style={{ fontSize: 11, color: "#999" }}>{d.tip}</span>
           </div>
-        ))}
-      </Card>
-    </div>
-  );
-};
-
-// NPS & SATISFAÇÃO TAB
-const NpsTab = () => {
-  // Estado — NPS
-  const [feedbacksNps, setFeedbacksNps] = useState([]);
-  const [loadingNps, setLoadingNps] = useState(true);
-
-  useEffect(() => {
-    const fetchNps = async () => {
-      setLoadingNps(true);
-      const { data, error } = await supabase
-        .from('feedbacks_nps')
-        .select('*')
-        .order('data', { ascending: false });
-
-      if (!error && data) setFeedbacksNps(data);
-      setLoadingNps(false);
-    };
-
-    fetchNps();
-  }, []);
-
-  const salvarFeedbackNps = async (feedback) => {
-    if (feedback.id) {
-      const { error } = await supabase
-        .from('feedbacks_nps')
-        .update(feedback)
-        .eq('id', feedback.id);
-      if (!error) setFeedbacksNps(prev => prev.map(f => f.id === feedback.id ? feedback : f));
-    } else {
-      const { data, error } = await supabase
-        .from('feedbacks_nps')
-        .insert([feedback])
-        .select()
-        .single();
-      if (!error && data) setFeedbacksNps(prev => [data, ...prev]);
-    }
-  };
-
-  // Cálculo NPS: % promotores (9-10) - % detratores (0-6)
-  const calcularNps = () => {
-    if (feedbacksNps.length === 0) return 0;
-    const promotores = feedbacksNps.filter(f => f.nota >= 9).length;
-    const detratores = feedbacksNps.filter(f => f.nota <= 6).length;
-    return Math.round(((promotores - detratores) / feedbacksNps.length) * 100);
-  };
-
-  const feedbacks = feedbacksNps;
-  const [showNew, setShowNew] = useState(false);
-  const [newFb, setNewFb] = useState({ nome: "", proc: "", nota: 10, data: "", comentario: "", indicaria: true });
-
-  const addFb = async () => {
-    if (!newFb.nome) return;
-    const now = new Date();
-    const dateStr = `${now.getDate().toString().padStart(2,"0")}/${(now.getMonth()+1).toString().padStart(2,"0")}`;
-    await salvarFeedbackNps({ ...newFb, data: dateStr });
-    setNewFb({ nome: "", proc: "", nota: 10, data: "", comentario: "", indicaria: true });
-    setShowNew(false);
-  };
-
-  const promoters = feedbacks.filter(f => f.nota >= 9).length;
-  const passives = feedbacks.filter(f => f.nota >= 7 && f.nota <= 8).length;
-  const detractors = feedbacks.filter(f => f.nota <= 6).length;
-  const total = feedbacks.length;
-  const nps = total > 0 ? Math.round(((promoters - detractors) / total) * 100) : 0;
-  const avgNota = total > 0 ? (feedbacks.reduce((a, f) => a + f.nota, 0) / total).toFixed(1) : 0;
-
-  return (
-    <div>
-      <div className="metric-row" style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 16 }}>
-        <Metric label="NPS Score" value={nps} color={nps >= 75 ? "#2E7D32" : nps >= 50 ? GOLD : "#B71C1C"} sub={nps >= 75 ? "Excelente" : nps >= 50 ? "Bom" : "Precisa melhorar"} />
-        <Metric label="Nota Média" value={avgNota} sub="de 0 a 10" />
-        <Metric label="Promotores (9-10)" value={promoters} color="#2E7D32" sub={`${total > 0 ? Math.round(promoters/total*100) : 0}%`} />
-        <Metric label="Neutros (7-8)" value={passives} color={GOLD} sub={`${total > 0 ? Math.round(passives/total*100) : 0}%`} />
-        <Metric label="Detratores (0-6)" value={detractors} color="#B71C1C" sub={`${total > 0 ? Math.round(detractors/total*100) : 0}%`} />
-      </div>
-
-      <Card title="Registrar Feedback">
-        {!showNew ? (
-          <button onClick={() => setShowNew(true)} style={{ width: "100%", padding: "10px", background: "white", border: `2px dashed ${GOLD}`, borderRadius: 10, cursor: "pointer", fontSize: 13, fontWeight: 600, color: GOLD, fontFamily: "inherit" }}>+ Registrar novo feedback</button>
-        ) : (
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-end" }}>
-            <div style={{ flex: "1 1 150px" }}><div style={{ fontSize: 9, fontWeight: 700, color: "#999", marginBottom: 2 }}>PACIENTE</div>
-              <input value={newFb.nome} onChange={e => setNewFb({...newFb, nome: e.target.value})} placeholder="Nome" style={{ width: "100%", padding: "7px 10px", border: "1px solid #ddd", borderRadius: 6, fontSize: 12, fontFamily: "inherit", boxSizing: "border-box" }} /></div>
-            <div style={{ flex: "0 0 140px" }}><div style={{ fontSize: 9, fontWeight: 700, color: "#999", marginBottom: 2 }}>PROCEDIMENTO</div>
-              <input value={newFb.proc} onChange={e => setNewFb({...newFb, proc: e.target.value})} placeholder="Botox, Lips..." style={{ width: "100%", padding: "7px 10px", border: "1px solid #ddd", borderRadius: 6, fontSize: 12, fontFamily: "inherit", boxSizing: "border-box" }} /></div>
-            <div style={{ flex: "0 0 70px" }}><div style={{ fontSize: 9, fontWeight: 700, color: "#999", marginBottom: 2 }}>NOTA (0-10)</div>
-              <input type="number" min="0" max="10" value={newFb.nota} onChange={e => setNewFb({...newFb, nota: Number(e.target.value)})} style={{ width: "100%", padding: "7px", border: "1px solid #ddd", borderRadius: 6, fontSize: 14, fontFamily: "inherit", textAlign: "center", boxSizing: "border-box" }} /></div>
-            <div style={{ flex: "1 1 200px" }}><div style={{ fontSize: 9, fontWeight: 700, color: "#999", marginBottom: 2 }}>COMENTÁRIO</div>
-              <input value={newFb.comentario} onChange={e => setNewFb({...newFb, comentario: e.target.value})} placeholder="O que o paciente disse?" style={{ width: "100%", padding: "7px 10px", border: "1px solid #ddd", borderRadius: 6, fontSize: 12, fontFamily: "inherit", boxSizing: "border-box" }} /></div>
-            <button onClick={addFb} style={{ padding: "8px 16px", background: GOLD, color: "white", border: "none", borderRadius: 6, fontWeight: 700, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>Registrar</button>
-          </div>
-        )}
-      </Card>
-
-      <Card title="Feedbacks Recebidos">
-        {feedbacks.map((f, i) => (
-          <div key={i} style={{ display: "flex", gap: 10, padding: "10px 0", borderBottom: "1px solid #f0ece6", alignItems: "center" }}>
-            <div style={{ width: 36, height: 36, borderRadius: "50%", background: f.nota >= 9 ? "#E8F5E9" : f.nota >= 7 ? "#FFF9C4" : "#FFEBEE", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 900, color: f.nota >= 9 ? "#2E7D32" : f.nota >= 7 ? "#F57F17" : "#B71C1C" }}>{f.nota}</div>
-            <div style={{ flex: 1 }}>
-              <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                <span style={{ fontSize: 13, fontWeight: 700 }}>{f.nome}</span>
-                <Badge text={f.proc} color={LIGHT} textColor={GOLD} />
-                <span style={{ fontSize: 10, color: "#bbb" }}>{f.data}</span>
-              </div>
-              <div style={{ fontSize: 12, color: "#666", marginTop: 2, fontStyle: "italic" }}>"{f.comentario}"</div>
-            </div>
-            <Badge text={f.indicaria ? "INDICARIA" : "NÃO INDICARIA"} color={f.indicaria ? "#E8F5E9" : "#FFEBEE"} textColor={f.indicaria ? "#2E7D32" : "#B71C1C"} />
-          </div>
-        ))}
-      </Card>
-
-      <Card title="Quando Coletar">
-        {["7 dias após procedimento — Sirlândia envia WhatsApp com pergunta NPS", "Perguntar: 'De 0 a 10, qual a chance de indicar o Levvai pra uma amiga?'", "Se nota ≤ 6: Lara liga pessoalmente pra entender. Oportunidade de reverter.", "Se nota 7-8: Sirlândia pergunta o que pode melhorar.", "Se nota 9-10: Pedir review Google + depoimento pra Instagram.", "Consolidar na weekly (Bloco 3). Meta: NPS 85+."].map((r, i) => (
-          <div key={i} style={{ fontSize: 12, color: "#555", padding: "4px 0", display: "flex", gap: 6 }}><span style={{ color: GOLD }}>›</span> {r}</div>
         ))}
       </Card>
     </div>
@@ -7280,10 +6699,7 @@ const tabContent = {
   stock: StockTab,
   agenda: AgendaTab,
   crm: CRMTab,
-  comunicacao: ComunicacaoTab,
-  journey: JourneyTab,
   editorial: EditorialTab,
-  nps: NpsTab,
   marketing: MarketingTab,
   icp: IcpTab,
   fornecedores: FornecedoresTab,
@@ -7306,9 +6722,6 @@ const TAB_TO_SECTOR = {
   'fluxo-caixa':       { sector: 'Financeiro',          label: 'Fluxo de Caixa' },
   'orcamento':         { sector: 'Financeiro',          label: 'Orçamento' },
   'crm-leads':         { sector: 'Comercial',           label: 'CRM & Leads' },
-  'comunicacao':       { sector: 'Comercial',           label: 'Comunicação' },
-  'jornada-paciente':  { sector: 'Comercial',           label: 'Jornada Paciente' },
-  'nps-satisfacao':    { sector: 'Comercial',           label: 'NPS & Satisfação' },
   'marca':             { sector: 'Marketing',           label: 'Marca' },
   'icp':               { sector: 'Marketing',           label: 'ICP' },
   'editorial':         { sector: 'Marketing',           label: 'Editorial' },
@@ -7329,7 +6742,7 @@ const TAB_TO_SECTOR = {
 const NEW_TO_OLD_ID = {
   'visao-geral': 'home', 'planejamento': 'plan', 'dashboard-ceo': 'executive',
   'dre-catalogo': 'finance', 'fluxo-caixa': 'cashflow', 'orcamento': 'budget',
-  'crm-leads': 'crm', 'comunicacao': 'comunicacao', 'jornada-paciente': 'journey', 'nps-satisfacao': 'nps',
+  'crm-leads': 'crm',
   'marca': 'brand', 'icp': 'icp', 'editorial': 'editorial', 'dashboard-mkt': 'marketing', 'concorrentes': 'competitors',
   'equipe': 'team', 'associados': 'associates',
   'agenda': 'agenda', 'estoque': 'stock', 'rotinas': 'rituals', 'fornecedores': 'fornecedores',

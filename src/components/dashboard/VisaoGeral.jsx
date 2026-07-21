@@ -8,7 +8,7 @@ import { getPeriodoAtual, getPeriodoDoMes, mesStringAtual, parseDiaMesNascimento
  * Props (todas opcionais — tem defaults com os números atuais):
  *  - mesGlobal: string "AAAA-MM" — mês selecionado no seletor global do header
  *  - data: {
- *      faturamento, pacientesMes, ticketMedio, conversao, instagram, nps,
+ *      faturamento, pacientesMes, ticketMedio, conversao, instagram,
  *      funnel, revenueHistory, q2Progress
  *    }
  */
@@ -33,7 +33,7 @@ export default function VisaoGeral({ mesGlobal, data = {} }) {
     .filter(p => p._nasc && p._nasc.mes === periodo.mes)
     .sort((a, b) => a._nasc.dia - b._nasc.dia);
   // TODO: conectar ao Supabase por mês para obedecer o seletor global
-  // (KPIs abaixo — faturamento, pacientesMes, ticketMedio, conversao, instagram, nps —
+  // (KPIs abaixo — faturamento, pacientesMes, ticketMedio, conversao, instagram —
   // e os gráficos de tendência são mockados; só os aniversariantes são dado real)
   const d = {
     faturamento: { valor: 'R$20', valor2: '–50K', metaPct: 58, meta: 'R$60K', trend: '+28%', trendDir: 'up' },
@@ -41,7 +41,6 @@ export default function VisaoGeral({ mesGlobal, data = {} }) {
     ticketMedio: { valor: 'R$1.5', unidade: 'K', meta: 'R$2K', metaPct: 75, trend: '+12%', trendDir: 'up' },
     conversao: { valor: '40%', meta: '2/5 leads', trend: '−8%', trendDir: 'down' },
     instagram: { valor: 286, meta: 1000, trend: '+12', trendDir: 'up' },
-    nps: { valor: '—', meta: '85+ · aguardando ciclo' },
     funnel: [
       { label: 'Novos', count: 5, width: 100, cls: 'novos' },
       { label: 'Contato', count: 4, width: 90, cls: 'contato' },
@@ -164,14 +163,6 @@ export default function VisaoGeral({ mesGlobal, data = {} }) {
           meta={`Meta Q2 · ${d.instagram.meta.toLocaleString('pt-BR')}`}
           trend={d.instagram.trend} trendDir={d.instagram.trendDir}
           barPct={(d.instagram.valor / d.instagram.meta) * 100}
-          delay={3}
-        />
-        <KpiCard
-          status="" label="NPS"
-          value={<span className="muted">{d.nps.valor}</span>}
-          meta={`Meta · ${d.nps.meta}`}
-          trend="—" trendDir="neutral"
-          barPct={0}
           delay={3}
         />
       </div>
