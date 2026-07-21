@@ -36,8 +36,6 @@ const tabGroups = [
   { sector: "PESSOAS", color: "#9C27B0", tabs: [
     { id: "team", label: "Equipe" },
     { id: "associates", label: "Associados" },
-    { id: "oneone", label: "1:1s" },
-    { id: "avaliacao", label: "Avaliação" },
   ]},
   { sector: "OPERAÇÃO", color: "#FF9800", tabs: [
     { id: "agenda", label: "Agenda" },
@@ -2154,8 +2152,6 @@ const DocsTab = () => {
     { sector: "PESSOAS", color: "#9C27B0", items: [
       { tab: "Equipe", content: "Organograma visual, 6 PersonCards com responsabilidades e KPIs, regra de ouro do CEO" },
       { tab: "Associados", content: "Cadastro com pipeline (vaga aberta→ativo), repasse com simulador, split automático por origem, resumo mensal, termos financeiros" },
-      { tab: "1:1s", content: "Registro de sessões com tópicos, ações com checkbox, participantes. Lara×Gi toda sexta." },
-      { tab: "Avaliação", content: "Avaliação trimestral por KPIs do cargo. 4 membros. Score 1-5. Escala: Excepcional → Crítico" },
     ]},
     { sector: "OPERAÇÃO", color: "#FF9800", items: [
       { tab: "Agenda", content: "4 salas (Lara, Associados, Consultório, Soroterapia), profissionais cadastráveis, calendário com datas reais, simulador de capacidade 3 cenários, Levvai Day" },
@@ -2188,7 +2184,7 @@ const DocsTab = () => {
       <Card title="Central de Documentos — Instituto Levvai" accent>
         <p style={{ color: "#aaa", fontSize: 13, margin: 0 }}>
           Todos os documentos, arquivos e conteúdos gerados para o Instituto Levvai.
-          Portal com 27 abas em 8 setores + 10 arquivos para download + planilha financeira.
+          Portal com 26 abas em 8 setores + 10 arquivos para download + planilha financeira.
         </p>
       </Card>
 
@@ -2206,7 +2202,7 @@ const DocsTab = () => {
       </Card>
 
       {/* MAPA DO PORTAL */}
-      <Card title="Mapa do Portal — 27 Abas em 8 Setores">
+      <Card title="Mapa do Portal — 26 Abas em 8 Setores">
         {portalContent.map((s, si) => (
           <div key={si} style={{ marginBottom: 14 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
@@ -2239,7 +2235,7 @@ const DocsTab = () => {
       <Card title="Números desta Plataforma">
         <div className="grid-4" style={{ gap: 10 }}>
           {[
-            { label: "Abas no Portal", value: "27" },
+            { label: "Abas no Portal", value: "26" },
             { label: "Setores", value: "8" },
             { label: "Linhas de código", value: "4.500+" },
             { label: "Arquivos gerados", value: "10" },
@@ -7580,261 +7576,6 @@ const ContratosTab = () => {
   );
 };
 
-// 1:1 TRACKER TAB
-const OneOneTab = () => {
-  // Estado — Sessões 1:1
-  const [sessoesOneOne, setSessoesOneOne] = useState([]);
-  const [loadingOneOne, setLoadingOneOne] = useState(true);
-
-  useEffect(() => {
-    const fetchOneOne = async () => {
-      setLoadingOneOne(true);
-      const { data, error } = await supabase
-        .from('sessoes_oneone')
-        .select('*')
-        .order('data', { ascending: false });
-
-      if (!error && data) setSessoesOneOne(data);
-      setLoadingOneOne(false);
-    };
-
-    fetchOneOne();
-  }, []);
-
-  const salvarSessaoOneOne = async (sessao) => {
-    if (sessao.id) {
-      const { error } = await supabase
-        .from('sessoes_oneone')
-        .update(sessao)
-        .eq('id', sessao.id);
-      if (!error) setSessoesOneOne(prev => prev.map(s => s.id === sessao.id ? sessao : s));
-    } else {
-      const { data, error } = await supabase
-        .from('sessoes_oneone')
-        .insert([sessao])
-        .select()
-        .single();
-      if (!error && data) setSessoesOneOne(prev => [data, ...prev]);
-    }
-  };
-
-  const excluirSessaoOneOne = async (sessaoId) => {
-    const { error } = await supabase
-      .from('sessoes_oneone')
-      .delete()
-      .eq('id', sessaoId);
-    if (!error) setSessoesOneOne(prev => prev.filter(s => s.id !== sessaoId));
-  };
-
-  // Sessões por participante
-  const sessoesPorParticipante = (nome) =>
-    sessoesOneOne.filter(s => s.participantes?.includes(nome));
-
-  const sessions = sessoesOneOne; // compat alias
-
-  const [profissOnOne, setProfissOnOne] = useState([]);
-  useEffect(() => {
-    supabase.from('profissionais').select('*').eq('ativo', true).order('nome').then(({ data }) => { if (data) setProfissOnOne(data); });
-  }, []);
-
-  const [showNew, setShowNew] = useState(false);
-  const [newSession, setNewSession] = useState({ participants: "Lara × Gi", topics: "", actions: "" });
-
-  const addSession = async () => {
-    if (!newSession.topics) return;
-    const now = new Date();
-    const dateStr = `${now.getDate().toString().padStart(2,"0")}/${(now.getMonth()+1).toString().padStart(2,"0")}`;
-    const topicsList = newSession.topics.split("\n").filter(t => t.trim());
-    const actionsList = newSession.actions.split("\n").filter(a => a.trim()).map(a => ({ task: a, done: false }));
-    await salvarSessaoOneOne({ date: dateStr, participants: newSession.participants, topics: topicsList, actions: actionsList, mood: "positivo" });
-    setNewSession({ participants: "Lara × Gi", topics: "", actions: "" });
-    setShowNew(false);
-  };
-
-  const toggleAction = (sIdx, aIdx) => {
-    // toggle local apenas — atualização no DB via salvarSessaoOneOne futuramente
-    setSessoesOneOne(prev => prev.map((s, si) => si === sIdx ? {
-      ...s, actions: (s.actions || []).map((a, ai) => ai === aIdx ? { ...a, done: !a.done } : a)
-    } : s));
-  };
-
-  return (
-    <div>
-      <Card title="Tracker de 1:1s" accent>
-        <p style={{ color: "#aaa", fontSize: 13, margin: 0 }}>Registro de conversas 1:1. Toda sexta Lara × Gi. Futuramente CEO × associados (mensal).</p>
-      </Card>
-      <Card title="Registrar 1:1">
-        {!showNew ? (
-          <button onClick={() => setShowNew(true)} style={{ width: "100%", padding: "10px", background: "white", border: `2px dashed ${GOLD}`, borderRadius: 10, cursor: "pointer", fontSize: 13, fontWeight: 600, color: GOLD, fontFamily: "inherit" }}>+ Registrar nova sessão 1:1</button>
-        ) : (
-          <div>
-            <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
-              <div style={{ flex: "0 0 160px" }}><div style={{ fontSize: 9, fontWeight: 700, color: "#999", marginBottom: 2 }}>PARTICIPANTES</div>
-                <select value={newSession.participants} onChange={e => setNewSession({...newSession, participants: e.target.value})} style={{ width: "100%", padding: "7px 8px", border: "1px solid #ddd", borderRadius: 6, fontSize: 12, fontFamily: "inherit", background: "white", boxSizing: "border-box" }}>
-                  {profissOnOne.map(p => <option key={p.id} value={p.nome}>{p.nome}</option>)}
-                </select></div>
-            </div>
-            <div style={{ marginBottom: 8 }}><div style={{ fontSize: 9, fontWeight: 700, color: "#999", marginBottom: 2 }}>TÓPICOS (um por linha)</div>
-              <textarea value={newSession.topics} onChange={e => setNewSession({...newSession, topics: e.target.value})} rows={3} placeholder="Tema 1&#10;Tema 2&#10;Tema 3" style={{ width: "100%", padding: "7px 10px", border: "1px solid #ddd", borderRadius: 6, fontSize: 12, fontFamily: "inherit", resize: "vertical", boxSizing: "border-box" }} /></div>
-            <div style={{ marginBottom: 8 }}><div style={{ fontSize: 9, fontWeight: 700, color: "#999", marginBottom: 2 }}>AÇÕES (uma por linha)</div>
-              <textarea value={newSession.actions} onChange={e => setNewSession({...newSession, actions: e.target.value})} rows={2} placeholder="Ação 1&#10;Ação 2" style={{ width: "100%", padding: "7px 10px", border: "1px solid #ddd", borderRadius: 6, fontSize: 12, fontFamily: "inherit", resize: "vertical", boxSizing: "border-box" }} /></div>
-            <div style={{ display: "flex", gap: 8 }}>
-              <button onClick={addSession} style={{ padding: "8px 20px", background: GOLD, color: "white", border: "none", borderRadius: 6, fontWeight: 700, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>Salvar</button>
-              <button onClick={() => setShowNew(false)} style={{ padding: "8px 14px", background: "white", color: "#888", border: "1px solid #ddd", borderRadius: 6, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>Cancelar</button>
-            </div>
-          </div>
-        )}
-      </Card>
-      {sessions.map((s, si) => (
-        <Card key={si} title={`${s.participants} — ${s.date}`}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: GOLD, marginBottom: 4 }}>TÓPICOS DISCUTIDOS</div>
-          {s.topics.map((t, ti) => <div key={ti} style={{ fontSize: 12, color: "#555", padding: "3px 0 3px 12px" }}>› {t}</div>)}
-          {s.actions.length > 0 && <>
-            <div style={{ fontSize: 11, fontWeight: 700, color: GOLD, marginTop: 10, marginBottom: 4 }}>AÇÕES</div>
-            {s.actions.map((a, ai) => (
-              <div key={ai} onClick={() => toggleAction(si, ai)} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0", cursor: "pointer" }}>
-                <div style={{ width: 16, height: 16, borderRadius: 4, border: `2px solid ${a.done ? "#2E7D32" : "#ddd"}`, background: a.done ? "#E8F5E9" : "white", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, color: "#2E7D32" }}>{a.done ? "✓" : ""}</div>
-                <span style={{ fontSize: 12, color: a.done ? "#999" : "#555", textDecoration: a.done ? "line-through" : "none" }}>{a.task}</span>
-              </div>
-            ))}
-          </>}
-        </Card>
-      ))}
-    </div>
-  );
-};
-
-// AVALIAÇÃO DE DESEMPENHO TAB
-const AvaliacaoTab = () => {
-  const team = [
-    { name: "Lara", role: "Dir. Clínica", kpis: [
-      { kpi: "Ticket médio ≥ R$2.000", target: "R$2.000", current: "—", score: null },
-      { kpi: "NPS ≥ 85", target: "85", current: "—", score: null },
-      { kpi: "Taxa de retorno ≥ 30%", target: "30%", current: "—", score: null },
-      { kpi: "Conteúdos ≥ 3/semana", target: "3/sem", current: "—", score: null },
-    ]},
-    { name: "Sirlândia", role: "Ger. Operacional", kpis: [
-      { kpi: "Conversão leads ≥ 60%", target: "60%", current: "—", score: null },
-      { kpi: "Ocupação agenda ≥ 60%", target: "60%", current: "—", score: null },
-      { kpi: "No-show < 10%", target: "<10%", current: "—", score: null },
-      { kpi: "Reviews Google ≥ 5/mês", target: "5/mês", current: "—", score: null },
-      { kpi: "Resposta lead < 30min", target: "<30min", current: "—", score: null },
-    ]},
-    { name: "Sylmara", role: "Administradora", kpis: [
-      { kpi: "DRE fechado até dia 5", target: "100%", current: "—", score: null },
-      { kpi: "Margem bruta 65-70%", target: "65-70%", current: "—", score: null },
-      { kpi: "Inadimplência < 3%", target: "<3%", current: "—", score: null },
-      { kpi: "Dashboard weekly toda segunda", target: "100%", current: "—", score: null },
-    ]},
-    { name: "Gi", role: "Social Media", kpis: [
-      { kpi: "Posts ≥ 5/semana", target: "5/sem", current: "—", score: null },
-      { kpi: "Seguidores (meta Q2: 1.000)", target: "1.000", current: "286", score: null },
-      { kpi: "Engajamento ≥ 5%", target: "5%", current: "—", score: null },
-      { kpi: "Depoimentos ≥ 4/mês", target: "4/mês", current: "—", score: null },
-    ]},
-  ];
-
-  const [profissAvaliacao, setProfissAvaliacao] = useState([]);
-  useEffect(() => {
-    supabase.from('profissionais').select('*').eq('ativo', true).order('nome').then(({ data }) => { if (data) setProfissAvaliacao(data); });
-  }, []);
-  const teamDinamico = profissAvaliacao.length > 0
-    ? profissAvaliacao.map(p => team.find(t => t.name === p.nome) || { name: p.nome, role: p.specialty || '', kpis: [] })
-    : team;
-
-  // Estado — Avaliações de Equipe
-  const [avaliacoes, setAvaliacoes] = useState([]);
-  const [loadingAvaliacoes, setLoadingAvaliacoes] = useState(true);
-
-  useEffect(() => {
-    const fetchAvaliacoes = async () => {
-      setLoadingAvaliacoes(true);
-      const { data, error } = await supabase
-        .from('avaliacoes_equipe')
-        .select('*')
-        .order('criado_em', { ascending: false });
-
-      if (!error && data) setAvaliacoes(data);
-      setLoadingAvaliacoes(false);
-    };
-
-    fetchAvaliacoes();
-  }, []);
-
-  const salvarAvaliacao = async (avaliacao) => {
-    if (avaliacao.id) {
-      const { error } = await supabase
-        .from('avaliacoes_equipe')
-        .update(avaliacao)
-        .eq('id', avaliacao.id);
-      if (!error) setAvaliacoes(prev => prev.map(a => a.id === avaliacao.id ? avaliacao : a));
-    } else {
-      const { data, error } = await supabase
-        .from('avaliacoes_equipe')
-        .insert([avaliacao])
-        .select()
-        .single();
-      if (!error && data) setAvaliacoes(prev => [data, ...prev]);
-    }
-  };
-
-  // Última avaliação por colaborador
-  const ultimaAvaliacao = (colaborador) =>
-    avaliacoes.find(a => a.colaborador === colaborador);
-
-  // Média geral do time no período
-  const mediaTime = (periodo) => {
-    const doPeriodo = avaliacoes.filter(a => a.periodo === periodo && a.nota_geral);
-    if (doPeriodo.length === 0) return 0;
-    return (doPeriodo.reduce((acc, a) => acc + Number(a.nota_geral), 0) / doPeriodo.length).toFixed(1);
-  };
-
-  return (
-    <div>
-      <Card title="Avaliação de Desempenho — Trimestral" accent>
-        <p style={{ color: "#aaa", fontSize: 13, margin: 0 }}>CEO avalia na última semana do trimestre, junto com review de OKRs. Baseada nos KPIs do descritivo de cargos v3.</p>
-      </Card>
-      {teamDinamico.map((p, pi) => (
-        <Card key={pi} title={`${p.name} — ${p.role}`}>
-          <div style={{ display: "flex", background: DARK, borderRadius: "8px 8px 0 0", padding: "8px 0" }}>
-            {["KPI", "META", "ATUAL", "SCORE", "STATUS"].map((h, i) => (
-              <div key={i} style={{ flex: i === 0 ? 2 : 1, textAlign: "center", fontSize: 9, fontWeight: 700, color: GOLD, letterSpacing: "0.05em" }}>{h}</div>
-            ))}
-          </div>
-          {p.kpis.map((k, ki) => (
-            <div key={ki} style={{ display: "flex", padding: "8px 0", borderBottom: "1px solid #f0ece6", alignItems: "center" }}>
-              <div style={{ flex: 2, fontSize: 12, paddingLeft: 8 }}>{k.kpi}</div>
-              <div style={{ flex: 1, textAlign: "center", fontSize: 12, color: GOLD, fontWeight: 600 }}>{k.target}</div>
-              <div style={{ flex: 1, textAlign: "center", fontSize: 12, color: "#888" }}>{k.current}</div>
-              <div style={{ flex: 1, textAlign: "center", fontSize: 12, color: "#bbb" }}>— /5</div>
-              <div style={{ flex: 1, textAlign: "center" }}><Badge text="AGUARDANDO" color={LIGHT} textColor="#888" /></div>
-            </div>
-          ))}
-          <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 8px", background: LIGHT, borderRadius: "0 0 8px 8px" }}>
-            <span style={{ fontSize: 12, fontWeight: 700 }}>Score geral: — /5.0</span>
-            <span style={{ fontSize: 11, color: "#999" }}>Próxima avaliação: fim Q2 (Jun/2026)</span>
-          </div>
-        </Card>
-      ))}
-      <Card title="Escala de Score">
-        {[
-          { score: "5.0", label: "EXCEPCIONAL", desc: "Superou todas as metas. Referência pro time.", color: "#2E7D32" },
-          { score: "4.0", label: "ACIMA", desc: "Atingiu e superou a maioria das metas.", color: "#4CAF50" },
-          { score: "3.0", label: "DENTRO", desc: "Atingiu as metas conforme esperado.", color: GOLD },
-          { score: "2.0", label: "ABAIXO", desc: "Não atingiu parte das metas. Plano de ação necessário.", color: "#FF9800" },
-          { score: "1.0", label: "CRÍTICO", desc: "Não atingiu a maioria. Conversa imediata com CEO.", color: "#B71C1C" },
-        ].map((s, i) => (
-          <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 0", borderBottom: "1px solid #f0ece6" }}>
-            <span style={{ fontSize: 16, fontWeight: 900, color: s.color, minWidth: 30 }}>{s.score}</span>
-            <Badge text={s.label} color={`${s.color}20`} textColor={s.color} />
-            <span style={{ fontSize: 12, color: "#666" }}>{s.desc}</span>
-          </div>
-        ))}
-      </Card>
-    </div>
-  );
-};
-
 const tabContent = {
   home: HomeTab,
   plan: PlanTab,
@@ -7860,8 +7601,6 @@ const tabContent = {
   icp: IcpTab,
   fornecedores: FornecedoresTab,
   contratos: ContratosTab,
-  oneone: OneOneTab,
-  avaliacao: AvaliacaoTab,
   docs: DocsTab,
   usuarios: UsuariosTab,
 };
@@ -7891,8 +7630,6 @@ const TAB_TO_SECTOR = {
   'concorrentes':      { sector: 'Marketing',           label: 'Concorrentes' },
   'equipe':            { sector: 'Pessoas',             label: 'Equipe' },
   'associados':        { sector: 'Pessoas',             label: 'Associados' },
-  '1-1s':              { sector: 'Pessoas',             label: '1:1s' },
-  'avaliacao':         { sector: 'Pessoas',             label: 'Avaliação' },
   'agenda':            { sector: 'Operação',            label: 'Agenda' },
   'estoque':           { sector: 'Operação',            label: 'Estoque' },
   'rotinas':           { sector: 'Operação',            label: 'Rotinas' },
@@ -7910,7 +7647,7 @@ const NEW_TO_OLD_ID = {
   'dre-catalogo': 'finance', 'fluxo-caixa': 'cashflow', 'orcamento': 'budget',
   'crm-leads': 'crm', 'comunicacao': 'comunicacao', 'jornada-paciente': 'journey', 'nps-satisfacao': 'nps',
   'marca': 'brand', 'icp': 'icp', 'editorial': 'editorial', 'dashboard-mkt': 'marketing', 'concorrentes': 'competitors',
-  'equipe': 'team', 'associados': 'associates', '1-1s': 'oneone', 'avaliacao': 'avaliacao',
+  'equipe': 'team', 'associados': 'associates',
   'agenda': 'agenda', 'estoque': 'stock', 'rotinas': 'rituals', 'fornecedores': 'fornecedores',
   'compliance': 'compliance', 'contratos': 'contratos', 'biblioteca': 'docs', 'templates': 'docs',
   'usuarios': 'usuarios',
