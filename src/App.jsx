@@ -22,6 +22,7 @@ const tabGroups = [
   ]},
   { sector: "COMERCIAL", color: "#2196F3", tabs: [
     { id: "crm", label: "CRM & Leads" },
+    { id: "retornos-pendentes", label: "Retornos Pendentes" },
   ]},
   { sector: "MARKETING", color: "#E91E63", tabs: [
     { id: "brand", label: "Marca" },
@@ -2097,6 +2098,7 @@ const DocsTab = () => {
     ]},
     { sector: "COMERCIAL", color: "#2196F3", items: [
       { tab: "CRM & Leads", content: "Pipeline 7 estágios, base de clientes com busca e ficha completa (CPF, nascimento, e-mail), cadastro, agendamento integrado com Agenda" },
+      { tab: "Retornos Pendentes", content: "Propostas enviadas aguardando resposta, ordenadas por urgência, atalho WhatsApp, marcação de follow-up contatado" },
     ]},
     { sector: "MARKETING", color: "#E91E63", items: [
       { tab: "Marca", content: "3 opções de manifesto com tagline, tom de voz, pilares, comparativo. Recomendação: Opção A (Quiet Confidence)" },
@@ -2135,7 +2137,7 @@ const DocsTab = () => {
       <Card title="Central de Documentos — Instituto Levvai" accent>
         <p style={{ color: "#aaa", fontSize: 13, margin: 0 }}>
           Todos os documentos, arquivos e conteúdos gerados para o Instituto Levvai.
-          Portal com 21 abas em 7 setores + 10 arquivos para download + planilha financeira.
+          Portal com 22 abas em 7 setores + 10 arquivos para download + planilha financeira.
         </p>
       </Card>
 
@@ -2153,7 +2155,7 @@ const DocsTab = () => {
       </Card>
 
       {/* MAPA DO PORTAL */}
-      <Card title="Mapa do Portal — 21 Abas em 7 Setores">
+      <Card title="Mapa do Portal — 22 Abas em 7 Setores">
         {portalContent.map((s, si) => (
           <div key={si} style={{ marginBottom: 14 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
@@ -2186,7 +2188,7 @@ const DocsTab = () => {
       <Card title="Números desta Plataforma">
         <div className="grid-4" style={{ gap: 10 }}>
           {[
-            { label: "Abas no Portal", value: "21" },
+            { label: "Abas no Portal", value: "22" },
             { label: "Setores", value: "7" },
             { label: "Linhas de código", value: "4.500+" },
             { label: "Arquivos gerados", value: "10" },
@@ -4727,6 +4729,108 @@ const CRMTab = ({ shared }) => {
   );
 };
 
+// RETORNOS PENDENTES TAB
+const RetornosPendentesTab = () => {
+  const [propostas, setPropostas] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchPendentes = () => {
+    setLoading(true);
+    supabase.from('propostas')
+      .select('id,titulo,valor_total,data,status,contatado_em,pacientes(nome,telefone)')
+      .eq('status', 'enviada')
+      .then(({ data }) => {
+        setPropostas(Array.isArray(data) ? data : []);
+        setLoading(false);
+      });
+  };
+
+  useEffect(() => { fetchPendentes(); }, []);
+
+  const toggleContatado = async (p) => {
+    const novoValor = p.contatado_em ? null : new Date().toISOString();
+    const { data: atualizada } = await supabase.from('propostas').update({ contatado_em: novoValor }).eq('id', p.id).select().single();
+    if (atualizada) setPropostas(prev => prev.map(x => x.id === p.id ? { ...x, contatado_em: atualizada.contatado_em } : x));
+  };
+
+  const diasDesdeEnvio = (dataStr) => {
+    const envio = new Date(dataStr + 'T12:00:00');
+    const hoje = new Date();
+    return Math.max(0, Math.floor((hoje - envio) / (1000 * 60 * 60 * 24)));
+  };
+
+  const urgencia = (dias) => {
+    if (dias > 14) return { bg: '#FFEBEE', tc: '#B71C1C', label: `há ${dias} dias` };
+    if (dias > 7) return { bg: '#FFF8E1', tc: '#E65100', label: `há ${dias} dias` };
+    return { bg: '#F5F5F5', tc: '#666', label: dias === 0 ? 'hoje' : dias === 1 ? 'há 1 dia' : `há ${dias} dias` };
+  };
+
+  const ordenadas = [...propostas].sort((a, b) => new Date(a.data) - new Date(b.data));
+  const naoContatados = ordenadas.filter(p => !p.contatado_em);
+  const contatados = ordenadas.filter(p => p.contatado_em);
+  const valorTotalParado = propostas.reduce((acc, p) => acc + (Number(p.valor_total) || 0), 0);
+
+  const Linha = ({ p }) => {
+    const dias = diasDesdeEnvio(p.data);
+    const urg = urgencia(dias);
+    const nome = p.pacientes?.nome || 'Paciente sem cadastro';
+    const telefone = p.pacientes?.telefone || '';
+    const telDigits = telefone.replace(/\D/g, '');
+    const waLink = telDigits ? `https://wa.me/55${telDigits}` : null;
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderBottom: '1px solid #f0ece6', flexWrap: 'wrap' }}>
+        <div style={{ flex: '1 1 200px', minWidth: 160 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: DARK }}>{nome}</div>
+          <div style={{ fontSize: 11, color: '#999' }}>{telefone || '—'}</div>
+        </div>
+        <div style={{ flex: '1 1 220px', minWidth: 180 }}>
+          <div style={{ fontSize: 12, color: '#444' }}>{p.titulo || 'Orçamento'}</div>
+          <div style={{ fontSize: 12, fontWeight: 700, color: GOLD }}>R${Number(p.valor_total).toLocaleString('pt-BR')}</div>
+        </div>
+        <Badge text={urg.label} color={urg.bg} textColor={urg.tc} />
+        {p.contatado_em && (
+          <Badge text={`Contatado em ${new Date(p.contatado_em).toLocaleDateString('pt-BR')}`} color="#E8F5E9" textColor="#2E7D32" />
+        )}
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          {waLink && (
+            <a href={waLink} target="_blank" rel="noopener noreferrer" title="Chamar no WhatsApp"
+              style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, borderRadius: 6, background: '#E8F5E9', textDecoration: 'none', fontSize: 14, flexShrink: 0 }}>
+              💬
+            </a>
+          )}
+          <button onClick={() => toggleContatado(p)} style={{
+            padding: '6px 12px', background: p.contatado_em ? 'white' : GOLD, color: p.contatado_em ? '#888' : 'white',
+            border: p.contatado_em ? '1px solid #ddd' : 'none', borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+          }}>{p.contatado_em ? 'Desmarcar' : 'Marcar como contatado'}</button>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div>
+      <div className="metric-row" style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 16 }}>
+        <Metric label="Retornos Pendentes" value={propostas.length} sub="Propostas aguardando resposta" />
+        <Metric label="Não Contatados" value={naoContatados.length} color={naoContatados.length > 0 ? '#B71C1C' : DARK} />
+        <Metric label="Já Contatados" value={contatados.length} color="#2E7D32" />
+        <Metric label="Valor Parado" value={`R$${valorTotalParado.toLocaleString('pt-BR')}`} />
+      </div>
+
+      <Card title="Aguardando Contato">
+        {loading ? <div style={{ textAlign: 'center', padding: 20, color: '#999' }}>Carregando...</div> :
+          naoContatados.length === 0 ? <div style={{ textAlign: 'center', padding: 20, color: '#ccc', fontSize: 13 }}>Nenhum retorno pendente sem contato. 🎉</div> :
+          naoContatados.map(p => <Linha key={p.id} p={p} />)}
+      </Card>
+
+      {contatados.length > 0 && (
+        <Card title="Já Contatados">
+          {contatados.map(p => <Linha key={p.id} p={p} />)}
+        </Card>
+      )}
+    </div>
+  );
+};
+
 // PIPELINE LEGADO — preservado para referência interna (não exposto na UI)
 const _CRMPipelineTab = ({ shared }) => {
   const pipelineStages = [
@@ -6699,6 +6803,7 @@ const tabContent = {
   stock: StockTab,
   agenda: AgendaTab,
   crm: CRMTab,
+  'retornos-pendentes': RetornosPendentesTab,
   editorial: EditorialTab,
   marketing: MarketingTab,
   icp: IcpTab,
@@ -6722,6 +6827,7 @@ const TAB_TO_SECTOR = {
   'fluxo-caixa':       { sector: 'Financeiro',          label: 'Fluxo de Caixa' },
   'orcamento':         { sector: 'Financeiro',          label: 'Orçamento' },
   'crm-leads':         { sector: 'Comercial',           label: 'CRM & Leads' },
+  'retornos-pendentes':{ sector: 'Comercial',           label: 'Retornos Pendentes' },
   'marca':             { sector: 'Marketing',           label: 'Marca' },
   'icp':               { sector: 'Marketing',           label: 'ICP' },
   'editorial':         { sector: 'Marketing',           label: 'Editorial' },
@@ -6742,7 +6848,7 @@ const TAB_TO_SECTOR = {
 const NEW_TO_OLD_ID = {
   'visao-geral': 'home', 'planejamento': 'plan', 'dashboard-ceo': 'executive',
   'dre-catalogo': 'finance', 'fluxo-caixa': 'cashflow', 'orcamento': 'budget',
-  'crm-leads': 'crm',
+  'crm-leads': 'crm', 'retornos-pendentes': 'retornos-pendentes',
   'marca': 'brand', 'icp': 'icp', 'editorial': 'editorial', 'dashboard-mkt': 'marketing', 'concorrentes': 'competitors',
   'equipe': 'team', 'associados': 'associates',
   'agenda': 'agenda', 'estoque': 'stock', 'rotinas': 'rituals', 'fornecedores': 'fornecedores',
