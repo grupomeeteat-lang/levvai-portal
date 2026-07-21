@@ -43,11 +43,6 @@ const tabGroups = [
     { id: "rituals", label: "Rotinas" },
     { id: "fornecedores", label: "Fornecedores" },
   ]},
-  { sector: "JURÍDICO", color: "#607D8B", tabs: [
-    { id: "compliance", label: "Compliance" },
-    { id: "termos", label: "Termos Paciente" },
-    { id: "contratos", label: "Contratos" },
-  ]},
   { sector: "DOCS", color: "#795548", tabs: [
     { id: "docs", label: "Documentos" },
     { id: "usuarios", label: "Usuários" },
@@ -1595,39 +1590,6 @@ const AssociatesTab = ({ shared }) => {
   );
 };
 
-// COMPLIANCE TAB
-const ComplianceTab = () => (
-  <div>
-    <Card title="Matriz de Responsabilidades — Jurídico & Regulatório" accent>
-      <div style={{ fontSize: 13, lineHeight: 1.8 }}>
-        <div><span style={{ color: GOLD, fontWeight: 700 }}>Técnico-Regulatória:</span> LARA → supervisão CEO → escalonamento Luciano Gebara</div>
-        <div><span style={{ color: GOLD, fontWeight: 700 }}>Administrativa-Legal:</span> SYLMARA → supervisão CEO → escalonamento Luciano Gebara</div>
-        <div><span style={{ color: GOLD, fontWeight: 700 }}>Estratégico-Societária:</span> CEO (IKE) → Board (Rich) → Luciano Gebara</div>
-      </div>
-    </Card>
-    <Card title="Alertas Prioritários — Resolver imediatamente">
-      {[
-        { item: "Habilitação para Tirzepatida", risk: "Exercício ilegal de medicina. Pode fechar a clínica.", who: "Lara + CEO → Luciano", level: "CRÍTICO", color: "#FFCDD2" },
-        { item: "Termo de Uso de Imagem padronizado", risk: "Processo por uso indevido. Bloqueia SM.", who: "CEO → Luciano", level: "CRÍTICO", color: "#FFCDD2" },
-        { item: "Vínculos trabalhistas (Sirlândia, SM)", risk: "Ação trabalhista futura.", who: "Sylmara + CEO → Luciano", level: "CRÍTICO", color: "#FFCDD2" },
-        { item: "Seguro RC Profissional", risk: "Lara responde com patrimônio pessoal.", who: "Sylmara cota, CEO aprova", level: "ALTO", color: "#FFE0B2" },
-        { item: "LGPD — Política de Privacidade", risk: "Multa ANPD + exposição reputacional.", who: "CEO → Luciano", level: "ALTO", color: "#FFE0B2" },
-        { item: "Alvará Sanitário / COVISA", risk: "Interdição em fiscalização surpresa.", who: "Lara + Sylmara", level: "ALTO", color: "#FFE0B2" },
-        { item: "Formalizar Ike como CEO", risk: "Sem poder legal para assinar.", who: "CEO → Luciano", level: "ALTO", color: "#FFE0B2" },
-      ].map((a, i) => (
-        <div key={i} style={{ padding: "10px 0", borderBottom: "1px solid #f0ece6" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <Badge text={a.level} color={a.color} textColor="#B71C1C" />
-            <span style={{ fontWeight: 700, fontSize: 14 }}>{a.item}</span>
-          </div>
-          <div style={{ fontSize: 12, color: "#888", marginTop: 4 }}>Risco: {a.risk}</div>
-          <div style={{ fontSize: 12, color: GOLD, marginTop: 2 }}>Responsável: {a.who}</div>
-        </div>
-      ))}
-    </Card>
-  </div>
-);
-
 // BRAND TAB
 const BrandTab = () => (
   <div>
@@ -2159,11 +2121,6 @@ const DocsTab = () => {
       { tab: "Rotinas", content: "Rotina semanal por pessoa (seg-sáb), calendário mensal 9 rituais, cadência trimestral/anual, conceito Levvai Day" },
       { tab: "Fornecedores", content: "7 fornecedores cadastrados (Allergan, Galderma, Merz, IBSA...), contato, prazo, pagamento, cadastro de novos" },
     ]},
-    { sector: "JURÍDICO", color: "#607D8B", items: [
-      { tab: "Compliance", content: "Matriz de responsabilidades 3 camadas, 7 alertas prioritários ranqueados (Tirzepatida #1)" },
-      { tab: "Termos Paciente", content: "6 documentos: TCLE, Uso de Imagem, LGPD, Anamnese, Tirzepatida, Menores. Prontos para revisão Luciano Gebara" },
-      { tab: "Contratos", content: "9 contratos mapeados com status, vencimento, responsável. Alertas automáticos." },
-    ]},
   ];
 
   const pendentes = [
@@ -2184,7 +2141,7 @@ const DocsTab = () => {
       <Card title="Central de Documentos — Instituto Levvai" accent>
         <p style={{ color: "#aaa", fontSize: 13, margin: 0 }}>
           Todos os documentos, arquivos e conteúdos gerados para o Instituto Levvai.
-          Portal com 26 abas em 8 setores + 10 arquivos para download + planilha financeira.
+          Portal com 24 abas em 7 setores + 10 arquivos para download + planilha financeira.
         </p>
       </Card>
 
@@ -2202,7 +2159,7 @@ const DocsTab = () => {
       </Card>
 
       {/* MAPA DO PORTAL */}
-      <Card title="Mapa do Portal — 26 Abas em 8 Setores">
+      <Card title="Mapa do Portal — 24 Abas em 7 Setores">
         {portalContent.map((s, si) => (
           <div key={si} style={{ marginBottom: 14 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
@@ -2235,8 +2192,8 @@ const DocsTab = () => {
       <Card title="Números desta Plataforma">
         <div className="grid-4" style={{ gap: 10 }}>
           {[
-            { label: "Abas no Portal", value: "26" },
-            { label: "Setores", value: "8" },
+            { label: "Abas no Portal", value: "24" },
+            { label: "Setores", value: "7" },
             { label: "Linhas de código", value: "4.500+" },
             { label: "Arquivos gerados", value: "10" },
             { label: "Produtos cadastrados", value: "14" },
@@ -5663,178 +5620,6 @@ const ComunicacaoTab = ({ shared }) => {
   );
 };
 
-// TERMOS DO PACIENTE TAB
-const TermosTab = () => {
-  const [activeDoc, setActiveDoc] = useState("tcle");
-  const docs = [
-    { id: "tcle", name: "TCLE — Termo de Consentimento", desc: "Consentimento livre e esclarecido para procedimentos estéticos" },
-    { id: "imagem", name: "Termo de Uso de Imagem", desc: "Autorização para uso de fotos/vídeos antes e depois" },
-    { id: "lgpd", name: "Termo LGPD", desc: "Consentimento para tratamento de dados pessoais e sensíveis" },
-    { id: "anamnese", name: "Ficha de Anamnese", desc: "Histórico médico, alergias, medicamentos em uso" },
-    { id: "tirze", name: "Termo Específico — Tirzepatida", desc: "Consentimento específico para protocolo de emagrecimento" },
-    { id: "menores", name: "Termo Responsável Legal", desc: "Autorização para pacientes de 16-17 anos (acompanhados)" },
-  ];
-
-  const templates = {
-    tcle: { title: "TERMO DE CONSENTIMENTO LIVRE E ESCLARECIDO", sections: [
-      { heading: "IDENTIFICAÇÃO DO PACIENTE", fields: ["Nome completo", "CPF", "RG", "Data de nascimento", "Endereço", "Telefone", "E-mail"] },
-      { heading: "PROCEDIMENTO", fields: ["Tipo de procedimento", "Região de aplicação", "Produto utilizado (nome, lote, validade)", "Profissional responsável (nome, CRM/CRO)", "Número de sessões previstas"] },
-      { heading: "INFORMAÇÕES AO PACIENTE", content: "Declaro que fui informado(a) de forma clara e objetiva sobre:\n• A natureza do procedimento proposto, seus benefícios e limitações\n• Os riscos e possíveis complicações (edema, equimose, assimetria, infecção, reação alérgica, necrose vascular, nódulos)\n• As alternativas terapêuticas disponíveis\n• Que o resultado pode variar de pessoa para pessoa\n• A necessidade de seguir as orientações pós-procedimento\n• O direito de revogar este consentimento a qualquer momento antes do procedimento\n• Que fotografias de antes e depois serão realizadas para documentação clínica (uso interno)" },
-      { heading: "CONTRAINDICAÇÕES DECLARADAS", content: "Declaro que informei ao profissional sobre:\n• Gestação ou suspeita de gestação / amamentação\n• Alergias conhecidas\n• Doenças autoimunes\n• Uso de anticoagulantes\n• Tratamentos dermatológicos em curso\n• Histórico de queloides\n• Procedimentos estéticos prévios na mesma região" },
-      { heading: "CONSENTIMENTO", content: "Declaro que li e compreendi todas as informações acima, que tive a oportunidade de esclarecer minhas dúvidas com o profissional responsável, e que consinto livremente com a realização do procedimento proposto." },
-      { heading: "ASSINATURAS", fields: ["Data", "Assinatura do paciente", "Nome do profissional", "CRM/CRO", "Assinatura do profissional"] },
-    ]},
-    imagem: { title: "TERMO DE AUTORIZAÇÃO DE USO DE IMAGEM", sections: [
-      { heading: "IDENTIFICAÇÃO", fields: ["Nome completo", "CPF", "RG", "Data de nascimento"] },
-      { heading: "AUTORIZAÇÃO", content: "Autorizo o Instituto Levvai (CNPJ: [CNPJ]), representado por Dra. Lara [sobrenome] (CRO: [número]), a captar, armazenar e utilizar minha imagem (fotografias e/ou vídeos) obtida(s) durante meu(s) atendimento(s), para as seguintes finalidades:" },
-      { heading: "FINALIDADES AUTORIZADAS", content: "[ ] Documentação clínica interna (prontuário)\n[ ] Publicação em redes sociais do Instituto Levvai (@institutolevvai)\n[ ] Material educativo e científico\n[ ] Material publicitário (site, anúncios, impressos)\n[ ] Apresentações em congressos e eventos científicos\n\nObs: Mesmo com autorização, o Instituto Levvai preservará minha identidade, não divulgando meu nome completo sem autorização adicional expressa." },
-      { heading: "CONDIÇÕES", content: "• Esta autorização é válida por prazo indeterminado, podendo ser revogada a qualquer momento mediante comunicação por escrito\n• As imagens não serão compartilhadas com terceiros fora das finalidades acima\n• Não haverá qualquer remuneração pela cessão de uso de imagem\n• O Instituto Levvai se compromete a não utilizar as imagens de forma depreciativa" },
-      { heading: "ASSINATURAS", fields: ["Data", "Assinatura do paciente", "Testemunha (Sirlândia)", "Assinatura do profissional"] },
-    ]},
-    lgpd: { title: "TERMO DE CONSENTIMENTO — PROTEÇÃO DE DADOS (LGPD)", sections: [
-      { heading: "CONTROLADOR", content: "Instituto Levvai — CNPJ: [CNPJ]\nRua do Rocio, 288, cj 93 — Vila Olímpia, São Paulo, SP\nResponsável: [Nome do responsável legal]\nContato DPO: [e-mail]" },
-      { heading: "DADOS COLETADOS", content: "Dados pessoais: nome, CPF, RG, data de nascimento, endereço, telefone, e-mail\nDados sensíveis: histórico de saúde, alergias, medicamentos, fotografias clínicas\nDados de navegação: quando aplicável (cookies do site)" },
-      { heading: "FINALIDADES", content: "• Prestação de serviços de saúde e estética\n• Prontuário médico/odontológico (obrigação legal — CFM/CFO)\n• Agendamento e comunicação sobre consultas e procedimentos\n• Envio de informações sobre novos serviços (mediante consentimento)\n• Emissão de notas fiscais e cumprimento de obrigações tributárias\n• Defesa em processos judiciais ou administrativos" },
-      { heading: "COMPARTILHAMENTO", content: "Seus dados podem ser compartilhados com:\n• Profissionais associados que realizarem seu atendimento\n• Laboratórios (quando necessário para exames)\n• Contador e assessoria jurídica (dados fiscais)\n• Autoridades sanitárias e regulatórias (quando exigido por lei)\n\nSeus dados NUNCA serão vendidos ou compartilhados para fins de marketing com terceiros." },
-      { heading: "SEUS DIREITOS (Art. 18 LGPD)", content: "Você tem direito a:\n• Confirmar a existência de tratamento de dados\n• Acessar seus dados\n• Corrigir dados incompletos ou desatualizados\n• Solicitar anonimização, bloqueio ou eliminação\n• Solicitar portabilidade\n• Revogar consentimento a qualquer momento\n\nPara exercer seus direitos: [e-mail do DPO]" },
-      { heading: "RETENÇÃO", content: "Dados de prontuário: 20 anos após último atendimento (obrigação legal)\nDados de marketing: até revogação do consentimento\nDados fiscais: 5 anos (obrigação tributária)" },
-      { heading: "CONSENTIMENTO", fields: ["[ ] Consinto com o tratamento dos meus dados para as finalidades descritas", "[ ] Autorizo o envio de comunicações sobre novos serviços via WhatsApp/e-mail", "Data", "Assinatura do paciente"] },
-    ]},
-    anamnese: { title: "FICHA DE ANAMNESE — AVALIAÇÃO INICIAL", sections: [
-      { heading: "DADOS PESSOAIS", fields: ["Nome completo", "Data de nascimento / Idade", "CPF", "Profissão", "Telefone / WhatsApp", "E-mail", "Endereço completo", "Como conheceu o Instituto Levvai?"] },
-      { heading: "HISTÓRICO MÉDICO", content: "Está em tratamento médico atualmente? [ ] Sim [ ] Não — Qual?\nFaz uso de medicamentos? [ ] Sim [ ] Não — Quais?\nTem alergias conhecidas? [ ] Sim [ ] Não — Quais?\nJá teve reação a anestésicos? [ ] Sim [ ] Não\nÉ portador(a) de:\n[ ] Diabetes [ ] Hipertensão [ ] Doenças autoimunes [ ] Problemas cardíacos\n[ ] Doenças de pele [ ] Herpes recorrente [ ] Queloides [ ] HIV/Hepatite\n[ ] Problemas de coagulação [ ] Epilepsia [ ] Outros: ___________" },
-      { heading: "SAÚDE DA MULHER", content: "Está grávida ou suspeita? [ ] Sim [ ] Não\nEstá amamentando? [ ] Sim [ ] Não\nUsa anticoncepcional? [ ] Sim [ ] Não — Qual?\nData da última menstruação: ___/___/______" },
-      { heading: "HISTÓRICO ESTÉTICO", content: "Já realizou procedimentos estéticos? [ ] Sim [ ] Não\nSe sim, quais e quando?\n[ ] Toxina botulínica — Data: ___ — Local: ___\n[ ] Preenchimento — Data: ___ — Local: ___ — Produto: ___\n[ ] Bioestimuladores — Data: ___ — Local: ___\n[ ] Fios de PDO — Data: ___ — Local: ___\n[ ] Cirurgia plástica — Data: ___ — Qual: ___\n[ ] Peeling — Data: ___ — Tipo: ___\n[ ] Outros: ___________\n\nTeve alguma complicação? [ ] Sim [ ] Não — Qual?" },
-      { heading: "QUEIXA PRINCIPAL E EXPECTATIVAS", fields: ["O que te trouxe ao Instituto Levvai?", "Quais áreas gostaria de tratar?", "Qual resultado espera?", "Tem alguma referência visual?"] },
-      { heading: "OBSERVAÇÕES DO PROFISSIONAL", fields: ["Avaliação clínica", "Plano de tratamento proposto", "Número de sessões", "Intervalo entre sessões", "Valor total estimado"] },
-      { heading: "ASSINATURAS", fields: ["Data", "Assinatura do paciente", "Assinatura do profissional"] },
-    ]},
-    tirze: { title: "TERMO DE CONSENTIMENTO — PROTOCOLO LEVVAI SLIM (TIRZEPATIDA)", sections: [
-      { heading: "IDENTIFICAÇÃO", fields: ["Nome completo", "CPF", "Data de nascimento", "Peso atual", "Altura", "IMC"] },
-      { heading: "SOBRE O PROTOCOLO", content: "O Protocolo Levvai Slim utiliza Tirzepatida (princípio ativo do Mounjaro®), um agonista duplo dos receptores GIP e GLP-1, aprovado para tratamento de diabetes tipo 2 e obesidade. O uso para fins estéticos de emagrecimento é considerado off-label.\n\nO protocolo consiste em aplicações subcutâneas semanais com doses progressivas, acompanhado por médico prescritor (nutrólogo ou endocrinologista)." },
-      { heading: "RISCOS E EFEITOS COLATERAIS", content: "Efeitos comuns (>10%): náusea, diarreia, diminuição do apetite, vômito, constipação, dor abdominal\nEfeitos incomuns (1-10%): refluxo, fadiga, tontura, reação no local da injeção\nEfeitos raros (<1%): pancreatite, hipoglicemia (em diabéticos), reações alérgicas graves\n\nCONTRAINDICAÇÕES ABSOLUTAS:\n• Histórico pessoal ou familiar de carcinoma medular da tireoide\n• Síndrome de neoplasia endócrina múltipla tipo 2 (MEN 2)\n• Gestação ou amamentação\n• Pancreatite aguda" },
-      { heading: "ACOMPANHAMENTO OBRIGATÓRIO", content: "• Consulta médica prévia com nutrólogo/endocrinologista (OBRIGATÓRIO)\n• Exames laboratoriais antes do início (hemograma, glicemia, HbA1c, função tireoidiana, lipídico, hepático, renal)\n• Retornos quinzenais no primeiro mês, mensais depois\n• O paciente NÃO deve ajustar a dose por conta própria\n• Em caso de efeitos adversos graves: ligar imediatamente para [telefone emergência]" },
-      { heading: "CONSENTIMENTO", content: "Declaro que:\n• Fui avaliado(a) por médico prescritor habilitado\n• Compreendo que este é um uso off-label do medicamento\n• Fui informado(a) sobre todos os riscos e efeitos colaterais\n• Me comprometo a seguir o acompanhamento médico\n• Informei todos os medicamentos que uso atualmente\n• Não estou grávida/amamentando" },
-      { heading: "ASSINATURAS", fields: ["Data", "Assinatura do paciente", "Nome do médico prescritor", "CRM + RQE", "Assinatura do médico"] },
-    ]},
-    menores: { title: "TERMO DE CONSENTIMENTO — RESPONSÁVEL LEGAL (16-17 ANOS)", sections: [
-      { heading: "DADOS DO MENOR", fields: ["Nome completo", "Data de nascimento", "RG/CPF", "Idade"] },
-      { heading: "DADOS DO RESPONSÁVEL LEGAL", fields: ["Nome completo", "CPF", "RG", "Grau de parentesco", "Telefone", "E-mail"] },
-      { heading: "CONSENTIMENTO", content: "Eu, [responsável], na qualidade de responsável legal pelo menor acima identificado, declaro que:\n\n• Autorizo a realização do procedimento: [procedimento]\n• Estarei presente durante todo o atendimento\n• Fui informado(a) sobre os riscos, benefícios e alternativas\n• O menor também foi informado e concorda com o procedimento\n• Compreendo que procedimentos estéticos em menores requerem avaliação cuidadosa" },
-      { heading: "OBSERVAÇÃO", content: "O Instituto Levvai não realiza procedimentos estéticos invasivos em menores de 16 anos. Pacientes de 16-17 anos são atendidos exclusivamente com presença e consentimento do responsável legal." },
-      { heading: "ASSINATURAS", fields: ["Data", "Assinatura do responsável legal", "Assinatura do menor", "Assinatura do profissional", "Testemunha"] },
-    ]},
-  };
-
-  const currentDoc = templates[activeDoc];
-
-  return (
-    <div>
-      <Card title="Termos e Documentos do Paciente" accent>
-        <p style={{ color: "#aaa", fontSize: 13, margin: 0 }}>
-          Todos os termos que o paciente assina antes do procedimento. Sirlândia imprime e coleta assinatura.
-          Luciano Gebara deve revisar e validar antes de entrarem em uso oficial.
-        </p>
-      </Card>
-
-      <div style={{ display: "flex", gap: 4, marginBottom: 16, flexWrap: "wrap" }}>
-        {docs.map(d => (
-          <button key={d.id} onClick={() => setActiveDoc(d.id)} style={{
-            padding: "8px 14px", borderRadius: 8, fontSize: 11, fontWeight: 600,
-            cursor: "pointer", fontFamily: "inherit", border: "1px solid",
-            background: activeDoc === d.id ? DARK : "white",
-            color: activeDoc === d.id ? GOLD : "#888",
-            borderColor: activeDoc === d.id ? DARK : "#ddd",
-          }}>{d.name}</button>
-        ))}
-      </div>
-
-      <Card title={currentDoc.title}>
-        <div style={{ background: "#FAFAF8", border: "1px solid #E8E4DE", borderRadius: 8, padding: "20px 24px" }}>
-          <div style={{ textAlign: "center", marginBottom: 20 }}>
-            <div style={{ fontSize: 11, fontWeight: 600, color: GOLD, letterSpacing: "0.15em" }}>INSTITUTO</div>
-            <div style={{ fontSize: 22, fontWeight: 800, color: DARK, fontFamily: "'DM Serif Display', Georgia, serif" }}>LEVVAI</div>
-            <div style={{ fontSize: 10, color: "#999", marginTop: 4 }}>Rua do Rocio, 288, cj 93 — Vila Olímpia, SP | CNPJ: [CNPJ]</div>
-          </div>
-          <div style={{ fontSize: 14, fontWeight: 800, color: DARK, textAlign: "center", marginBottom: 20, padding: "10px", background: LIGHT, borderRadius: 6 }}>
-            {currentDoc.title}
-          </div>
-          {currentDoc.sections.map((s, i) => (
-            <div key={i} style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 12, fontWeight: 800, color: GOLD, letterSpacing: "0.05em", marginBottom: 6, borderBottom: `1px solid ${GOLD}40`, paddingBottom: 4 }}>{s.heading}</div>
-              {s.content && s.content.split("\n").map((line, j) => (
-                <div key={j} style={{ fontSize: 12, color: "#444", lineHeight: 1.8, paddingLeft: line.startsWith("•") || line.startsWith("[") ? 12 : 0 }}>{line}</div>
-              ))}
-              {s.fields && s.fields.map((f, j) => (
-                <div key={j} style={{ display: "flex", alignItems: "center", padding: "6px 0", borderBottom: "1px dotted #ddd" }}>
-                  <span style={{ fontSize: 12, color: "#666", minWidth: 200 }}>{f}:</span>
-                  <span style={{ flex: 1, borderBottom: "1px solid #ccc", minHeight: 20 }} />
-                </div>
-              ))}
-            </div>
-          ))}
-        </div>
-        <div style={{ display: "flex", gap: 8, marginTop: 12, justifyContent: "flex-end" }}>
-          <Badge text="MINUTA — Luciano Gebara deve revisar" color="#FFF3E0" textColor="#E65100" />
-          <button onClick={() => {
-            const printWin = window.open("", "_blank");
-            const doc = currentDoc;
-            printWin.document.write(`<!DOCTYPE html><html><head><title>${doc.title}</title><style>
-              body{font-family:'Helvetica Neue',sans-serif;padding:40px 50px;color:#333;font-size:13px;line-height:1.8}
-              .header{text-align:center;margin-bottom:30px;padding-bottom:15px;border-bottom:2px solid #C8A96E}
-              .header .inst{font-size:11px;font-weight:600;color:#C8A96E;letter-spacing:3px}
-              .header .name{font-size:28px;font-weight:800;color:#1A1A1A;font-family:Georgia,serif}
-              .header .addr{font-size:10px;color:#999;margin-top:4px}
-              .title{font-size:15px;font-weight:800;text-align:center;background:#F5F0E8;padding:10px;border-radius:6px;margin:20px 0;color:#1A1A1A}
-              .section{margin-bottom:16px}
-              .section h3{font-size:12px;font-weight:800;color:#C8A96E;letter-spacing:1px;border-bottom:1px solid #C8A96E40;padding-bottom:4px;margin-bottom:8px}
-              .field{display:flex;padding:5px 0;border-bottom:1px dotted #ddd}
-              .field span:first-child{min-width:180px;color:#666}
-              .field span:last-child{flex:1;border-bottom:1px solid #ccc;min-height:18px}
-              .badge{display:inline-block;background:#FFF3E0;color:#E65100;font-size:10px;padding:2px 8px;border-radius:4px;font-weight:600;margin-top:20px}
-              @media print{body{padding:20px 30px}.badge{display:none}}
-            </style></head><body>`);
-            printWin.document.write(`<div class="header"><div class="inst">INSTITUTO</div><div class="name">LEVVAI</div><div class="addr">Rua do Rocio, 288, cj 93 — Vila Olímpia, SP | CNPJ: [CNPJ]</div></div>`);
-            printWin.document.write(`<div class="title">${doc.title}</div>`);
-            doc.sections.forEach(s => {
-              printWin.document.write(`<div class="section"><h3>${s.heading}</h3>`);
-              if (s.content) s.content.split("\n").forEach(line => printWin.document.write(`<div style="padding-left:${line.startsWith("•")||line.startsWith("[")?12:0}px">${line}</div>`));
-              if (s.fields) s.fields.forEach(f => printWin.document.write(`<div class="field"><span>${f}:</span><span></span></div>`));
-              printWin.document.write(`</div>`);
-            });
-            printWin.document.write(`<div class="badge">MINUTA — Luciano Gebara deve revisar antes do uso oficial</div>`);
-            printWin.document.write(`</body></html>`);
-            printWin.document.close();
-            setTimeout(() => printWin.print(), 300);
-          }} style={{
-            padding: "8px 20px", background: DARK, color: GOLD, border: "none",
-            borderRadius: 8, fontWeight: 700, fontSize: 12, cursor: "pointer", fontFamily: "inherit",
-            display: "flex", alignItems: "center", gap: 6,
-          }}>🖨 Imprimir Termo</button>
-        </div>
-      </Card>
-
-      <Card title="Regras de Uso dos Termos">
-        {[
-          "TCLE: obrigatório antes de QUALQUER procedimento. Sem assinatura = não atende.",
-          "Uso de Imagem: coletar na primeira consulta. Sem termo = Gi NÃO pode postar antes/depois.",
-          "LGPD: coletar na primeira consulta. Obrigatório por lei.",
-          "Anamnese: preencher na primeira consulta. Atualizar a cada 6 meses ou quando houver mudança.",
-          "Tirzepatida: OBRIGATÓRIO termo específico + prescrição médica. Sem médico prescritor = não aplica.",
-          "Menores: somente 16-17 anos, com responsável PRESENTE. Abaixo de 16 = não atende.",
-          "Sirlândia imprime, coleta assinatura e arquiva. Digitalizar e guardar no prontuário.",
-          "Luciano Gebara DEVE revisar todos os termos antes de entrarem em uso oficial.",
-          "Atualizar termos anualmente ou quando houver mudança regulatória.",
-        ].map((r, i) => (
-          <div key={i} style={{ fontSize: 12, color: "#555", padding: "5px 0", display: "flex", gap: 6, borderBottom: "1px solid #f5f0e8" }}>
-            <span style={{ color: GOLD, fontWeight: 800, minWidth: 22 }}>{(i+1).toString().padStart(2,"0")}</span> {r}
-          </div>
-        ))}
-      </Card>
-    </div>
-  );
-};
-
 // DASHBOARD EXECUTIVO TAB
 const ExecutiveTab = ({ shared }) => {
   const leads = shared.leads;
@@ -7480,102 +7265,6 @@ const FornecedoresTab = () => {
   );
 };
 
-// CONTRATOS TAB
-const ContratosTab = () => {
-  // Estado — Contratos
-  const [contratos, setContratos] = useState([]);
-  const [loadingContratos, setLoadingContratos] = useState(true);
-
-  useEffect(() => {
-    const fetchContratos = async () => {
-      setLoadingContratos(true);
-      const { data, error } = await supabase
-        .from('contratos')
-        .select('*')
-        .order('vencimento', { ascending: true });
-
-      if (!error && data) setContratos(data);
-      setLoadingContratos(false);
-    };
-
-    fetchContratos();
-  }, []);
-
-  const salvarContrato = async (contrato) => {
-    if (contrato.id) {
-      const { error } = await supabase
-        .from('contratos')
-        .update(contrato)
-        .eq('id', contrato.id);
-      if (!error) setContratos(prev => prev.map(c => c.id === contrato.id ? contrato : c));
-    } else {
-      const { data, error } = await supabase
-        .from('contratos')
-        .insert([contrato])
-        .select()
-        .single();
-      if (!error && data) setContratos(prev => [...prev, data]);
-    }
-  };
-
-  const excluirContrato = async (contratoId) => {
-    const { error } = await supabase
-      .from('contratos')
-      .update({ status: 'encerrado' })
-      .eq('id', contratoId);
-    if (!error) setContratos(prev =>
-      prev.map(c => c.id === contratoId ? { ...c, status: 'encerrado' } : c)
-    );
-  };
-
-  const contratosAlerta = contratos.filter(c => {
-    if (!c.vencimento || c.status !== 'ativo') return false;
-    const diasRestantes = Math.ceil(
-      (new Date(c.vencimento) - new Date()) / (1000 * 60 * 60 * 24)
-    );
-    return diasRestantes <= (c.alerta_dias || 30) && diasRestantes >= 0;
-  });
-
-  const contracts = contratos;
-
-  const statusColors = { "ATIVO": { bg: "#E8F5E9", tc: "#2E7D32" }, "PENDENTE": { bg: "#FFF9C4", tc: "#F57F17" }, "VAGA ABERTA": { bg: "#E3F2FD", tc: "#1565C0" }, "VERIFICAR": { bg: "#FFCDD2", tc: "#B71C1C" }, "VENCIDO": { bg: "#FFCDD2", tc: "#B71C1C" }, "ENCERRADO": { bg: "#ECEFF1", tc: "#546E7A" } };
-
-  return (
-    <div>
-      <Card title="Repositório de Contratos e Vencimentos" accent>
-        <p style={{ color: "#aaa", fontSize: 13, margin: 0 }}>Todos os contratos da clínica. Sylmara monitora vencimentos. CEO revisa na revisão trimestral. Luciano Gebara consulta sob demanda.</p>
-      </Card>
-      <div className="metric-row" style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 16 }}>
-        <Metric label="Contratos Ativos" value={contracts.filter(c => c.status === "ATIVO").length} color="#2E7D32" />
-        <Metric label="Pendentes" value={contracts.filter(c => c.status === "PENDENTE").length} color="#F57F17" />
-        <Metric label="Verificar" value={contracts.filter(c => c.status === "VERIFICAR").length} color="#B71C1C" sub="ação necessária" />
-        <Metric label="Vagas Abertas" value={contracts.filter(c => c.status === "VAGA ABERTA").length} color="#1565C0" />
-      </div>
-      {contracts.map((c, i) => {
-        const st = statusColors[c.status] || statusColors["PENDENTE"];
-        return (
-          <div key={i} style={{ background: c.alerta ? "#FFF5F5" : "white", border: "1px solid #E8E4DE", borderRadius: 10, padding: "14px 16px", marginBottom: 6, borderLeft: `4px solid ${st.tc}` }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ fontSize: 14, fontWeight: 800, color: DARK }}>{c.tipo}</span>
-                <Badge text={c.status} color={st.bg} textColor={st.tc} />
-                {c.alerta && <Badge text="⚠ AÇÃO" color="#FFCDD2" textColor="#B71C1C" />}
-              </div>
-              <Badge text={c.resp} color={LIGHT} textColor={GOLD} />
-            </div>
-            <div className="grid-4" style={{ gap: 6, fontSize: 12 }}>
-              {[["Parte", c.parte], ["Início", c.inicio], ["Vencimento", c.vencimento], ["Valor", c.valor]].map(([l, v], j) => (
-                <div key={j}><span style={{ fontSize: 9, fontWeight: 700, color: GOLD }}>{l}</span><div style={{ color: "#555" }}>{v}</div></div>
-              ))}
-            </div>
-            {c.obs && <div style={{ fontSize: 11, color: "#888", marginTop: 6, fontStyle: "italic" }}>{c.obs}</div>}
-          </div>
-        );
-      })}
-    </div>
-  );
-};
-
 const tabContent = {
   home: HomeTab,
   plan: PlanTab,
@@ -7585,8 +7274,6 @@ const tabContent = {
   executive: ExecutiveTab,
   competitors: CompetitorsTab,
   associates: AssociatesTab,
-  compliance: ComplianceTab,
-  termos: TermosTab,
   brand: BrandTab,
   rituals: RitualsTab,
   budget: BudgetTab,
@@ -7600,7 +7287,6 @@ const tabContent = {
   marketing: MarketingTab,
   icp: IcpTab,
   fornecedores: FornecedoresTab,
-  contratos: ContratosTab,
   docs: DocsTab,
   usuarios: UsuariosTab,
 };
@@ -7634,8 +7320,6 @@ const TAB_TO_SECTOR = {
   'estoque':           { sector: 'Operação',            label: 'Estoque' },
   'rotinas':           { sector: 'Operação',            label: 'Rotinas' },
   'fornecedores':      { sector: 'Operação',            label: 'Fornecedores' },
-  'compliance':        { sector: 'Jurídico',            label: 'Compliance' },
-  'contratos':         { sector: 'Jurídico',            label: 'Contratos' },
   'biblioteca':        { sector: 'Docs',                label: 'Biblioteca' },
   'templates':         { sector: 'Docs',                label: 'Templates' },
   'usuarios':          { sector: 'Docs',                label: 'Usuários' },
@@ -7649,7 +7333,7 @@ const NEW_TO_OLD_ID = {
   'marca': 'brand', 'icp': 'icp', 'editorial': 'editorial', 'dashboard-mkt': 'marketing', 'concorrentes': 'competitors',
   'equipe': 'team', 'associados': 'associates',
   'agenda': 'agenda', 'estoque': 'stock', 'rotinas': 'rituals', 'fornecedores': 'fornecedores',
-  'compliance': 'compliance', 'contratos': 'contratos', 'biblioteca': 'docs', 'templates': 'docs',
+  'biblioteca': 'docs', 'templates': 'docs',
   'usuarios': 'usuarios',
 };
 

@@ -1,7 +1,7 @@
 import React from 'react';
 
 /**
- * Sidebar — navegação lateral com 8 setores e 26 abas
+ * Sidebar — navegação lateral com 7 setores e 24 abas
  *
  * Props:
  *  - activeTab: string (id da aba ativa, ex: "visao-geral")
@@ -61,13 +61,6 @@ export const SECTORS = [
       { id: 'estoque', label: 'Estoque' },
       { id: 'rotinas', label: 'Rotinas' },
       { id: 'fornecedores', label: 'Fornecedores' },
-    ],
-  },
-  {
-    name: 'Jurídico',
-    tabs: [
-      { id: 'compliance', label: 'Compliance' },
-      { id: 'contratos', label: 'Contratos' },
     ],
   },
   {
