@@ -1,14 +1,14 @@
 import React from 'react';
 
 /**
- * Sidebar — navegação lateral com 9 setores e 29 abas
+ * Sidebar — navegação lateral com 8 setores e 27 abas
  *
  * Props:
  *  - activeTab: string (id da aba ativa, ex: "visao-geral")
  *  - onTabChange: (tabId) => void
  *  - user: { name: string, role: string }  (opcional)
  *  - onLogout: () => void (opcional)
- *  - badges: { [tabId]: number } (opcional, ex: { "atas-acoes": 3, "crm-leads": 5 })
+ *  - badges: { [tabId]: number } (opcional, ex: { "crm-leads": 5 })
  */
 
 export const SECTORS = [
@@ -18,13 +18,6 @@ export const SECTORS = [
       { id: 'visao-geral', label: 'Visão Geral' },
       { id: 'planejamento', label: 'Planejamento' },
       { id: 'dashboard-ceo', label: 'Dashboard CEO' },
-    ],
-  },
-  {
-    name: 'Cultura & Governança',
-    tabs: [
-      { id: 'cultura', label: 'Cultura' },
-      { id: 'atas-acoes', label: 'Atas & Ações' },
     ],
   },
   {

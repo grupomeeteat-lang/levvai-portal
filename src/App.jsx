@@ -15,10 +15,6 @@ const tabGroups = [
     { id: "plan", label: "Planejamento" },
     { id: "executive", label: "Dashboard CEO" },
   ]},
-  { sector: "CULTURA & GOVERNANÇA", color: "#5D4037", tabs: [
-    { id: "cultura", label: "Cultura" },
-    { id: "atas", label: "Atas & Ações" },
-  ]},
   { sector: "FINANCEIRO", color: "#4CAF50", tabs: [
     { id: "finance", label: "DRE & Catálogo" },
     { id: "cashflow", label: "Fluxo de Caixa" },
@@ -2137,10 +2133,6 @@ const DocsTab = () => {
       { tab: "Planejamento", content: "Visão 12 meses com metas trimestrais, sprint semanal 12 semanas (Fundação→Tração→Aceleração→Revisão), Quick Wins 48h" },
       { tab: "Dashboard CEO", content: "8 métricas executivas, OKRs com scoring, alertas críticos. Visão pra board mensal com Rich" },
     ]},
-    { sector: "CULTURA & GOVERNANÇA", color: "#5D4037", items: [
-      { tab: "Cultura", content: "Propósito, 6 valores, estrutura de governança, cadeia de decisão (10 tipos), rituais, código de conduta 10 regras, regra de ouro" },
-      { tab: "Atas & Ações", content: "Registro de weekly/board com decisões, ações, responsável, prazo, status. Painel de pendências." },
-    ]},
     { sector: "FINANCEIRO", color: "#4CAF50", items: [
       { tab: "DRE & Catálogo", content: "DRE 5 blocos (padrão Meet & Eat), catálogo 14 produtos com tipo/categoria/custo/preço/margem/estoque, filtros, resumo" },
       { tab: "Fluxo de Caixa", content: "Entradas/saídas com saldo, registro de movimentações, integrável com Conta Azul via Pluga" },
@@ -2196,7 +2188,7 @@ const DocsTab = () => {
       <Card title="Central de Documentos — Instituto Levvai" accent>
         <p style={{ color: "#aaa", fontSize: 13, margin: 0 }}>
           Todos os documentos, arquivos e conteúdos gerados para o Instituto Levvai.
-          Portal com 29 abas em 9 setores + 10 arquivos para download + planilha financeira.
+          Portal com 27 abas em 8 setores + 10 arquivos para download + planilha financeira.
         </p>
       </Card>
 
@@ -2214,7 +2206,7 @@ const DocsTab = () => {
       </Card>
 
       {/* MAPA DO PORTAL */}
-      <Card title="Mapa do Portal — 29 Abas em 9 Setores">
+      <Card title="Mapa do Portal — 27 Abas em 8 Setores">
         {portalContent.map((s, si) => (
           <div key={si} style={{ marginBottom: 14 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
@@ -2247,8 +2239,8 @@ const DocsTab = () => {
       <Card title="Números desta Plataforma">
         <div className="grid-4" style={{ gap: 10 }}>
           {[
-            { label: "Abas no Portal", value: "29" },
-            { label: "Setores", value: "9" },
+            { label: "Abas no Portal", value: "27" },
+            { label: "Setores", value: "8" },
             { label: "Linhas de código", value: "4.500+" },
             { label: "Arquivos gerados", value: "10" },
             { label: "Produtos cadastrados", value: "14" },
@@ -5847,153 +5839,6 @@ const TermosTab = () => {
   );
 };
 
-// ATAS & AÇÕES TAB
-const AtasTab = () => {
-  // Estado — Atas
-  const [atas, setAtas] = useState([]);
-  const [acoesAta, setAcoesAta] = useState([]);
-  const [loadingAtas, setLoadingAtas] = useState(true);
-
-  useEffect(() => {
-    const fetchAtas = async () => {
-      setLoadingAtas(true);
-
-      const { data: atasData, error: atasError } = await supabase
-        .from('atas')
-        .select('*')
-        .order('data', { ascending: false });
-
-      if (!atasError && atasData) setAtas(atasData);
-
-      const { data: acoesData, error: acoesError } = await supabase
-        .from('acoes_ata')
-        .select('*')
-        .order('prazo', { ascending: true });
-
-      if (!acoesError && acoesData) setAcoesAta(acoesData);
-
-      setLoadingAtas(false);
-    };
-
-    fetchAtas();
-  }, []);
-
-  const salvarAta = async (ata) => {
-    if (ata.id) {
-      const { error } = await supabase
-        .from('atas')
-        .update(ata)
-        .eq('id', ata.id);
-      if (!error) setAtas(prev => prev.map(a => a.id === ata.id ? ata : a));
-    } else {
-      const { data, error } = await supabase
-        .from('atas')
-        .insert([ata])
-        .select()
-        .single();
-      if (!error && data) setAtas(prev => [data, ...prev]);
-    }
-  };
-
-  const salvarAcaoAta = async (acao) => {
-    if (acao.id) {
-      const { error } = await supabase
-        .from('acoes_ata')
-        .update(acao)
-        .eq('id', acao.id);
-      if (!error) setAcoesAta(prev => prev.map(a => a.id === acao.id ? acao : a));
-    } else {
-      const { data, error } = await supabase
-        .from('acoes_ata')
-        .insert([acao])
-        .select()
-        .single();
-      if (!error && data) setAcoesAta(prev => [...prev, data]);
-    }
-  };
-
-  const concluirAcao = async (acaoId) => {
-    const { error } = await supabase
-      .from('acoes_ata')
-      .update({ status: 'concluida' })
-      .eq('id', acaoId);
-    if (!error) setAcoesAta(prev =>
-      prev.map(a => a.id === acaoId ? { ...a, status: 'concluida' } : a)
-    );
-  };
-
-  // Ações abertas por ata (para exibir no painel)
-  const acoesPorAta = (ataId) => acoesAta.filter(a => a.ata_id === ataId);
-  const acoesAbertas = acoesAta.filter(a => a.status === 'aberta');
-
-  const meetings = atas;
-  const [showNewMeeting, setShowNewMeeting] = useState(false);
-
-  const updateActionStatus = async (meetIdx, actIdx, status) => {
-    const a = acoesAta[actIdx];
-    if (a?.id) await salvarAcaoAta({ ...a, status });
-  };
-  const allActions = acoesAta.map((a, i) => ({ ...a, meetIdx: atas.findIndex(m => m.id === a.ata_id), actIdx: i }));
-  const pendentes = acoesAta.filter(a => a.status === 'pendente' || a.status === 'aberta');
-  const atrasadas = acoesAta.filter(a => a.status === 'atrasada');
-
-  return (
-    <div>
-      <div className="metric-row" style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 16 }}>
-        <Metric label="Total de Ações" value={allActions.length} />
-        <Metric label="Pendentes" value={pendentes.length} color="#E65100" />
-        <Metric label="Atrasadas" value={atrasadas.length} color="#B71C1C" />
-        <Metric label="Concluídas" value={allActions.filter(a => a.status === "concluida").length} color="#2E7D32" />
-      </div>
-
-      <Card title="Painel de Ações Pendentes" accent>
-        {pendentes.length === 0 ? <p style={{ color: "#aaa" }}>Nenhuma ação pendente!</p> : pendentes.map((a, i) => (
-          <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
-            <Badge text={a.resp} color="#F5F0E8" textColor={GOLD} />
-            <div style={{ flex: 1, fontSize: 12, color: "#ddd" }}>{a.acao}</div>
-            <span style={{ fontSize: 10, color: "#888" }}>Prazo: {a.prazo}</span>
-            <select value={a.status} onChange={e => updateActionStatus(a.meetIdx, a.actIdx, e.target.value)} style={{
-              padding: "4px 8px", borderRadius: 12, fontSize: 10, fontWeight: 700, border: "none", cursor: "pointer", fontFamily: "inherit",
-              background: "#FFF3E0", color: "#E65100",
-            }}>
-              <option value="pendente">PENDENTE</option>
-              <option value="concluida">CONCLUÍDA</option>
-              <option value="atrasada">ATRASADA</option>
-              <option value="cancelada">CANCELADA</option>
-            </select>
-          </div>
-        ))}
-      </Card>
-
-      {meetings.map((m, mi) => (
-        <Card key={mi} title={`${m.type === "weekly" ? "Levvai Weekly" : "Board Mensal"} — ${m.date}`}>
-          <div style={{ fontSize: 11, color: "#888", marginBottom: 8 }}>Presentes: {m.presentes}</div>
-          <div style={{ fontSize: 11, fontWeight: 700, color: GOLD, marginBottom: 4 }}>DECISÕES</div>
-          {m.decisoes.map((d, di) => <div key={di} style={{ fontSize: 12, color: "#555", padding: "3px 0 3px 12px" }}>› {d}</div>)}
-          <div style={{ fontSize: 11, fontWeight: 700, color: GOLD, marginTop: 10, marginBottom: 4 }}>AÇÕES</div>
-          {acoesPorAta(m.id).map((a, ai) => (
-            <div key={ai} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", borderBottom: "1px solid #f0ece6" }}>
-              <Badge text={a.resp} color={LIGHT} textColor={GOLD} />
-              <div style={{ flex: 1, fontSize: 12 }}>{a.acao}</div>
-              <span style={{ fontSize: 10, color: "#bbb" }}>{a.prazo}</span>
-              <select value={a.status} onChange={e => updateActionStatus(mi, ai, e.target.value)} style={{
-                padding: "3px 6px", borderRadius: 10, fontSize: 9, fontWeight: 700, border: "none", cursor: "pointer", fontFamily: "inherit",
-                background: a.status === "concluida" ? "#E8F5E9" : a.status === "atrasada" ? "#FFCDD2" : "#FFF9C4",
-                color: a.status === "concluida" ? "#2E7D32" : a.status === "atrasada" ? "#B71C1C" : "#F57F17",
-              }}>
-                <option value="pendente">PENDENTE</option>
-                <option value="concluida">CONCLUÍDA</option>
-                <option value="atrasada">ATRASADA</option>
-                <option value="cancelada">CANCELADA</option>
-              </select>
-            </div>
-          ))}
-        </Card>
-      ))}
-    </div>
-  );
-};
-
 // DASHBOARD EXECUTIVO TAB
 const ExecutiveTab = ({ shared }) => {
   const leads = shared.leads;
@@ -7990,163 +7835,6 @@ const AvaliacaoTab = () => {
   );
 };
 
-// CULTURA & GOVERNANÇA TAB
-const CulturaTab = () => (
-  <div>
-    <Card title="Cultura & Governança — Instituto Levvai" accent>
-      <p style={{ fontSize: 18, fontWeight: 300, lineHeight: 1.8, margin: 0, color: "#ccc" }}>
-        Cultura não é o que está escrito na parede. É o que acontece quando o CEO não está olhando.
-        <span style={{ color: GOLD, fontWeight: 600 }}> No Levvai, governança é ritual — não presença.</span>
-      </p>
-    </Card>
-
-    <Card title="Propósito">
-      <div style={{ textAlign: "center", padding: "20px 0" }}>
-        <div style={{ fontSize: 20, fontWeight: 800, color: DARK, fontFamily: "'DM Serif Display', Georgia, serif", lineHeight: 1.6 }}>
-          Elevar a autoestima de cada paciente com ciência, precisão e acolhimento —
-          <br />entregando resultados naturais que falam por si.
-        </div>
-        <div style={{ fontSize: 12, color: "#999", marginTop: 12 }}>
-          Tudo que fazemos — do conteúdo à consulta, do atendimento ao pós — serve a esse propósito.
-        </div>
-      </div>
-    </Card>
-
-    <Card title="Valores — O que nos guia">
-      {[
-        { valor: "RESULTADO NATURAL", desc: "A melhor estética é aquela que ninguém percebe. Nunca comprometemos a naturalidade por vaidade ou pressão.", icon: "◆", color: "#E8EAF6" },
-        { valor: "CIÊNCIA PRIMEIRO", desc: "Toda decisão clínica é baseada em evidência. Não seguimos modas — seguimos dados e protocolos validados.", icon: "◈", color: "#E0F2F1" },
-        { valor: "CONFIANÇA ACIMA DE TUDO", desc: "A paciente confia no Levvai porque somos transparentes, éticos e honestos. Essa confiança é inegociável.", icon: "●", color: "#FFF3E0" },
-        { valor: "EXPERIÊNCIA PREMIUM", desc: "Do primeiro WhatsApp ao pós-atendimento, cada ponto de contato é pensado pra fazer a paciente se sentir cuidada.", icon: "◎", color: "#F3E5F5" },
-        { valor: "DISCIPLINA OPERACIONAL", desc: "Rituais, processos e métricas existem pra que a qualidade não dependa de humor, memória ou sorte.", icon: "◒", color: "#E8F5E9" },
-        { valor: "CRESCIMENTO SUSTENTÁVEL", desc: "Crescemos com margem saudável, equipe valorizada e reputação intacta. Não trocamos qualidade por volume.", icon: "◐", color: "#FFF9C4" },
-      ].map((v, i) => (
-        <div key={i} style={{ display: "flex", gap: 14, padding: "14px 0", borderBottom: i < 5 ? "1px solid #f0ece6" : "none" }}>
-          <div style={{ width: 44, height: 44, borderRadius: 10, background: v.color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>{v.icon}</div>
-          <div>
-            <div style={{ fontSize: 14, fontWeight: 800, color: DARK, letterSpacing: "0.03em" }}>{v.valor}</div>
-            <div style={{ fontSize: 12, color: "#666", marginTop: 2, lineHeight: 1.6 }}>{v.desc}</div>
-          </div>
-        </div>
-      ))}
-    </Card>
-
-    <Card title="Estrutura de Governança">
-      <div style={{ textAlign: "center", padding: "10px 0 20px" }}>
-        <div style={{ display: "inline-block", background: "#ECEFF1", borderRadius: 8, padding: "8px 20px", marginBottom: 8 }}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: "#78909C" }}>BOARD CONSULTIVO</div>
-          <div style={{ fontSize: 14, fontWeight: 800, color: DARK }}>Rich</div>
-          <div style={{ fontSize: 10, color: "#999" }}>1º sábado/mês · Voto consultivo · Questiona e valida</div>
-        </div>
-        <div style={{ color: "#ccc", fontSize: 16, margin: "4px 0" }}>↓</div>
-        <div style={{ display: "inline-block", background: GOLD, borderRadius: 8, padding: "10px 24px", marginBottom: 8 }}>
-          <div style={{ fontSize: 14, fontWeight: 800, color: "white" }}>IKE — CEO</div>
-          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.7)" }}>~6-8h/semana · Governa por ritual · Levvai Weekly terça 9h</div>
-        </div>
-        <div style={{ color: "#ccc", fontSize: 16, margin: "4px 0" }}>↓</div>
-        <div style={{ display: "flex", justifyContent: "center", gap: 8, flexWrap: "wrap" }}>
-          {[
-            { name: "LARA", role: "Dir. Clínica\n& Face da Marca", color: "#E91E63" },
-            { name: "SIRLÂNDIA", role: "Ger. Operacional", color: "#039BE5" },
-            { name: "SYLMARA", role: "Administradora", color: "#7B1FA2" },
-            { name: "GI", role: "Social Media", color: "#43A047" },
-          ].map((p, i) => (
-            <div key={i} style={{ background: p.color, borderRadius: 8, padding: "8px 16px", minWidth: 90, textAlign: "center" }}>
-              <div style={{ fontSize: 12, fontWeight: 800, color: "white" }}>{p.name}</div>
-              <div style={{ fontSize: 9, color: "rgba(255,255,255,0.7)", whiteSpace: "pre-line" }}>{p.role}</div>
-            </div>
-          ))}
-        </div>
-        <div style={{ color: "#ccc", fontSize: 16, margin: "8px 0" }}>↓</div>
-        <div style={{ display: "inline-block", background: LIGHT, borderRadius: 8, padding: "8px 20px" }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: GOLD }}>ASSOCIADOS (futuro)</div>
-          <div style={{ fontSize: 10, color: "#888" }}>Nutrólogo + Dermatologista</div>
-        </div>
-      </div>
-    </Card>
-
-    <Card title="Cadeia de Decisão — Quem decide o quê">
-      {[
-        { decisao: "Procedimento clínico (o que fazer no paciente)", quem: "LARA — autonomia total", escala: "Sem escalação. Lara é soberana no clínico.", color: "#FCE4EC" },
-        { decisao: "Preço de procedimento / tabela de preços", quem: "CEO — propõe na weekly", escala: "Lara valida se faz sentido clínico.", color: "#FFF3E0" },
-        { decisao: "Contratação de associado", quem: "CEO + LARA — unanimidade", escala: "CEO filtra fit cultural. Lara filtra competência técnica.", color: "#E3F2FD" },
-        { decisao: "Compra de estoque / insumo", quem: "SYLMARA executa", escala: "CEO aprova compra >R$5K. Lara aprova produto novo.", color: "#E1BEE7" },
-        { decisao: "Conteúdo Instagram (o que postar)", quem: "GI propõe, LARA valida sexta", escala: "CEO valida tom/posicionamento na weekly.", color: "#C8E6C9" },
-        { decisao: "Agenda (horários, salas)", quem: "SIRLÂNDIA gerencia", escala: "Conflito de sala → CEO arbitra.", color: "#B3E5FC" },
-        { decisao: "Despesa não prevista", quem: "SYLMARA registra", escala: "<R$500: Sylmara decide. >R$500: CEO aprova. >R$2K: board.", color: "#FFF9C4" },
-        { decisao: "Desconto acima de 10%", quem: "CEO aprova na weekly", escala: "Nunca decidido na hora com paciente.", color: "#FFEBEE" },
-        { decisao: "Mudança regulatória / compliance", quem: "CEO + Luciano Gebara", escala: "Lara implementa técnico. Sylmara implementa admin.", color: "#ECEFF1" },
-        { decisao: "Estratégia, metas, OKRs", quem: "CEO propõe", escala: "Board (Rich) questiona. Equipe executa.", color: "#F5F0E8" },
-      ].map((d, i) => (
-        <div key={i} style={{ background: d.color, borderRadius: 8, padding: "12px 14px", marginBottom: 6 }}>
-          <div style={{ fontSize: 13, fontWeight: 800, color: DARK, marginBottom: 4 }}>{d.decisao}</div>
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <Badge text={d.quem} color="rgba(0,0,0,0.06)" textColor="#333" />
-            <span style={{ fontSize: 11, color: "#666" }}>{d.escala}</span>
-          </div>
-        </div>
-      ))}
-    </Card>
-
-    <Card title="Rituais de Governança — Quando o sistema roda">
-      {[
-        { ritual: "Levvai Weekly", freq: "Toda terça 9h", dur: "60-90min", quem: "CEO + todos", purpose: "O coração da governança. Números, pipeline, conteúdo, ações, alertas." },
-        { ritual: "1:1 Lara × Gi", freq: "Toda sexta 16h", dur: "20min", quem: "Lara + Gi", purpose: "Validar calendário editorial da semana seguinte." },
-        { ritual: "Board Mensal", freq: "1º sábado", dur: "60min", quem: "CEO + Rich", purpose: "DRE, KPIs, decisões estratégicas. Rich questiona e valida." },
-        { ritual: "Review OKRs", freq: "Fim do trimestre", dur: "2h", quem: "Todos + Rich", purpose: "Scoring, lições aprendidas, próximo ciclo." },
-        { ritual: "Levvai Day", freq: "3º sábado", dur: "4-6h", quem: "Lara + Sirlândia + Gi", purpose: "Mini-evento. CEO define tema na weekly anterior." },
-        { ritual: "Revisão Anual", freq: "Janeiro", dur: "3-4h", quem: "CEO + Rich + Lara", purpose: "Off-site. Plano anual, SWOT, OKRs Q1, revisão jurídica." },
-      ].map((r, i) => (
-        <div key={i} style={{ display: "flex", gap: 10, padding: "10px 0", borderBottom: "1px solid #f0ece6", alignItems: "center" }}>
-          <div style={{ minWidth: 120 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: DARK }}>{r.ritual}</div>
-            <div style={{ fontSize: 10, color: "#999" }}>{r.freq} · {r.dur}</div>
-          </div>
-          <Badge text={r.quem} color={LIGHT} textColor={GOLD} />
-          <div style={{ flex: 1, fontSize: 12, color: "#666" }}>{r.purpose}</div>
-        </div>
-      ))}
-    </Card>
-
-    <Card title="Código de Conduta — 10 Regras do Instituto Levvai">
-      {[
-        "PACIENTE PRIMEIRO — toda decisão começa com 'isso é melhor pra paciente?'. Se não for, não fazemos.",
-        "RESULTADO NATURAL — nunca ceder à pressão por resultado exagerado. Dizer não é proteger a marca.",
-        "PONTUALIDADE — respeitar o tempo da paciente é respeitar a confiança dela. Atraso máximo: 10 minutos.",
-        "SIGILO ABSOLUTO — o que acontece na clínica fica na clínica. Dados, procedimentos, antes/depois — tudo é confidencial.",
-        "COMUNICAÇÃO RÁPIDA — lead novo = 30 minutos. Paciente com dúvida = mesmo dia. Sem exceção.",
-        "REGISTRO É LEI — procedimento sem TCLE não acontece. Foto sem termo de imagem não posta. Atendimento sem registro no CRM não existiu.",
-        "CONFLITO SOBE — problema entre áreas não se resolve no corredor. Sobe pro CEO na weekly. Sem fofoca.",
-        "FEEDBACK É PRESENTE — receber crítica é oportunidade. NPS ≤ 6 = Lara liga pessoalmente. Sempre.",
-        "MELHORIA CONTÍNUA — toda semana a gente melhora alguma coisa. Uma métrica, um processo, um detalhe.",
-        "CELEBRE AS CONQUISTAS — meta batida, paciente fidelizada, review 5 estrelas — comemorar é parte do ritual.",
-      ].map((r, i) => (
-        <div key={i} style={{ display: "flex", gap: 10, padding: "10px 0", borderBottom: "1px solid #f0ece6" }}>
-          <div style={{ width: 32, height: 32, borderRadius: "50%", background: DARK, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 900, color: GOLD, flexShrink: 0 }}>{(i+1).toString().padStart(2,"0")}</div>
-          <div style={{ fontSize: 13, color: "#444", lineHeight: 1.6, paddingTop: 4 }}>
-            <span style={{ fontWeight: 800, color: DARK }}>{r.split("—")[0]}—</span>
-            {r.split("—").slice(1).join("—")}
-          </div>
-        </div>
-      ))}
-    </Card>
-
-    <Card title="Regra de Ouro">
-      <div style={{ textAlign: "center", padding: "20px 0" }}>
-        <div style={{ fontSize: 22, fontWeight: 800, color: GOLD, fontFamily: "'DM Serif Display', Georgia, serif", lineHeight: 1.5 }}>
-          "CEO governa por ritual, não por presença.<br />
-          A clínica funciona porque o sistema funciona —<br />
-          não porque alguém está vigiando."
-        </div>
-        <div style={{ fontSize: 12, color: "#999", marginTop: 12 }}>
-          Se a weekly acontece, o dashboard chega, o estoque é checado e o NPS é medido —<br />
-          a clínica roda. Mesmo que o CEO esteja em outro continente.
-        </div>
-      </div>
-    </Card>
-  </div>
-);
-
 const tabContent = {
   home: HomeTab,
   plan: PlanTab,
@@ -8160,7 +7848,6 @@ const tabContent = {
   termos: TermosTab,
   brand: BrandTab,
   rituals: RitualsTab,
-  atas: AtasTab,
   budget: BudgetTab,
   stock: StockTab,
   agenda: AgendaTab,
@@ -8175,7 +7862,6 @@ const tabContent = {
   contratos: ContratosTab,
   oneone: OneOneTab,
   avaliacao: AvaliacaoTab,
-  cultura: CulturaTab,
   docs: DocsTab,
   usuarios: UsuariosTab,
 };
@@ -8191,8 +7877,6 @@ const TAB_TO_SECTOR = {
   'visao-geral':       { sector: 'Estratégia',          label: 'Visão Geral' },
   'planejamento':      { sector: 'Estratégia',          label: 'Planejamento' },
   'dashboard-ceo':     { sector: 'Estratégia',          label: 'Dashboard CEO' },
-  'cultura':           { sector: 'Cultura & Governança', label: 'Cultura' },
-  'atas-acoes':        { sector: 'Cultura & Governança', label: 'Atas & Ações' },
   'dre-catalogo':      { sector: 'Financeiro',          label: 'DRE & Catálogo' },
   'fluxo-caixa':       { sector: 'Financeiro',          label: 'Fluxo de Caixa' },
   'orcamento':         { sector: 'Financeiro',          label: 'Orçamento' },
@@ -8223,7 +7907,6 @@ const TAB_TO_SECTOR = {
 // Maps new sidebar IDs → existing tabContent keys (backward compat)
 const NEW_TO_OLD_ID = {
   'visao-geral': 'home', 'planejamento': 'plan', 'dashboard-ceo': 'executive',
-  'cultura': 'cultura', 'atas-acoes': 'atas',
   'dre-catalogo': 'finance', 'fluxo-caixa': 'cashflow', 'orcamento': 'budget',
   'crm-leads': 'crm', 'comunicacao': 'comunicacao', 'jornada-paciente': 'journey', 'nps-satisfacao': 'nps',
   'marca': 'brand', 'icp': 'icp', 'editorial': 'editorial', 'dashboard-mkt': 'marketing', 'concorrentes': 'competitors',
@@ -8307,7 +7990,7 @@ const [active, setActive] = useState("visao-geral");
   };
 
   const breadcrumb = TAB_TO_SECTOR[active] || { sector: '—', label: '—' };
-  const badges = { 'atas-acoes': 3, 'crm-leads': 5 };
+  const badges = { 'crm-leads': 5 };
 
   if (authLoading) return (
     <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100vh', background:'#1A1512', color:'#C9A876', fontFamily:'Arial', fontSize:14 }}>
